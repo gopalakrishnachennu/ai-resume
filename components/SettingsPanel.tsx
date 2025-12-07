@@ -1,0 +1,409 @@
+'use client';
+
+import { ResumeSettings } from '@/lib/types/resumeSettings';
+
+interface SettingsPanelProps {
+    settings: ResumeSettings;
+    onSettingsChange: (settings: ResumeSettings) => void;
+    onClose: () => void;
+}
+
+export default function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsPanelProps) {
+    const updateSetting = (path: string, value: any) => {
+        const keys = path.split('.');
+        const newSettings = { ...settings };
+
+        if (keys.length === 1) {
+            (newSettings as any)[keys[0]] = value;
+        } else if (keys.length === 2) {
+            (newSettings as any)[keys[0]] = {
+                ...(newSettings as any)[keys[0]],
+                [keys[1]]: value,
+            };
+        }
+
+        onSettingsChange(newSettings);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                {/* Header */}
+                <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
+                    <div>
+                        <h2 className="text-lg font-bold">⚙️ Resume Settings</h2>
+                        <p className="text-xs text-gray-400">ATS-Optimized Formatting</p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="text-white hover:text-gray-300 text-2xl leading-none"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Font Settings */}
+                    <div className="border border-gray-200 rounded-lg p-5">
+                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <span className="text-blue-600">🔤</span> Font Settings
+                        </h3>
+
+                        <div className="space-y-4">
+                            {/* Font Family */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Font Family
+                                </label>
+                                <select
+                                    value={settings.fontFamily}
+                                    onChange={(e) => updateSetting('fontFamily', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                >
+                                    <option value="Calibri">Calibri (Recommended)</option>
+                                    <option value="Arial">Arial</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Helvetica">Helvetica</option>
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">ATS-friendly fonts only</p>
+                            </div>
+
+                            {/* Font Sizes */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Name Size (pt)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="18"
+                                        max="24"
+                                        value={settings.fontSize.name}
+                                        onChange={(e) => updateSetting('fontSize.name', parseInt(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Headers Size (pt)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="12"
+                                        max="14"
+                                        value={settings.fontSize.headers}
+                                        onChange={(e) => updateSetting('fontSize.headers', parseInt(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Body Size (pt)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="10"
+                                        max="12"
+                                        value={settings.fontSize.body}
+                                        onChange={(e) => updateSetting('fontSize.body', parseInt(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Contact Size (pt)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="9"
+                                        max="11"
+                                        value={settings.fontSize.contact}
+                                        onChange={(e) => updateSetting('fontSize.contact', parseInt(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Layout Settings */}
+                    <div className="border border-gray-200 rounded-lg p-5">
+                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <span className="text-green-600">📐</span> Layout & Spacing
+                        </h3>
+
+                        <div className="space-y-4">
+                            {/* Margins */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Margins (inches)
+                                </label>
+                                <div className="grid grid-cols-4 gap-2">
+                                    <input
+                                        type="number"
+                                        step="0.25"
+                                        min="0.5"
+                                        max="1.5"
+                                        value={settings.margins.top}
+                                        onChange={(e) => updateSetting('margins.top', parseFloat(e.target.value))}
+                                        className="px-2 py-2 border border-gray-300 rounded-lg text-sm text-center"
+                                        placeholder="Top"
+                                    />
+                                    <input
+                                        type="number"
+                                        step="0.25"
+                                        min="0.5"
+                                        max="1.5"
+                                        value={settings.margins.right}
+                                        onChange={(e) => updateSetting('margins.right', parseFloat(e.target.value))}
+                                        className="px-2 py-2 border border-gray-300 rounded-lg text-sm text-center"
+                                        placeholder="Right"
+                                    />
+                                    <input
+                                        type="number"
+                                        step="0.25"
+                                        min="0.5"
+                                        max="1.5"
+                                        value={settings.margins.bottom}
+                                        onChange={(e) => updateSetting('margins.bottom', parseFloat(e.target.value))}
+                                        className="px-2 py-2 border border-gray-300 rounded-lg text-sm text-center"
+                                        placeholder="Bottom"
+                                    />
+                                    <input
+                                        type="number"
+                                        step="0.25"
+                                        min="0.5"
+                                        max="1.5"
+                                        value={settings.margins.left}
+                                        onChange={(e) => updateSetting('margins.left', parseFloat(e.target.value))}
+                                        className="px-2 py-2 border border-gray-300 rounded-lg text-sm text-center"
+                                        placeholder="Left"
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">Minimum 0.5" for ATS compatibility</p>
+                            </div>
+
+                            {/* Line Spacing */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Line Spacing
+                                    </label>
+                                    <select
+                                        value={settings.lineSpacing}
+                                        onChange={(e) => updateSetting('lineSpacing', parseFloat(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    >
+                                        <option value="1.0">1.0 (Compact)</option>
+                                        <option value="1.15">1.15 (Recommended)</option>
+                                        <option value="1.5">1.5 (Spacious)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Paragraph Spacing (pt)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="2"
+                                        max="18"
+                                        value={settings.paragraphSpacing}
+                                        onChange={(e) => updateSetting('paragraphSpacing', parseInt(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Density Mode & Section Spacing */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Density Mode
+                                    </label>
+                                    <select
+                                        value={settings.densityMode}
+                                        onChange={(e) => updateSetting('densityMode', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    >
+                                        <option value="compact">Compact (More Content)</option>
+                                        <option value="normal">Normal (Balanced)</option>
+                                        <option value="spacious">Spacious (More White Space)</option>
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Adjusts all spacing automatically</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Section Spacing (pt)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="8"
+                                        max="24"
+                                        value={settings.sectionSpacing}
+                                        onChange={(e) => updateSetting('sectionSpacing', parseInt(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Formatting Settings */}
+                    <div className="border border-gray-200 rounded-lg p-5">
+                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <span className="text-purple-600">✨</span> Formatting
+                        </h3>
+
+                        <div className="space-y-4">
+                            {/* Date Format */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Date Format
+                                </label>
+                                <select
+                                    value={settings.dateFormat}
+                                    onChange={(e) => updateSetting('dateFormat', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                >
+                                    <option value="MMM YYYY">Aug 2021 (Recommended)</option>
+                                    <option value="MM/YYYY">08/2021</option>
+                                    <option value="Month YYYY">August 2021</option>
+                                </select>
+                            </div>
+
+                            {/* Bullet Style */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Bullet Style
+                                </label>
+                                <select
+                                    value={settings.bulletStyle}
+                                    onChange={(e) => updateSetting('bulletStyle', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                >
+                                    <option value="•">• Round (Recommended)</option>
+                                    <option value="-">- Dash</option>
+                                    <option value="◦">◦ Circle</option>
+                                </select>
+                            </div>
+
+                            {/* Header Style */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Header Style
+                                    </label>
+                                    <select
+                                        value={settings.headerStyle}
+                                        onChange={(e) => updateSetting('headerStyle', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    >
+                                        <option value="bold">Bold</option>
+                                        <option value="regular">Regular</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Header Case
+                                    </label>
+                                    <select
+                                        value={settings.headerCase}
+                                        onChange={(e) => updateSetting('headerCase', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    >
+                                        <option value="UPPERCASE">UPPERCASE</option>
+                                        <option value="Title Case">Title Case</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Contact Separator */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Contact Info Separator
+                                </label>
+                                <select
+                                    value={settings.contactSeparator}
+                                    onChange={(e) => updateSetting('contactSeparator', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                >
+                                    <option value="|">| Pipe (Recommended)</option>
+                                    <option value="•">• Bullet</option>
+                                    <option value="-">- Dash</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Section Dividers */}
+                    <div className="border border-gray-200 rounded-lg p-5">
+                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <span className="text-orange-600">━</span> Section Dividers
+                        </h3>
+
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.sectionDivider}
+                                    onChange={(e) => updateSetting('sectionDivider', e.target.checked)}
+                                    className="w-4 h-4 rounded"
+                                />
+                                <label className="text-sm font-medium text-gray-700">
+                                    Show section dividers
+                                </label>
+                            </div>
+
+                            {settings.sectionDivider && (
+                                <div className="grid grid-cols-2 gap-4 pl-7">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Line Weight (px)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="3"
+                                            value={settings.dividerWeight}
+                                            onChange={(e) => updateSetting('dividerWeight', parseInt(e.target.value))}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Line Color
+                                        </label>
+                                        <select
+                                            value={settings.dividerColor}
+                                            onChange={(e) => updateSetting('dividerColor', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                        >
+                                            <option value="#e5e5e5">Light Gray (Recommended)</option>
+                                            <option value="#cccccc">Medium Gray</option>
+                                            <option value="#1a1a1a">Black</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-between items-center">
+                    <p className="text-xs text-gray-600">
+                        ✅ All settings are ATS-optimized
+                    </p>
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all"
+                    >
+                        Apply Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
