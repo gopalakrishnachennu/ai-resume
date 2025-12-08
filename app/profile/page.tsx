@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from 'react-hot-toast';
+import AppHeader from '@/components/AppHeader';
 
 export default function ProfilePage() {
     const { user } = useAuthStore();
@@ -54,6 +55,13 @@ export default function ProfilePage() {
     const [softSkillInput, setSoftSkillInput] = useState('');
     const [toolInput, setToolInput] = useState('');
 
+    // LLM Configuration
+    const [llmConfig, setLlmConfig] = useState({
+        provider: 'gemini' as 'gemini' | 'openai' | 'claude',
+        apiKey: '',
+    });
+    const [showApiKey, setShowApiKey] = useState(false);
+
     useEffect(() => {
         if (!user) {
             router.push('/login');
@@ -79,6 +87,7 @@ export default function ProfilePage() {
                     setEducation(data.baseEducation);
                 }
                 if (data.baseSkills) setSkills(data.baseSkills);
+                if (data.llmConfig) setLlmConfig(data.llmConfig);
             }
         } catch (error) {
             console.error('Error loading profile:', error);
@@ -96,9 +105,13 @@ export default function ProfilePage() {
         try {
             await updateDoc(doc(db, 'users', user.uid), {
                 profile,
+                // Save as both for compatibility
+                experience,
+                education,
                 baseExperience: experience,
                 baseEducation: education,
                 baseSkills: skills,
+                llmConfig,
             });
 
             toast.success('Profile updated! 🎉');
@@ -179,26 +192,7 @@ export default function ProfilePage() {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
-            <header className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => router.push('/dashboard')}
-                            className="text-gray-700 hover:text-gray-900"
-                        >
-                            ← Back to Dashboard
-                        </button>
-                        <h1 className="text-xl font-bold text-gray-900">Profile Settings</h1>
-                    </div>
-                    <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    >
-                        {saving ? 'Saving...' : '💾 Save Profile'}
-                    </button>
-                </div>
-            </header>
+            <AppHeader title="Profile Settings" showBack={true} backUrl="/dashboard" />
 
             {/* Main Content */}
             <main className="max-w-4xl mx-auto px-4 py-8">
@@ -235,6 +229,74 @@ export default function ProfilePage() {
                                 className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                 placeholder="GitHub URL"
                             />
+                        </div>
+                    </div>
+
+                    {/* AI Configuration */}
+                    <div className="border-t border-gray-200 pt-8">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <span>🤖</span> AI Configuration
+                        </h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Configure your preferred AI provider for resume generation
+                        </p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    AI Provider
+                                </label>
+                                <select
+                                    value={llmConfig.provider}
+                                    onChange={(e) => setLlmConfig({ ...llmConfig, provider: e.target.value as any })}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="gemini">🔷 Google Gemini (Recommended - Free tier available)</option>
+                                    <option value="openai">🟢 OpenAI (GPT-4)</option>
+                                    <option value="claude">🟣 Anthropic Claude</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    API Key
+                                </label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type={showApiKey ? 'text' : 'password'}
+                                        value={llmConfig.apiKey}
+                                        onChange={(e) => setLlmConfig({ ...llmConfig, apiKey: e.target.value })}
+                                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                                        placeholder={
+                                            llmConfig.provider === 'gemini' ? 'AIzaSy...' :
+                                                llmConfig.provider === 'openai' ? 'sk-...' :
+                                                    'sk-ant-...'
+                                        }
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowApiKey(!showApiKey)}
+                                        className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+                                    >
+                                        {showApiKey ? '🙈' : '👁️'}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    🔒 Your API key is encrypted and stored securely
+                                </p>
+                                <a
+                                    href={
+                                        llmConfig.provider === 'gemini' ? 'https://makersuite.google.com/app/apikey' :
+                                            llmConfig.provider === 'openai' ? 'https://platform.openai.com/api-keys' :
+                                                'https://console.anthropic.com/settings/keys'
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 inline-block"
+                                >
+                                    Get your {llmConfig.provider === 'gemini' ? 'Gemini' : llmConfig.provider === 'openai' ? 'OpenAI' : 'Claude'} API key →
+                                </a>
+                            </div>
                         </div>
                     </div>
 

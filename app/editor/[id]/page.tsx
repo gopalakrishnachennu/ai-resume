@@ -81,12 +81,54 @@ export default function EditorPage() {
 
             // If editing existing resume, load it
             if (params.id !== 'new') {
-                const resumeDoc = await getDoc(doc(db, 'appliedResumes', params.id as string));
+                // Try loading from new 'resumes' collection first (AI-generated)
+                let resumeDoc = await getDoc(doc(db, 'resumes', params.id as string));
+
+                // If not found, try old 'appliedResumes' collection
+                if (!resumeDoc.exists()) {
+                    resumeDoc = await getDoc(doc(db, 'appliedResumes', params.id as string));
+                }
 
                 if (resumeDoc.exists()) {
                     const resumeData = resumeDoc.data();
 
-                    // Load resume data
+                    // Check if this is AI-generated resume (new format)
+                    if (resumeData.professionalSummary || resumeData.technicalSkills) {
+                        // Load AI-generated content
+                        setResumeData({
+                            personalInfo: resumeData.personalInfo || {
+                                name: user?.displayName || '',
+                                email: user?.email || '',
+                                phone: '',
+                                location: '',
+                                linkedin: '',
+                                github: '',
+                            },
+                            summary: resumeData.professionalSummary || '',
+                            experience: (resumeData.experience || []).map((exp: any) => ({
+                                company: exp.company,
+                                title: exp.title,
+                                location: exp.location,
+                                startDate: exp.startDate,
+                                endDate: exp.endDate,
+                                current: exp.current,
+                                bullets: exp.responsibilities || exp.bullets || [],  // Map responsibilities to bullets
+                            })),
+                            education: resumeData.education || [],
+                            skills: {
+                                technical: resumeData.technicalSkills ?
+                                    Object.entries(resumeData.technicalSkills)
+                                        .map(([category, skills]) => `**${category}**: ${skills}`)
+                                    : [],
+                            },
+                        });
+
+                        setLoading(false);
+                        toast.success('AI-generated resume loaded!');
+                        return;
+                    }
+
+                    // Old format - load resume data
                     if (resumeData.resumeData) {
                         setResumeData(resumeData.resumeData);
                     }
@@ -177,26 +219,45 @@ export default function EditorPage() {
         try {
             const resumeId = params.id === 'new' ? `resume_${Date.now()}` : params.id;
 
-            await setDoc(doc(db, 'appliedResumes', resumeId as string), {
-                userId: user.uid,
-                jobTitle: jobAnalysis.title,
-                company: jobAnalysis.company,
-                jobDescription: localStorage.getItem('jobDescription') || '',
-                resumeData,
-                sections,
-                settings, // Save user's custom settings
-                atsScore: {
-                    total: atsScore,
-                    formatting: 95,
-                    content: 85,
-                    keywords: atsScore,
-                },
-                status: 'draft',
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-            });
+            const atsScoreData = {
+                total: atsScore,
+                formatting: 95,
+                content: 85,
+                keywords: atsScore,
+            };
 
-            toast.success('Resume saved! 🎉');
+            // Check if this is an AI-generated resume (from 'resumes' collection)
+            const resumeDocRef = doc(db, 'resumes', resumeId as string);
+            const resumeDoc = await getDoc(resumeDocRef);
+
+            if (resumeDoc.exists()) {
+                // Update existing AI-generated resume with ATS score
+                await setDoc(resumeDocRef, {
+                    ...resumeDoc.data(),
+                    atsScore: atsScoreData,
+                    updatedAt: serverTimestamp(),
+                }, { merge: true });
+
+                toast.success('Resume updated with ATS score! 🎉');
+            } else {
+                // Save to appliedResumes (old format)
+                await setDoc(doc(db, 'appliedResumes', resumeId as string), {
+                    userId: user.uid,
+                    jobTitle: jobAnalysis.title,
+                    company: jobAnalysis.company,
+                    jobDescription: localStorage.getItem('jobDescription') || '',
+                    resumeData,
+                    sections,
+                    settings,
+                    atsScore: atsScoreData,
+                    status: 'draft',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
+
+                toast.success('Resume saved! 🎉');
+            }
+
             router.push('/dashboard');
         } catch (error) {
             console.error('Error saving:', error);
