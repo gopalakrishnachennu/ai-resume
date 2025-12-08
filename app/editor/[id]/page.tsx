@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { CSSProperties, ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -20,6 +20,11 @@ interface Section {
     visible: boolean;
     order: number;
 }
+
+const PAGE_WIDTH_IN = 8.5;
+const PAGE_HEIGHT_IN = 11;
+const PX_PER_IN = 96;
+const PREVIEW_SCALE = 0.72;
 
 export default function EditorPage() {
     const params = useParams();
@@ -65,6 +70,256 @@ export default function EditorPage() {
     // Settings state
     const [settings, setSettings] = useState<ResumeSettings>(DEFAULT_ATS_SETTINGS);
     const [showSettings, setShowSettings] = useState(false);
+    const [paginatedPages, setPaginatedPages] = useState<ReactNode[][]>([]);
+
+    const measurementRef = useRef<HTMLDivElement>(null);
+
+    const sortedSections = useMemo(() => [...sections].sort((a, b) => a.order - b.order), [sections]);
+
+    const pageContentStyle = useMemo(() => ({
+        fontFamily: FONT_STACKS[settings.fontFamily],
+        lineHeight: settings.lineSpacing,
+        paddingTop: `${settings.margins.top}in`,
+        paddingBottom: `${settings.margins.bottom}in`,
+        paddingLeft: `${settings.margins.left}in`,
+        paddingRight: `${settings.margins.right}in`,
+        boxSizing: 'border-box' as const,
+    }), [settings]);
+
+    const pageBlocks = useMemo<ReactNode[]>(() => {
+        const blocks: ReactNode[] = [];
+        const gapTight = `${Math.max(2, settings.paragraphSpacing / 2)}pt`;
+        const gapParagraph = `${settings.paragraphSpacing}pt`;
+        const gapSection = `${settings.sectionSpacing}pt`;
+
+        const addBlock = (key: string, content: ReactNode, style?: CSSProperties) => {
+            blocks.push(
+                <div key={key} style={{ marginBottom: gapTight, ...style }}>
+                    {content}
+                </div>
+            );
+        };
+
+        // Header
+        addBlock(
+            'header-name',
+            <div className={settings.alignment === 'center' ? 'text-center' : 'text-left'}>
+                <h1
+                    className="font-bold"
+                    style={{ fontSize: `${settings.fontSize.name}pt`, color: settings.fontColor.name, marginBottom: '4pt' }}
+                >
+                    {resumeData.personalInfo.name || 'Your Name'}
+                </h1>
+            </div>,
+            { marginBottom: gapParagraph }
+        );
+
+        addBlock(
+            'header-contact',
+            <p
+                className={settings.alignment === 'center' ? 'text-center' : 'text-left'}
+                style={{ fontSize: `${settings.fontSize.contact}pt`, color: settings.fontColor.contact }}
+            >
+                {[
+                    resumeData.personalInfo.email,
+                    resumeData.personalInfo.phone,
+                    resumeData.personalInfo.location,
+                    resumeData.personalInfo.linkedin && (
+                        <a
+                            key="linkedin"
+                            href={resumeData.personalInfo.linkedin}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: settings.fontColor.contact, textDecoration: 'none' }}
+                        >
+                            LinkedIn
+                        </a>
+                    ),
+                    resumeData.personalInfo.github && (
+                        <a
+                            key="github"
+                            href={resumeData.personalInfo.github}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: settings.fontColor.contact, textDecoration: 'none' }}
+                        >
+                            GitHub
+                        </a>
+                    )
+                ].filter(Boolean).reduce((acc, item, idx) => {
+                    if (idx === 0) return [item];
+                    return [...acc, ` ${settings.contactSeparator} `, item];
+                }, [] as any[])}
+            </p>,
+            { marginBottom: gapSection }
+        );
+
+        const renderSectionHeading = (section: Section) => (
+            <h2
+                className={settings.headerStyle === 'bold' ? 'font-bold' : ''}
+                style={{
+                    fontSize: `${settings.fontSize.headers}pt`,
+                    color: settings.fontColor.headers,
+                    marginBottom: gapParagraph,
+                    paddingBottom: settings.sectionDivider ? '2pt' : '0',
+                    borderBottom: settings.sectionDivider ? `${settings.dividerWeight}px solid ${settings.dividerColor}` : 'none',
+                }}
+            >
+                {settings.headerCase === 'UPPERCASE' ? section.name.toUpperCase() : section.name}
+            </h2>
+        );
+
+        sortedSections.forEach(section => {
+            if (!section.visible) return;
+
+            if (section.type === 'summary' && resumeData.summary) {
+                addBlock(`heading-${section.id}`, renderSectionHeading(section), { marginBottom: gapTight, marginTop: gapTight });
+                const paragraphs = resumeData.summary.split(/\n+/).filter(p => p.trim());
+                paragraphs.forEach((p, idx) => {
+                    addBlock(
+                        `summary-${idx}`,
+                        <p style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>
+                            {parseFormattedText(p)}
+                        </p>,
+                        { marginBottom: idx === paragraphs.length - 1 ? gapSection : gapParagraph }
+                    );
+                });
+            }
+
+            if (section.type === 'experience' && resumeData.experience.length > 0) {
+                addBlock(`heading-${section.id}`, renderSectionHeading(section), { marginBottom: gapTight, marginTop: gapTight });
+
+                resumeData.experience.forEach((exp, expIdx) => {
+                    addBlock(
+                        `exp-title-${expIdx}`,
+                        <div className="flex justify-between items-start">
+                            <h3 className="font-bold" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>{exp.title}</h3>
+                            <span className="whitespace-nowrap ml-3" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
+                                {formatMonthYear(exp.startDate)} - {exp.current ? 'Present' : formatMonthYear(exp.endDate)}
+                            </span>
+                        </div>,
+                        { marginBottom: gapTight }
+                    );
+
+                    addBlock(
+                        `exp-meta-${expIdx}`,
+                        <div className="flex justify-between items-start">
+                            <p className="italic" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
+                                {exp.company}
+                            </p>
+                            <p className="italic whitespace-nowrap ml-3" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
+                                {exp.location}
+                            </p>
+                        </div>,
+                        { marginBottom: gapTight }
+                    );
+
+                    exp.bullets
+                        .filter((b: string) => b.trim())
+                        .forEach((bullet: string, bulletIdx: number) => {
+                            addBlock(
+                                `exp-bullet-${expIdx}-${bulletIdx}`,
+                                <div style={{ display: 'flex', gap: '6pt' }}>
+                                    <span style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>{settings.bulletStyle}</span>
+                                    <span style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>
+                                        {parseFormattedText(bullet)}
+                                    </span>
+                                </div>,
+                                { marginBottom: gapTight }
+                            );
+                        });
+
+                    addBlock(`exp-spacer-${expIdx}`, <div />, { marginBottom: gapSection });
+                });
+            }
+
+            if (section.type === 'education' && resumeData.education.length > 0) {
+                addBlock(`heading-${section.id}`, renderSectionHeading(section), { marginBottom: gapTight, marginTop: gapTight });
+                resumeData.education.forEach((edu, eduIdx) => {
+                    addBlock(
+                        `edu-title-${eduIdx}`,
+                        <div className="flex justify-between items-start">
+                            <h3 className="font-bold" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>
+                                {edu.degree} {edu.field}
+                            </h3>
+                            <span className="whitespace-nowrap ml-3" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
+                                {formatMonthYear(edu.graduationDate)}
+                            </span>
+                        </div>,
+                        { marginBottom: gapTight }
+                    );
+
+                    addBlock(
+                        `edu-meta-${eduIdx}`,
+                        <div className="flex justify-between items-start">
+                            <p className="italic" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
+                                {edu.school}
+                            </p>
+                            <p className="italic whitespace-nowrap ml-3" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
+                                {edu.location}
+                            </p>
+                        </div>,
+                        { marginBottom: gapSection }
+                    );
+                });
+            }
+
+            if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
+                addBlock(`heading-${section.id}`, renderSectionHeading(section), { marginBottom: gapTight, marginTop: gapTight });
+                resumeData.skills.technical.forEach((skillLine, idx) => {
+                    addBlock(
+                        `skill-${idx}`,
+                        <p style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>
+                            {parseFormattedText(skillLine)}
+                        </p>,
+                        { marginBottom: idx === resumeData.skills.technical.length - 1 ? gapSection : gapTight }
+                    );
+                });
+            }
+        });
+
+        return blocks;
+    }, [resumeData, settings, sortedSections]);
+
+    // Convert markdown-style **bold** into pdfmake rich text segments
+    const formatPdfText = (text: string) => {
+        const segments: any[] = [];
+        const regex = /\*\*(.+?)\*\*/g;
+        let lastIndex = 0;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                segments.push({ text: text.slice(lastIndex, match.index) });
+            }
+            segments.push({ text: match[1], bold: true });
+            lastIndex = regex.lastIndex;
+        }
+        if (lastIndex < text.length) {
+            segments.push({ text: text.slice(lastIndex) });
+        }
+        return segments.length ? segments : [{ text }];
+    };
+
+    const formatDocxRuns = (text: string, docx: any, runOptions: { font: string; size: number; color: string }) => {
+        const { TextRun } = docx;
+        const runs: any[] = [];
+        const regex = /\*\*(.+?)\*\*/g;
+        let lastIndex = 0;
+        let match;
+        const baseRun = (t: string, bold = false) => new TextRun({ text: t, bold, font: runOptions.font, size: runOptions.size, color: runOptions.color });
+
+        while ((match = regex.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                runs.push(baseRun(text.slice(lastIndex, match.index)));
+            }
+            runs.push(baseRun(match[1], true));
+            lastIndex = regex.lastIndex;
+        }
+        if (lastIndex < text.length) {
+            runs.push(baseRun(text.slice(lastIndex)));
+        }
+        return runs.length ? runs : [baseRun(text)];
+    };
 
     useEffect(() => {
         if (!user) {
@@ -277,123 +532,366 @@ export default function EditorPage() {
 
     const generatePDF = async () => {
         try {
-            const pdfMake = (await import('pdfmake/build/pdfmake')).default;
-            const pdfFonts = (await import('pdfmake/build/vfs_fonts')).default;
+            const pdfMakeModule = await import('pdfmake/build/pdfmake');
+            const pdfMake = (pdfMakeModule as any).default || pdfMakeModule;
+            const pdfFontsModule = await import('pdfmake/build/vfs_fonts');
+            const pdfFonts = (pdfFontsModule as any).default || pdfFontsModule;
 
-            (pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
+            // Attach default Roboto font VFS (browser-safe)
+            (pdfMake as any).vfs = (pdfFonts as any).pdfMake?.vfs || (pdfMake as any).vfs;
 
             const sortedSections = [...sections].sort((a, b) => a.order - b.order);
+            const headerCase = (name: string) => settings.headerCase === 'UPPERCASE' ? name.toUpperCase() : name;
+            const pt = (inches: number) => inches * 72;
 
-            const content: any[] = [
-                {
-                    text: resumeData.personalInfo.name,
-                    style: 'header',
-                    alignment: 'center',
-                },
-                {
-                    text: [
-                        resumeData.personalInfo.email,
-                        ' | ',
-                        resumeData.personalInfo.phone,
-                        ' | ',
-                        resumeData.personalInfo.location,
-                    ].filter(Boolean).join(''),
+            // pdfmake browser bundle only ships Roboto in its vfs. We alias all choices to Roboto so exports succeed.
+            const getPdfFontFamily = () => 'Roboto';
+
+            // Ensure fonts resolve (avoid missing Helvetica errors)
+            const robotoFont = {
+                normal: 'Roboto-Regular.ttf',
+                bold: 'Roboto-Medium.ttf',
+                italics: 'Roboto-Italic.ttf',
+                bolditalics: 'Roboto-MediumItalic.ttf',
+            };
+
+            (pdfMake as any).fonts = {
+                Roboto: robotoFont,
+                Calibri: robotoFont,
+                Arial: robotoFont,
+                Helvetica: robotoFont,
+                'Times New Roman': robotoFont,
+                Georgia: robotoFont,
+            };
+
+            const content: any[] = [];
+
+            const addSectionHeader = (sectionName: string) => {
+                content.push({
+                    text: headerCase(sectionName),
+                    style: 'sectionHeader',
+                    margin: [0, 12, 0, settings.sectionDivider ? 4 : 8],
+                });
+
+                if (settings.sectionDivider) {
+                    content.push({
+                        canvas: [
+                            {
+                                type: 'line',
+                                x1: 0,
+                                y1: 0,
+                                x2: 515,
+                                y2: 0,
+                                lineWidth: settings.dividerWeight,
+                                lineColor: settings.dividerColor,
+                            },
+                        ],
+                        margin: [0, 0, 0, 8],
+                    });
+                }
+            };
+
+            content.push({
+                text: resumeData.personalInfo.name || 'Your Name',
+                style: 'name',
+                alignment: 'center',
+                margin: [0, 0, 0, 6],
+            });
+
+            const contactPieces = [
+                resumeData.personalInfo.email,
+                resumeData.personalInfo.phone,
+                resumeData.personalInfo.location,
+                resumeData.personalInfo.linkedin,
+                resumeData.personalInfo.github,
+            ].filter(Boolean);
+
+            if (contactPieces.length) {
+                content.push({
+                    text: contactPieces.join(` ${settings.contactSeparator} `),
                     style: 'contact',
                     alignment: 'center',
-                    margin: [0, 5, 0, 20],
-                },
-            ];
+                    margin: [0, 0, 0, 12],
+                });
+            }
 
             sortedSections.forEach(section => {
                 if (!section.visible) return;
 
                 if (section.type === 'summary' && resumeData.summary) {
-                    content.push(
-                        { text: section.name.toUpperCase(), style: 'sectionHeader' },
-                        { text: resumeData.summary, margin: [0, 5, 0, 15] }
-                    );
+                    addSectionHeader(section.name);
+                    content.push({ text: formatPdfText(resumeData.summary), style: 'body', margin: [0, 0, 0, 8] });
                 }
 
                 if (section.type === 'experience' && resumeData.experience.length > 0) {
-                    content.push({ text: section.name.toUpperCase(), style: 'sectionHeader' });
+                    addSectionHeader(section.name);
                     resumeData.experience.forEach((exp: any) => {
                         content.push({
+                            margin: [0, 0, 0, 10],
                             stack: [
                                 {
                                     columns: [
-                                        { text: exp.title, bold: true, width: '*' },
-                                        {
-                                            text: `${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`,
-                                            alignment: 'right',
-                                            width: 'auto'
-                                        },
+                                        { text: exp.title, style: 'bodyBold', width: '*' },
+                                        { text: `${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`, style: 'muted', alignment: 'right' },
                                     ],
                                 },
-                                { text: `${exp.company} | ${exp.location}`, italics: true, margin: [0, 2, 0, 5] },
                                 {
-                                    ul: exp.bullets.filter((b: string) => b.trim()),
-                                    margin: [0, 5, 0, 10],
+                                    columns: [
+                                        { text: exp.company, style: 'italic' },
+                                        { text: exp.location, style: 'italic', alignment: 'right' },
+                                    ],
+                                    margin: [0, 2, 0, 4],
+                                },
+                                {
+                                    ul: exp.bullets
+                                        .filter((b: string) => b.trim())
+                                        .map((b: string) => formatPdfText(b)),
+                                    style: 'body',
+                                    margin: [0, 0, 0, 0],
                                 },
                             ],
-                            margin: [0, 0, 0, 15],
                         });
                     });
                 }
 
                 if (section.type === 'education' && resumeData.education.length > 0) {
-                    content.push({ text: section.name.toUpperCase(), style: 'sectionHeader' });
+                    addSectionHeader(section.name);
                     resumeData.education.forEach((edu: any) => {
                         content.push({
+                            margin: [0, 0, 0, 8],
                             stack: [
                                 {
                                     columns: [
-                                        { text: `${edu.degree} ${edu.field}`, bold: true, width: '*' },
-                                        { text: formatMonthYear(edu.graduationDate), alignment: 'right', width: 'auto' },
+                                        { text: `${edu.degree} ${edu.field}`.trim(), style: 'bodyBold', width: '*' },
+                                        { text: formatMonthYear(edu.graduationDate), style: 'muted', alignment: 'right' },
                                     ],
                                 },
-                                { text: `${edu.school} | ${edu.location}`, italics: true, margin: [0, 2, 0, 10] },
+                                {
+                                    columns: [
+                                        { text: edu.school, style: 'italic' },
+                                        { text: edu.location, style: 'italic', alignment: 'right' },
+                                    ],
+                                },
                             ],
                         });
                     });
                 }
 
                 if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
-                    content.push(
-                        { text: section.name.toUpperCase(), style: 'sectionHeader', margin: [0, 15, 0, 5] },
-                        {
-                            text: resumeData.skills.technical.join(', '),
-                            margin: [0, 0, 0, 5],
-                        }
-                    );
+                    addSectionHeader(section.name);
+                    resumeData.skills.technical.forEach((skillLine, idx) => {
+                        content.push({ text: formatPdfText(skillLine), style: 'body', margin: [0, 0, 0, idx === resumeData.skills.technical.length - 1 ? 8 : 4] });
+                    });
                 }
             });
 
             const docDefinition: any = {
-                content,
-                styles: {
-                    header: {
-                        fontSize: 24,
-                        bold: true,
-                        color: '#1a1a1a',
-                    },
-                    contact: {
-                        fontSize: 10,
-                        color: '#4a4a4a',
-                    },
-                    sectionHeader: {
-                        fontSize: 14,
-                        bold: true,
-                        color: '#1a1a1a',
-                        margin: [0, 10, 0, 5],
-                    },
+                pageSize: 'LETTER',
+                pageMargins: [pt(settings.margins.left), pt(settings.margins.top), pt(settings.margins.right), pt(settings.margins.bottom)],
+                defaultStyle: {
+                    font: getPdfFontFamily(),
+                    fontSize: settings.fontSize.body,
+                    lineHeight: settings.lineSpacing,
+                    color: settings.fontColor.body,
                 },
+                styles: {
+                    name: { fontSize: settings.fontSize.name, bold: true, color: settings.fontColor.name },
+                    contact: { fontSize: settings.fontSize.contact, color: settings.fontColor.contact },
+                    sectionHeader: {
+                        fontSize: settings.fontSize.headers,
+                        bold: settings.headerStyle === 'bold',
+                        color: settings.fontColor.headers,
+                        margin: [0, 8, 0, 4],
+                    },
+                    body: { fontSize: settings.fontSize.body, color: settings.fontColor.body },
+                    bodyBold: { fontSize: settings.fontSize.body, color: settings.fontColor.body, bold: true },
+                    italic: { fontSize: settings.fontSize.body, color: settings.fontColor.contact, italics: true },
+                    muted: { fontSize: settings.fontSize.body, color: settings.fontColor.contact },
+                },
+                content,
             };
 
-            pdfMake.createPdf(docDefinition).download(`${resumeData.personalInfo.name}_Resume.pdf`);
-            toast.success('PDF downloaded! 📄');
+            const selectedFont = getPdfFontFamily();
+            docDefinition.defaultStyle.font = selectedFont;
+
+            pdfMake
+                .createPdf(docDefinition)
+                .download(`${resumeData.personalInfo.name || 'Resume'}_Resume.pdf`, () => {
+                    toast.success('PDF downloaded! 📄');
+                });
         } catch (error) {
             console.error('PDF generation error:', error);
             toast.error('Failed to generate PDF');
+        }
+    };
+
+    const generateDOCX = async () => {
+        try {
+            const docxModule = await import('docx');
+            const fileSaverModule = await import('file-saver');
+            const saveAs = (fileSaverModule as any).saveAs || (fileSaverModule as any).default;
+            if (!saveAs) {
+                throw new Error('saveAs not available');
+            }
+
+            const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = docxModule as any;
+
+            const px = (pt: number) => pt * 2; // docx uses half-points
+            const letterWidth = 8.5 * 1440;
+            const letterHeight = 11 * 1440;
+
+            const heading = (text: string) => new Paragraph({
+                children: [new TextRun({ text, bold: settings.headerStyle === 'bold', size: px(settings.fontSize.headers), color: settings.fontColor.headers, font: settings.fontFamily })],
+                spacing: { before: 80, after: settings.sectionDivider ? 60 : 60 },
+                border: settings.sectionDivider ? {
+                    bottom: {
+                        color: settings.dividerColor.replace('#', ''),
+                        space: 1,
+                        style: docxModule.BorderStyle.SINGLE,
+                        size: settings.dividerWeight * 8,
+                    },
+                } : undefined,
+            });
+
+            const bodyParagraph = (text: string, opts: any = {}) => new Paragraph({
+                children: formatDocxRuns(text, docxModule, { font: settings.fontFamily, size: px(settings.fontSize.body), color: settings.fontColor.body }),
+                alignment: AlignmentType.LEFT,
+                spacing: { after: opts.after ?? 60 },
+            });
+
+            const sectionChildren: any[] = [];
+
+            // Name
+            sectionChildren.push(new Paragraph({
+                children: [
+                    new TextRun({ text: resumeData.personalInfo.name || 'Your Name', bold: true, size: px(settings.fontSize.name), color: settings.fontColor.name, font: settings.fontFamily }),
+                ],
+                heading: HeadingLevel.TITLE,
+                alignment: settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT,
+                spacing: { after: 80 },
+            }));
+
+            // Contact
+            const contactParts = [
+                resumeData.personalInfo.email,
+                resumeData.personalInfo.phone,
+                resumeData.personalInfo.location,
+                resumeData.personalInfo.linkedin,
+                resumeData.personalInfo.github,
+            ].filter(Boolean);
+            if (contactParts.length) {
+                sectionChildren.push(new Paragraph({
+                    children: [new TextRun({ text: contactParts.join(` ${settings.contactSeparator} `), size: px(settings.fontSize.contact), color: settings.fontColor.contact, font: settings.fontFamily })],
+                    alignment: settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT,
+                    spacing: { after: 200 },
+                }));
+            }
+
+
+
+            const sortedSectionsDoc = [...sections].sort((a, b) => a.order - b.order).filter(s => s.visible);
+
+            sortedSectionsDoc.forEach(section => {
+                if (section.type === 'summary' && resumeData.summary) {
+                    sectionChildren.push(heading(section.name));
+                    sectionChildren.push(bodyParagraph(resumeData.summary, { after: 80 }));
+                }
+
+                if (section.type === 'experience' && resumeData.experience.length > 0) {
+                    sectionChildren.push(heading(section.name));
+                    resumeData.experience.forEach((exp: any) => {
+                        sectionChildren.push(new Paragraph({
+                            children: [
+                                new TextRun({ text: exp.title || '', bold: true, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
+                                new TextRun({ text: `  ${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`, color: settings.fontColor.contact, size: px(settings.fontSize.body), font: settings.fontFamily }),
+                            ],
+                            spacing: { after: 40 },
+                        }));
+                        sectionChildren.push(new Paragraph({
+                            children: [
+                                new TextRun({ text: exp.company || '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
+                                new TextRun({ text: exp.location ? `  ${exp.location}` : '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
+                            ],
+                            spacing: { after: 60 },
+                        }));
+                        exp.bullets.filter((b: string) => b.trim()).forEach((b: string) => {
+                            sectionChildren.push(new Paragraph({
+                                children: [
+                                    new TextRun({ text: `${settings.bulletStyle} `, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
+                                    ...formatDocxRuns(b, docxModule, { font: settings.fontFamily, size: px(settings.fontSize.body), color: settings.fontColor.body }),
+                                ],
+                                spacing: { after: 40 },
+                            }));
+                        });
+                        sectionChildren.push(new Paragraph({ spacing: { after: 120 }, children: [] }));
+                    });
+                }
+
+                if (section.type === 'education' && resumeData.education.length > 0) {
+                    sectionChildren.push(heading(section.name));
+
+                    resumeData.education.forEach((edu: any) => {
+                        sectionChildren.push(new Paragraph({
+                            children: [
+                                new TextRun({ text: `${edu.degree} ${edu.field}`.trim(), bold: true, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
+                                new TextRun({ text: edu.graduationDate ? `  ${formatMonthYear(edu.graduationDate)}` : '', color: settings.fontColor.contact, size: px(settings.fontSize.body), font: settings.fontFamily }),
+                            ],
+                            spacing: { after: 40 },
+                        }));
+                        sectionChildren.push(new Paragraph({
+                            children: [
+                                new TextRun({ text: edu.school || '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
+                                new TextRun({ text: edu.location ? `  ${edu.location}` : '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
+                            ],
+                            spacing: { after: 120 },
+                        }));
+                    });
+                }
+
+                if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
+                    sectionChildren.push(heading(section.name));
+
+                    resumeData.skills.technical.forEach((skillLine: string, idx: number) => {
+                        sectionChildren.push(bodyParagraph(skillLine, { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 }));
+                    });
+                }
+            });
+
+            const doc = new Document({
+                sections: [
+                    {
+                        properties: {
+                            page: {
+                                size: { width: letterWidth, height: letterHeight },
+                                margin: {
+                                    top: settings.margins.top * 1440,
+                                    bottom: settings.margins.bottom * 1440,
+                                    left: settings.margins.left * 1440,
+                                    right: settings.margins.right * 1440,
+                                },
+                            },
+                        },
+                        children: sectionChildren,
+                    },
+                ],
+                styles: {
+                    default: {
+                        document: {
+                            run: {
+                                font: settings.fontFamily,
+                                size: px(settings.fontSize.body),
+                            },
+                        },
+                    },
+                },
+            });
+
+            const blob = await Packer.toBlob(doc);
+            saveAs(blob, `${resumeData.personalInfo.name || 'Resume'}_Resume.docx`);
+            toast.success('DOCX downloaded! 📄');
+        } catch (error) {
+            console.error('DOCX generation error:', error);
+            toast.error('Failed to generate DOCX');
         }
     };
 
@@ -552,6 +1050,47 @@ export default function EditorPage() {
         toast.success(`Added "${sectionName}" section!`);
     };
 
+    useLayoutEffect(() => {
+        const paginate = () => {
+            const container = measurementRef.current;
+            if (!container) return;
+
+            const styles = window.getComputedStyle(container);
+            const paddingTop = parseFloat(styles.paddingTop || '0');
+            const paddingBottom = parseFloat(styles.paddingBottom || '0');
+            const containerHeight = container.clientHeight || (PAGE_HEIGHT_IN * PX_PER_IN);
+            const availableHeight = Math.max(200, containerHeight - paddingTop - paddingBottom);
+            const blockNodes = Array.from(container.children) as HTMLElement[];
+            const newPages: ReactNode[][] = [];
+            let currentPage: ReactNode[] = [];
+            let usedHeight = 0;
+
+            blockNodes.forEach((node, index) => {
+                const styles = window.getComputedStyle(node);
+                const marginBottom = parseFloat(styles.marginBottom || '0');
+                const blockHeight = node.getBoundingClientRect().height + marginBottom;
+
+                if (usedHeight + blockHeight > availableHeight && currentPage.length) {
+                    newPages.push(currentPage);
+                    currentPage = [];
+                    usedHeight = 0;
+                }
+
+                currentPage.push(pageBlocks[index]);
+                usedHeight += blockHeight;
+            });
+
+            if (currentPage.length) {
+                newPages.push(currentPage);
+            }
+
+            setPaginatedPages(newPages);
+        };
+
+        const raf = requestAnimationFrame(paginate);
+        return () => cancelAnimationFrame(raf);
+    }, [pageBlocks, settings.margins.bottom, settings.margins.top]);
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -562,8 +1101,6 @@ export default function EditorPage() {
             </div>
         );
     }
-
-    const sortedSections = [...sections].sort((a, b) => a.order - b.order);
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -618,6 +1155,13 @@ export default function EditorPage() {
                             className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-all border border-gray-200"
                         >
                             📥 PDF
+                        </button>
+
+                        <button
+                            onClick={generateDOCX}
+                            className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-all border border-gray-200"
+                        >
+                            📄 DOCX
                         </button>
 
                         <button
@@ -973,220 +1517,70 @@ export default function EditorPage() {
                     </div>
 
                     {/* Preview Panel - PDF-like View */}
-                    <div className="bg-gray-100 rounded-lg overflow-hidden sticky top-24" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+                    <div className="bg-gray-100 rounded-lg sticky top-24" style={{ maxHeight: 'calc(100vh - 120px)' }}>
                         <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
                             <h2 className="text-sm font-semibold text-gray-700">👁️ Live Preview</h2>
                         </div>
 
                         {/* PDF Viewer Container */}
-                        <div className="p-6 overflow-y-auto bg-gray-100" style={{ maxHeight: 'calc(100vh - 180px)' }}>
-                            {/* Paper with shadow - Letter size (8.5" x 11") */}
+                        <div
+                            className="bg-gray-100"
+                            style={{
+                                maxHeight: 'calc(100vh - 180px)',
+                                overflow: 'auto',
+                                padding: '16px 24px',
+                            }}
+                        >
+                            <div className="w-full flex flex-col items-center" style={{ gap: '8px' }}>
+                                {(paginatedPages.length ? paginatedPages : [pageBlocks]).map((page, pageIndex, arr) => (
+                                    <div key={pageIndex} className="flex flex-col items-center w-full" style={{ gap: '4px' }}>
+                                        <div
+                                            className="relative bg-white shadow-2xl border border-gray-200 overflow-hidden"
+                                            style={{
+                                                width: `${PAGE_WIDTH_IN * PX_PER_IN * PREVIEW_SCALE}px`,
+                                                height: `${PAGE_HEIGHT_IN * PX_PER_IN * PREVIEW_SCALE}px`,
+                                                boxSizing: 'border-box',
+                                            }}
+                                        >
+                                            <div
+                                                className="absolute inset-0"
+                                                style={{
+                                                    width: `${PAGE_WIDTH_IN * PX_PER_IN}px`,
+                                                    height: `${PAGE_HEIGHT_IN * PX_PER_IN}px`,
+                                                    transform: `scale(${PREVIEW_SCALE})`,
+                                                    transformOrigin: 'top left',
+                                                }}
+                                            >
+                                                <div className="absolute right-3 top-3 text-[10px] text-gray-400">Page {pageIndex + 1}</div>
+                                                <div style={pageContentStyle}>{page}</div>
+                                            </div>
+                                        </div>
+                                        {pageIndex < arr.length - 1 && (
+                                            <div className="flex items-center w-[92%]" style={{ gap: '6px', marginTop: '-2px', marginBottom: '2px' }}>
+                                                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red-600 whitespace-nowrap">Page break up</span>
+                                                <div className="h-[1.5px] flex-1 bg-red-500/80" />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Hidden measurement layer used to calculate pagination (kept out of view) */}
                             <div
-                                className="bg-white mx-auto shadow-2xl"
+                                ref={measurementRef}
+                                className="pointer-events-none"
                                 style={{
-                                    width: '8.5in',
-                                    minHeight: '11in',
-                                    transform: 'scale(0.65)',
-                                    transformOrigin: 'top center',
-                                    marginBottom: '-200px',
+                                    position: 'absolute',
+                                    left: '-9999px',
+                                    top: 0,
+                                    height: `${PAGE_HEIGHT_IN}in`,
+                                    width: `${PAGE_WIDTH_IN}in`,
+                                    boxSizing: 'border-box',
+                                    ...pageContentStyle,
                                 }}
                             >
-                                <div
-                                    style={{
-                                        fontFamily: FONT_STACKS[settings.fontFamily],
-                                        lineHeight: settings.lineSpacing,
-                                        paddingTop: `${settings.margins.top}in`,
-                                        paddingBottom: `${settings.margins.bottom}in`,
-                                        paddingLeft: `${settings.margins.left}in`,
-                                        paddingRight: `${settings.margins.right}in`,
-                                    }}
-                                >
-                                    {/* Header */}
-                                    <div className={`${settings.alignment === 'center' ? 'text-center' : 'text-left'}`} style={{ marginBottom: `${settings.sectionSpacing * 1.5}pt` }}>
-                                        <h1
-                                            className="font-bold"
-                                            style={{
-                                                fontSize: `${settings.fontSize.name}pt`,
-                                                color: settings.fontColor.name,
-                                                marginBottom: '4pt',
-                                            }}
-                                        >
-                                            {resumeData.personalInfo.name || 'Your Name'}
-                                        </h1>
-                                        <p
-                                            style={{
-                                                fontSize: `${settings.fontSize.contact}pt`,
-                                                color: settings.fontColor.contact,
-                                            }}
-                                        >
-                                            {[
-                                                resumeData.personalInfo.email,
-                                                resumeData.personalInfo.phone,
-                                                resumeData.personalInfo.location,
-                                                resumeData.personalInfo.linkedin && (
-                                                    <a
-                                                        key="linkedin"
-                                                        href={resumeData.personalInfo.linkedin}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        style={{ color: settings.fontColor.contact, textDecoration: 'none' }}
-                                                    >
-                                                        LinkedIn
-                                                    </a>
-                                                ),
-                                                resumeData.personalInfo.github && (
-                                                    <a
-                                                        key="github"
-                                                        href={resumeData.personalInfo.github}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        style={{ color: settings.fontColor.contact, textDecoration: 'none' }}
-                                                    >
-                                                        GitHub
-                                                    </a>
-                                                )
-                                            ].filter(Boolean).reduce((acc, item, idx, arr) => {
-                                                if (idx === 0) return [item];
-                                                return [...acc, ` ${settings.contactSeparator} `, item];
-                                            }, [] as any[])}
-                                        </p>
-                                    </div>
-
-                                    {/* Dynamic Sections */}
-                                    {sortedSections.map(section => {
-                                        if (!section.visible) return null;
-
-                                        return (
-                                            <div key={section.id}>
-                                                {section.type === 'summary' && resumeData.summary && (
-                                                    <div style={{ marginBottom: `${settings.sectionSpacing}pt` }}>
-                                                        <h2
-                                                            className={settings.headerStyle === 'bold' ? 'font-bold' : ''}
-                                                            style={{
-                                                                fontSize: `${settings.fontSize.headers}pt`,
-                                                                color: settings.fontColor.headers,
-                                                                marginBottom: `${settings.paragraphSpacing}pt`,
-                                                                paddingBottom: '2pt',
-                                                                borderBottom: settings.sectionDivider ? `${settings.dividerWeight}px solid ${settings.dividerColor}` : 'none',
-                                                            }}
-                                                        >
-                                                            {settings.headerCase === 'UPPERCASE' ? section.name.toUpperCase() : section.name}
-                                                        </h2>
-                                                        <p style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>{parseFormattedText(resumeData.summary)}</p>
-                                                    </div>
-                                                )}
-
-                                                {section.type === 'experience' && resumeData.experience.length > 0 && (
-                                                    <div style={{ marginBottom: `${settings.sectionSpacing}pt` }}>
-                                                        <h2
-                                                            className={settings.headerStyle === 'bold' ? 'font-bold' : ''}
-                                                            style={{
-                                                                fontSize: `${settings.fontSize.headers}pt`,
-                                                                color: settings.fontColor.headers,
-                                                                marginBottom: `${settings.paragraphSpacing}pt`,
-                                                                paddingBottom: '2pt',
-                                                                borderBottom: settings.sectionDivider ? `${settings.dividerWeight}px solid ${settings.dividerColor}` : 'none',
-                                                            }}
-                                                        >
-                                                            {settings.headerCase === 'UPPERCASE' ? section.name.toUpperCase() : section.name}
-                                                        </h2>
-                                                        {resumeData.experience.map((exp, index) => (
-                                                            <div key={index} style={{ marginBottom: `${settings.paragraphSpacing}pt` }}>
-                                                                <div className="flex justify-between items-start" style={{ marginBottom: '2pt' }}>
-                                                                    <h3 className="font-bold" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>{exp.title}</h3>
-                                                                    <span className="whitespace-nowrap ml-3" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
-                                                                        {formatMonthYear(exp.startDate)} - {exp.current ? 'Present' : formatMonthYear(exp.endDate)}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex justify-between items-start" style={{ marginBottom: '4pt' }}>
-                                                                    <p className="italic" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
-                                                                        {exp.company}
-                                                                    </p>
-                                                                    <p className="italic whitespace-nowrap ml-3" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
-                                                                        {exp.location}
-                                                                    </p>
-                                                                </div>
-                                                                <ul className="list-inside" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body, paddingLeft: '20px' }}>
-                                                                    {exp.bullets.filter((b: string) => b.trim()).map((bullet: string, i: number) => (
-                                                                        <li key={i} style={{ marginBottom: '2pt' }}>{settings.bulletStyle} {parseFormattedText(bullet)}</li>
-                                                                    ))}
-                                                                </ul>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-
-                                                {section.type === 'education' && resumeData.education.length > 0 && (
-                                                    <div style={{ marginBottom: `${settings.sectionSpacing}pt` }}>
-                                                        <h2
-                                                            className={settings.headerStyle === 'bold' ? 'font-bold' : ''}
-                                                            style={{
-                                                                fontSize: `${settings.fontSize.headers}pt`,
-                                                                color: settings.fontColor.headers,
-                                                                marginBottom: `${settings.paragraphSpacing}pt`,
-                                                                paddingBottom: '2pt',
-                                                                borderBottom: settings.sectionDivider ? `${settings.dividerWeight}px solid ${settings.dividerColor}` : 'none',
-                                                            }}
-                                                        >
-                                                            {settings.headerCase === 'UPPERCASE' ? section.name.toUpperCase() : section.name}
-                                                        </h2>
-                                                        {resumeData.education.map((edu, index) => (
-                                                            <div key={index} style={{ marginBottom: `${settings.paragraphSpacing}pt` }}>
-                                                                <div className="flex justify-between items-start" style={{ marginBottom: '2pt' }}>
-                                                                    <h3 className="font-bold" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>{edu.degree} {edu.field}</h3>
-                                                                    <span className="whitespace-nowrap ml-3" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>{formatMonthYear(edu.graduationDate)}</span>
-                                                                </div>
-                                                                <div className="flex justify-between items-start">
-                                                                    <p className="italic" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
-                                                                        {edu.school}
-                                                                    </p>
-                                                                    <p className="italic whitespace-nowrap ml-3" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.contact }}>
-                                                                        {edu.location}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-
-                                                {section.type === 'skills' && resumeData.skills.technical.length > 0 && (
-                                                    <div style={{ marginBottom: `${settings.sectionSpacing}pt` }}>
-                                                        <h2
-                                                            className={settings.headerStyle === 'bold' ? 'font-bold' : ''}
-                                                            style={{
-                                                                fontSize: `${settings.fontSize.headers}pt`,
-                                                                color: settings.fontColor.headers,
-                                                                marginBottom: `${settings.paragraphSpacing}pt`,
-                                                                paddingBottom: '2pt',
-                                                                borderBottom: settings.sectionDivider ? `${settings.dividerWeight}px solid ${settings.dividerColor}` : 'none',
-                                                            }}
-                                                        >
-                                                            {settings.headerCase === 'UPPERCASE' ? section.name.toUpperCase() : section.name}
-                                                        </h2>
-                                                        <div>
-                                                            {resumeData.skills.technical.map((skillLine, idx) => (
-                                                                <p
-                                                                    key={idx}
-                                                                    style={{
-                                                                        fontSize: `${settings.fontSize.body}pt`,
-                                                                        color: settings.fontColor.body,
-                                                                        lineHeight: settings.lineSpacing,
-                                                                        marginBottom: idx < resumeData.skills.technical.length - 1 ? '4pt' : '0',
-                                                                        textAlign: 'left',
-                                                                        wordSpacing: 'normal',
-                                                                    }}
-                                                                >
-                                                                    {parseFormattedText(skillLine)}
-                                                                </p>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div> {/* Close content div (line 867) */}
-                            </div> {/* Close paper div (line 857) */}
+                                {pageBlocks}
+                            </div>
                         </div> {/* Close PDF viewer container (line 855) */}
                     </div> {/* Close preview panel (line 849) */}
                 </div> {/* Close grid */}

@@ -67,3 +67,53 @@ body {
 .animate-slideUp {
   animation: slideUp 0.3s ease-out;
 }
+
+/* Resume Multi-Page Layout - CSS Columns */
+.resume-pages-container {
+  column-width: 8.5in;
+  column-gap: 20px;
+  column-fill: auto;
+}
+
+.resume-page-wrapper {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Individual resume page */
+.resume-page {
+  width: 8.5in;
+  min-height: 11in;
+  background: white;
+  margin: 0 auto 20px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  page-break-after: always;
+  break-after: page;
+  display: inline-block;
+  vertical-align: top;
+}
+
+/* Print styles */
+@media print {
+  .resume-page {
+    width: 8.5in;
+    height: 11in;
+    page-break-after: always;
+    break-after: page;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .resume-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+}
+
+/* Prevent page breaks inside these elements */
+.resume-section-header,
+.resume-experience-item,
+.resume-education-item {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
