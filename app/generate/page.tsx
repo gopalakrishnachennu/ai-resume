@@ -211,12 +211,12 @@ export default function GeneratePage() {
             // Step 2: Transform user data to UserProfile format
             const userProfile = {
                 personalInfo: {
-                    name: userData.name || user.displayName || '',
-                    email: userData.email || user.email || '',
-                    phone: userData.phone || '',
-                    location: userData.location || '',
-                    linkedin: userData.linkedin || '',
-                    github: userData.github || '',
+                    name: userData.profile?.name || userData.name || user.displayName || '',
+                    email: userData.profile?.email || userData.email || user.email || '',
+                    phone: userData.profile?.phone || userData.phone || '',
+                    location: userData.profile?.location || userData.location || '',
+                    linkedin: userData.profile?.linkedin || userData.linkedin || '',
+                    github: userData.profile?.github || userData.github || '',
                 },
                 experience: (userData.baseExperience || userData.experience || []).map((exp: any) => ({
                     company: exp.company || '',

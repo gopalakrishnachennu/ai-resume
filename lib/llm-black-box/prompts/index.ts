@@ -39,6 +39,7 @@ export interface PromptRegistry {
     summaryImprover: PromptTemplate;
     experienceOptimizer: PromptTemplate;
     skillsEnhancer: PromptTemplate;
+    jobTitleGenerator: PromptTemplate;
   };
 }
 
@@ -174,101 +175,268 @@ Return ONLY valid JSON:
       description: 'Generate all resume sections in one call',
     },
 
+
     summaryWriter: {
-      system: 'You are a professional summary specialist. Generate ORIGINAL content based on user data. DO NOT copy examples.',
-      user: `Write a compelling professional summary for this candidate.
+      system: 'You are an expert resume professional summary writer. Generate compelling, ATS-optimized summaries that read authentically human while maximizing keyword relevance.',
+      user: `Generate a professional summary that is 100% factual, role-aligned, and free of hallucinations.
 
-Job Title: {{ job_title }}
-Required Skills: {{ required_skills }}
-Years Experience: {{ years_experience }}
-Current Title: {{ current_title }}
-Current Company: {{ current_company }}
-Job Keywords: {{ job_keywords }}
+CONTEXT:
+- Target Job Description: {{ job_description }}
+- Years of Experience: {{ years_experience }}
+- All Responsibilities: {{ all_responsibilities }}
+- Generated Skills: {{ skills_section }}
+- Current Job Title: {{ current_title }}
 
-CRITICAL RULES:
-1. Generate ORIGINAL content - DO NOT copy the example below
-2. Use the candidate's ACTUAL data ({{ current_title }}, {{ current_company }}, {{ years_experience }} years)
-3. Include 2-3 specific metrics or achievements
-4. Match these keywords naturally: {{ job_keywords }}
-5. Sound HUMAN, not robotic or AI-generated
-6. 3-4 sentences maximum
-7. Start with candidate's expertise, not generic phrases
+CONTENT RATIO (STRICT):
+- 50% Job Description keywords + responsibilities + role expectations
+- 30% Proven achievements from responsibilities (quantitative preferred)
+- 20% Real-world industry expectations for this job title
 
-Example FORMAT ONLY (DO NOT COPY - create original based on user data):
-"Results-driven Data Scientist with 5+ years architecting ML solutions at Amazon. Specialized in Python, AWS, and large-scale data processing with proven track record of reducing latency by 45% and improving model accuracy by 32%. Expert in leading cross-functional teams to deliver production-ready ML systems serving 10M+ users."
+STRUCTURE (3–4 sentences, 80–120 words):
 
-Now generate an ORIGINAL summary using the candidate's actual data above.
-Return plain text only (no JSON).`,
-      maxTokens: 200,
-      temperature: 0.7, // Higher for more creative, human-like output
-      description: 'Write professional summary',
+SENTENCE 1 — Identity + Experience
+- Start with current/target job title + years of experience
+- Include 2–3 primary JD-aligned technical skills
+- Use high signal verbs (designing, managing, implementing, optimizing)
+
+SENTENCE 2 — Core Expertise (JD-heavy)
+- Integrate 4–6 competencies directly from the JD
+- Use exact JD terminology
+- Link to functional outcomes (reliability, scalability, security)
+- Use 3–5 bolded skills as ATS anchors
+
+SENTENCE 3 — Proven Impact
+- Pull from responsibilities
+- Include metrics if available (%, $, time saved, scale)
+- If no metrics: use realistic impact indicators
+- Connect achievements to JD's core expectations
+
+SENTENCE 4 — Optional Value Proposition
+- Only if it strengthens alignment
+- Keep short: collaboration, optimization, cross-team impact
+
+KEYWORD INTEGRATION (DO's):
+✓ Use EXACT terminology from JD
+✓ Bold 5–8 critical skills maximum (cloud platforms, IaC, containers, CI/CD, security)
+✓ Integrate keywords naturally into sentences (not as lists)
+✓ Front-load highest-weight keywords in first two sentences
+
+KEYWORD INTEGRATION (DON'Ts):
+✗ No keyword stuffing
+✗ No back-to-back skill lists
+✗ No invented tools or certifications
+✗ No repeating keywords unnaturally
+✗ No irrelevant keywords
+
+WRITING STYLE:
+✓ Third-person, no pronouns
+✓ Active voice, controlled confidence
+✓ Varied sentence patterns
+✓ Technically precise language
+✓ Concise, direct, recruiter-friendly
+
+DO NOT USE:
+✗ AI giveaway words: "leveraging," "passionate," "dynamic professional"
+✗ Clichés: "results-driven," "detail-oriented," "team player"
+✗ Marketing tone or poetic language
+✗ Inflated experience
+
+BOLDING STRATEGY:
+Bold ONLY cloud platforms, IaC tools, orchestration, CI/CD, key security tools
+LIMIT: Maximum 8 bold terms total
+
+ANTI-HALLUCINATION RULES (NON-NEGOTIABLE):
+✗ No invented technologies, metrics, certifications, platforms
+✗ No experience claims not reflected in responsibilities
+✗ No domain shifts outside JD
+✗ No false achievements
+✗ No company/product names
+
+Use ONLY: JD + Provided responsibilities + Provided skills + Real-world expectations
+
+VALIDATION FILTER:
+Before generating, confirm:
+- Would a hiring manager believe every line?
+- Does it reflect real capabilities?
+- Could candidate defend each statement in interview?
+- Would this bypass AI pattern detectors?
+
+OUTPUT FORMAT:
+Return ONLY a single professional summary paragraph (80–120 words) with bold markdown.
+No JSON, no bullets, no headings.
+
+Generate now with strict adherence to all rules.`,
+      maxTokens: 250,
+      temperature: 0.6,
+      description: 'Generate ATS-optimized professional summary with anti-hallucination rules',
     },
     skillsOptimizer: {
-      system: 'You are a technical skills optimizer for ATS systems.',
-      user: `Optimize and prioritize this skills list for the job.
+      system: 'You are an Expert ATS Resume Skills Optimization Engine. Generate dynamic, role-aware Skills sections in structured Key:Value format.',
+      user: `Your job is to generate a dynamic, role-aware Skills section. Categories (keys) must adapt to the Job Description and candidate's resume—not fixed templates.
 
-User's Skills:
-{{ user_skills }}
+Your output must ALWAYS be accurate, ATS-safe, and grounded ONLY in:
+1) Skills explicitly found in the Job Description (highest priority)
+2) Skills supported by the candidate's responsibilities (secondary priority)
+3) Real-world industry-standard skills for this specific role type (lowest priority)
 
-Job Required Skills:
-{{ required_skills }}
+CONTEXT INPUT:
+- Job Description: {{ job_description }}
+- Resume Responsibilities: {{ responsibilities_text }}
+- Candidate Profile Skills: {{ user_skills }}
 
-Job Preferred Skills:
-{{ preferred_skills }}
+STRICT RULES:
 
-Instructions:
-1. Prioritize skills that match job requirements
-2. Group by category (Languages, Frameworks, Tools, Cloud, etc.)
-3. Remove irrelevant skills
-4. Add missing critical skills if user likely has them
+1. DYNAMIC CATEGORY GENERATION:
+   - Categories MUST be created based ONLY on the role implied by the JD
+   - DO NOT use fixed category names
+   - Categories must match real-world resume structures for the role
+   - Each key MUST represent a meaningful skill domain
+   - 5–8 categories maximum
+   - Each category MUST contain 3–6 skills
+   - DO NOT create categories with only 1–2 skills
+
+2. SKILLS ORDERING & PRIORITIZATION:
+   - Extract skills from JD → rank by importance → place first
+   - Next, extract skills from responsibilities → add if relevant
+   - Finally, add supporting industry-standard skills
+   - Order by: JD keyword frequency → relevance → industry importance
+
+3. ROLE-AWARE CATEGORY LOGIC:
+   - Cloud roles → "Cloud Platforms", "Infrastructure & IaC", "Monitoring & Observability"
+   - DBA roles → "Database Platforms", "Performance Tuning", "Backup & Recovery"
+   - Software roles → "Programming Languages", "Frameworks", "DevOps & CI/CD"
+   - DO NOT generate irrelevant categories
+
+4. ZERO HALLUCINATION POLICY:
+   - DO NOT invent tools, technologies, or skills NOT supported by JD/responsibilities/industry standards
+   - DO NOT generate vague values (e.g., "cloud environment", "tools")
+   - Every skill MUST be recognizable in real job listings
+
+5. USER PROFILE SKILL INTEGRATION:
+   - Preserve ONLY relevant ones
+   - Enhance with missing JD-critical skills
+   - Reorder based on JD priority
+   - Remove duplicates or irrelevant items
+
+6. ACCEPTABLE SKILL FORMATS:
+   - Use proper industry capitalization (AWS, Terraform, SQL, PostgreSQL)
+   - Use full terminology unless acronym is industry standard
+   - Convert vague JD mentions into concrete skills
+
+7. OUTPUT QUALITY REQUIREMENTS:
+   - Categories reflect the job role
+   - Skills belong logically to category
+   - No duplicates, irrelevant, or outdated skills
+   - No hallucinated or fake tools
+   - >80% of technical JD skills appear in final section
 
 Return ONLY valid JSON:
 {
-  "technical": ["Python", "JavaScript"],
-  "frameworks": ["React", "Node.js"],
-  "tools": ["Docker", "Git"],
-  "cloud": ["AWS", "Azure"],
-  "databases": ["PostgreSQL", "MongoDB"],
-  "soft": ["Leadership", "Communication"]
-}`,
-      maxTokens: 300,
-      temperature: 0.2,
-      description: 'Optimize skills for job match',
+  "Cloud Platforms": ["AWS", "Azure", "GCP"],
+  "Infrastructure & IaC": ["Terraform", "CloudFormation"],
+  "DevOps & Automation": ["CI/CD Pipelines", "Python", "Git"],
+  "Monitoring & Observability": ["CloudWatch", "Prometheus"],
+  "Security & Compliance": ["IAM", "Cloud Security"]
+}
+
+Generate the Skills section now with strict adherence to every rule above.`,
+      maxTokens: 500,
+      temperature: 0.3,
+      description: 'Generate dynamic ATS-optimized skills with role-aware categories',
     },
 
     experienceWriter: {
-      system: 'You are an experience bullet point optimizer. Generate ORIGINAL content. NEVER copy examples.',
-      user: `Generate 4-5 natural-sounding responsibility bullets for this role.
+      system: 'You are an expert resume responsibility writer. Generate authentic, ATS-optimized, non-repetitive responsibility bullet points with clear career progression.',
+      user: `Generate responsibility bullets that are 100% factual with no hallucinations.
 
-Company: {{ company }}
-Title: {{ title }}
-Location: {{ location }}
-Dates: {{ start_date }} - {{ end_date }}
+CONTEXT:
+- Target Job Description: {{ job_description }}
+- Company: {{ company }}
+- Job Title: {{ title }}
+- Years at Company: {{ years_at_company }}
+- Company Index: {{ company_index }} of {{ total_companies }} (0 = most recent)
+- Skills Section: {{ skills_section }}
 
-Target Job: {{ job_title }}
-Required Skills: {{ required_skills }}
-Job Keywords: {{ job_keywords }}
+BULLET COUNT (STRICT):
+- Most Recent (Company 1): 6-8 bullets (35-40%)
+- Middle (Company 2): 5-6 bullets (30-32%)
+- Oldest (Company 3): 5-6 bullets (30-32%)
 
-CRITICAL RULES - READ CAREFULLY:
-1. Generate COMPLETELY ORIGINAL bullets - DO NOT copy the examples below
-2. Use the ACTUAL company ({{ company }}) and title ({{ title }})
-3. Make it sound HUMAN, not AI-generated
-4. Vary sentence structure (don't start every bullet the same way)
-5. Include specific metrics (%, numbers, scale like "1M+ users", "40% faster")
-6. Match these keywords naturally: {{ job_keywords }}
-7. Use strong action verbs: Led, Architected, Implemented, Designed, Optimized
-8. Each bullet should be 1-2 lines maximum
+CONTENT RATIO:
+MOST RECENT: 70% JD alignment + 20% achievements + 10% collaboration
+MIDDLE: 50% JD + 30% progression + 20% achievements
+EARLIEST: 40% JD + 30% learning + 30% foundational work
 
-Example FORMAT ONLY (DO NOT COPY THESE - they are just to show style):
-- "Led cross-functional team of 8 engineers to architect scalable microservices platform, reducing API latency by 45%"
-- "Implemented CI/CD pipeline using Jenkins and Docker, cutting deployment time from 2 hours to 15 minutes"
-- "Designed real-time analytics dashboard processing 2M+ events daily, improving decision-making speed by 60%"
+CAREER PROGRESSION (MANDATORY):
+EARLIEST (Junior verbs): Assisted, Supported, Maintained, Monitored, Documented
+MIDDLE (Mid verbs): Implemented, Developed, Deployed, Automated, Configured
+MOST RECENT (Senior verbs): Architected, Designed, Led, Optimized, Orchestrated
 
-Now generate 4-5 ORIGINAL bullets for {{ title }} at {{ company }} that match {{ job_title }}.
-Return ONLY a JSON array: ["bullet1", "bullet2", "bullet3", "bullet4"]`,
-      maxTokens: 500,
-      temperature: 0.8, // Higher for more creative, varied output
-      description: 'Generate natural experience bullets',
+NEVER use senior verbs for earliest roles or junior verbs for recent roles.
+
+BULLET STRUCTURE (XYZ Formula):
+(Action Verb) + (What You Did) + (Tools/Technologies) + (Outcome/Impact)
+
+Example: "Automated CI/CD pipelines using Jenkins and Docker, reducing deployment times by 40%"
+
+Constraints:
+- 18-25 words per bullet
+- No bullets <15 or >30 words
+- No repeated verbs back-to-back
+
+JD KEYWORD STRATEGY:
+MOST RECENT: MUST include 80%+ of primary JD keywords, 2-4 keywords per bullet
+EARLIER: Include 40-60% of JD keywords in foundational versions
+
+SKILL-JD-SENIORITY TRIANGULATION:
+Every bullet MUST align to ALL THREE:
+1. JD requirement
+2. Candidate skill set
+3. Seniority level of that role
+
+ANTI-DUPLICATION:
+✗ No repeated action verbs consecutively
+✗ No bullet with same structure
+✗ No cross-company duplication
+✗ No repeating same tool in consecutive bullets
+
+QUANTIFICATION:
+Use numbers when realistic: %, $, time reductions, scale, uptime
+If no metrics: use qualitative impact ("significantly improved reliability")
+NEVER fabricate numbers.
+
+DO'S:
+✓ Start with action verbs
+✓ Use exact JD terminology
+✓ Include tools from skills section
+✓ Make bullets defensible in interview
+✓ Past tense for all roles
+✓ Technical and impact-focused
+
+DON'TS:
+✗ No soft skills
+✗ No first-person pronouns
+✗ No filler: "responsible for", "worked on"
+✗ No project/client names
+✗ No technology guessing
+✗ No buzzwords without substance
+
+ANTI-HALLUCINATION VALIDATION:
+Before each bullet, check:
+□ Tool mentioned in JD or skills?
+□ Plausible for seniority?
+□ Aligns with real-world expectations?
+□ Hiring manager would believe it?
+□ Metric realistic?
+
+OUTPUT FORMAT:
+Return ONLY a JSON array of bullets:
+["bullet1", "bullet2", "bullet3", ...]
+
+Generate now with strict adherence to all rules.`,
+      maxTokens: 600,
+      temperature: 0.7,
+      description: 'Generate ATS-optimized experience bullets with career progression',
     },
   },
 
@@ -524,6 +692,60 @@ Return ONLY valid JSON:
       maxTokens: 400,
       temperature: 0.2,
       description: 'Enhance skills section',
+    },
+
+    jobTitleGenerator: {
+      system: 'You are an ATS optimization specialist. Generate realistic job titles that pass ATS systems while showing authentic career progression.',
+      user: `Generate ATS-optimized job titles for a resume.
+
+TARGET ROLE: {{ target_job_title }}
+TARGET COMPANY: {{ target_company }}
+JOB DESCRIPTION KEYWORDS: {{ jd_keywords }}
+
+COMPANIES (in reverse chronological order):
+{{ companies }}
+
+STRICT RULES:
+1. MOST RECENT TITLE (Company #1):
+   - MUST closely match "{{ target_job_title }}"
+   - Include primary JD keywords: {{ jd_keywords }}
+   - Examples: If target is "Cloud Engineer" → "Senior Cloud Engineer" or "Cloud Infrastructure Engineer"
+
+2. EARLIER TITLES (Companies #2, #3, etc.):
+   - Show realistic upward progression
+   - Each title MUST be unique
+   - Progress in seniority: Junior → Mid → Senior → Lead
+   - OR scope: Engineer → Senior Engineer → Lead Engineer
+   - Use related but different terminology
+
+3. AUTHENTICITY:
+   - Follow real-world LinkedIn conventions
+   - No artificial numbering (Engineer I, II, III)
+   - Natural modifiers: "Senior", "Lead", "Staff", "Principal"
+   - Match company type (startup vs enterprise)
+
+4. ATS OPTIMIZATION:
+   - Most recent: Exact keyword match
+   - Earlier: Semantic variations
+   - Avoid keyword stuffing
+
+EXAMPLE PROGRESSION (DO NOT COPY):
+Target: "DevOps Engineer"
+Company 1 (most recent): "Senior DevOps Engineer"
+Company 2: "Cloud Infrastructure Engineer"  
+Company 3: "Systems Engineer"
+
+Return ONLY valid JSON array (one title per company, in same order):
+{
+  "titles": [
+    "Senior Cloud Engineer",
+    "Cloud Infrastructure Engineer", 
+    "Systems Engineer"
+  ]
+}`,
+      maxTokens: 300,
+      temperature: 0.4,
+      description: 'Generate ATS-optimized job titles with career progression',
     },
   },
 };

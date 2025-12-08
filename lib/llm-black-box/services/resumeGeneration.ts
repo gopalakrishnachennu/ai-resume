@@ -14,6 +14,7 @@
 import { db } from '@/lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { LLMBlackBox } from '../index';
+import { LLMRouter } from '../core/llmRouter';
 import { FirebaseCacheManager } from '../cache/cacheManager';
 import { JobAnalysis } from './jobProcessing';
 
@@ -110,16 +111,35 @@ export class ResumeGenerationService {
             this.generateExperienceResponsibilities(userProfile, jobAnalysis, userConfig),
         ]);
 
+        // ALWAYS generate job titles to match the target JD (dynamic!)
+        console.log('🎯 Generating ATS-optimized job titles for target role:', jobAnalysis.title);
+
+        let finalExperience = experienceWithResponsibilities;
+
+        try {
+            const generatedTitles = await this.generateJobTitles(userProfile, jobAnalysis, userConfig);
+
+            // Apply generated titles to experience
+            finalExperience = experienceWithResponsibilities.map((exp, idx) => ({
+                ...exp,
+                title: generatedTitles[idx] || exp.title, // Use AI-generated title
+            }));
+
+            console.log('✅ Job titles applied:', generatedTitles);
+        } catch (error) {
+            console.error('⚠️ Failed to generate titles, keeping originals:', error);
+        }
+
         // Combine into complete resume
         const resume: GeneratedResume = {
             professionalSummary: summary,
             technicalSkills: skills,
-            experience: experienceWithResponsibilities,
+            experience: finalExperience,
             education: userProfile.education,
         };
 
-        // Calculate total tokens
-        const totalTokens = 2500; // Approximate for all sections
+        // Calculate total tokens (always includes title generation now)
+        const totalTokens = 2800; // Includes title generation
 
         // Cache the result
         await FirebaseCacheManager.set('resume_section', cacheKey, resume, totalTokens);
@@ -136,8 +156,8 @@ export class ResumeGenerationService {
     }
 
     /**
-     * Generate professional summary (human-like, not robotic)
-     */
+ * Generate professional summary with enhanced ATS optimization
+ */
     private static async generateProfessionalSummary(
         userProfile: UserProfile,
         jobAnalysis: JobAnalysis,
@@ -149,15 +169,31 @@ export class ResumeGenerationService {
         // Get most recent role
         const recentRole = userProfile.experience[0];
 
+        // Collect all responsibilities for context
+        const allResponsibilities = userProfile.experience
+            .map(exp => (exp as any).responsibilities?.join('. ') || '')
+            .filter(Boolean)
+            .join('. ');
+
+        // Build full job description context
+        const jobDescription = `
+Title: ${jobAnalysis.title}
+Company: ${jobAnalysis.company || 'Not specified'}
+Required Skills: ${jobAnalysis.requiredSkills.join(', ')}
+Preferred Skills: ${jobAnalysis.preferredSkills.join(', ')}
+Experience Level: ${jobAnalysis.experienceLevel || 'Mid'}
+    `.trim();
+
+        // Prepare skills section (will be generated in parallel, so use placeholder)
+        const skillsSection = jobAnalysis.requiredSkills.slice(0, 8).join(', ');
+
         // Prepare variables for template
         const vars = {
-            job_title: jobAnalysis.title,
+            job_description: jobDescription,
             years_experience: yearsExp,
+            all_responsibilities: allResponsibilities || 'No responsibilities provided',
+            skills_section: skillsSection,
             current_title: recentRole.title,
-            current_company: recentRole.company,
-            required_skills: jobAnalysis.requiredSkills.slice(0, 5).join(', '),
-            job_keywords: jobAnalysis.keywords.slice(0, 5).join(', '),
-            user_name: userProfile.personalInfo.name,
         };
 
         // Use execute (not executeJSON) since prompt returns plain text
@@ -168,25 +204,44 @@ export class ResumeGenerationService {
             userConfig
         );
 
+        console.log('✅ Generated professional summary');
         return result.content.trim();
     }
 
+
     /**
-   * Generate technical skills as key:value pairs
-   * Example: { "Languages": "Python, JavaScript, SQL", "Cloud": "AWS, Azure" }
+   * Generate technical skills as key:value pairs with dynamic categories
+   * Example: { "Cloud Platforms": "AWS, Azure, GCP", "DevOps & Automation": "Docker, Kubernetes" }
    */
     private static async generateTechnicalSkills(
         userProfile: UserProfile,
         jobAnalysis: JobAnalysis,
         userConfig: any
     ): Promise<Record<string, string>> {
-        // Extract skills from experience titles
-        const experienceTitles = userProfile.experience.map(exp => exp.title).join(', ');
+        // Extract skills from user profile
+        const userSkills = userProfile.experience
+            .map(exp => exp.title)
+            .filter(Boolean)
+            .join(', ');
+
+        // Collect all responsibilities for context
+        const responsibilitiesText = userProfile.experience
+            .map(exp => (exp as any).responsibilities?.join('. ') || '') // Cast to any because UserProfile doesn't have responsibilities
+            .filter(Boolean)
+            .join('. ');
+
+        // Get full job description context
+        const jobDescription = `
+Title: ${jobAnalysis.title}
+Company: ${jobAnalysis.company || 'Not specified'}
+Required Skills: ${jobAnalysis.requiredSkills.join(', ')}
+Preferred Skills: ${jobAnalysis.preferredSkills.join(', ')}
+    `.trim();
 
         const vars = {
-            user_skills: experienceTitles, // Use their titles as base
-            required_skills: jobAnalysis.requiredSkills.join(', '),
-            preferred_skills: jobAnalysis.preferredSkills.join(', '),
+            job_description: jobDescription,
+            responsibilities_text: responsibilitiesText || 'No responsibilities provided',
+            user_skills: userSkills || 'No skills provided',
         };
 
         const result = await LLMBlackBox.execute(
@@ -211,6 +266,7 @@ export class ResumeGenerationService {
                 }
             }
 
+            console.log('✅ Generated skills with dynamic categories:', Object.keys(skillsKeyValue));
             return skillsKeyValue;
         } catch (error) {
             console.error('Failed to parse skills:', error);
@@ -223,29 +279,47 @@ export class ResumeGenerationService {
     }
 
     /**
-     * Generate responsibilities for EACH company (natural, not robotic)
-     */
+ * Generate responsibilities for EACH company with career progression
+ */
     private static async generateExperienceResponsibilities(
         userProfile: UserProfile,
         jobAnalysis: JobAnalysis,
         userConfig: any
     ): Promise<GeneratedResume['experience']> {
         const experienceWithResponsibilities = [];
+        const totalCompanies = userProfile.experience.length;
+
+        // Build full job description context
+        const jobDescription = `
+Title: ${jobAnalysis.title}
+Company: ${jobAnalysis.company || 'Not specified'}
+Required Skills: ${jobAnalysis.requiredSkills.join(', ')}
+Preferred Skills: ${jobAnalysis.preferredSkills.join(', ')}
+    `.trim();
+
+        // Build skills section context
+        const skillsSection = jobAnalysis.requiredSkills.slice(0, 10).join(', ');
 
         // Generate responsibilities for each company
-        for (const exp of userProfile.experience) {
+        for (let idx = 0; idx < userProfile.experience.length; idx++) {
+            const exp = userProfile.experience[idx];
+
+            // Calculate years at company
+            const startDate = new Date(exp.startDate);
+            const endDate = exp.current ? new Date() : new Date(exp.endDate);
+            const yearsAtCompany = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365 * 10)) / 10);
+
             const vars = {
+                job_description: jobDescription,
                 company: exp.company,
                 title: exp.title,
-                location: exp.location,
-                start_date: exp.startDate,
-                end_date: exp.current ? 'Present' : exp.endDate,
-                job_title: jobAnalysis.title,
-                job_keywords: jobAnalysis.keywords.slice(0, 8).join(', '),
-                required_skills: jobAnalysis.requiredSkills.slice(0, 8).join(', '),
+                years_at_company: yearsAtCompany,
+                company_index: idx, // 0 = most recent
+                total_companies: totalCompanies,
+                skills_section: skillsSection,
             };
 
-            // Use the prompt registry (NO hardcoded prompts!)
+            // Use the prompt registry
             const result = await LLMBlackBox.execute(
                 'phase2',
                 'experienceWriter',
@@ -259,9 +333,11 @@ export class ResumeGenerationService {
                 const { LLMRouter } = await import('../core/llmRouter');
                 const parsed = LLMRouter.parseJSON(result.content);
                 responsibilities = Array.isArray(parsed) ? parsed : Object.values(parsed);
+
+                console.log(`✅ Generated ${responsibilities.length} bullets for ${exp.company} (index ${idx})`);
             } catch (error) {
                 console.error(`Failed to parse responsibilities for ${exp.company}:`, error);
-                // Fallback - but still try to be useful
+                // Fallback
                 responsibilities = [
                     `${exp.title} responsibilities at ${exp.company}`,
                     `Worked with technologies relevant to ${jobAnalysis.title}`,
@@ -294,6 +370,57 @@ export class ResumeGenerationService {
         }
 
         return Math.round(totalMonths / 12);
+    }
+
+    /**
+     * Generate ATS-optimized job titles with career progression
+     */
+    private static async generateJobTitles(
+        userProfile: UserProfile,
+        jobAnalysis: JobAnalysis,
+        userConfig: { provider: 'openai' | 'claude' | 'gemini'; apiKey: string }
+    ): Promise<string[]> {
+        try {
+            // Prepare companies list
+            const companiesList = userProfile.experience
+                .map((exp, idx) => `${idx + 1}. ${exp.company} (${exp.startDate} - ${exp.current ? 'Present' : exp.endDate})`)
+                .join('\n');
+
+            // Extract top keywords from JD (handle both array and object formats)
+            const keywords = jobAnalysis.keywords as any;
+            const technicalKeywords = Array.isArray(keywords.technical) ? keywords.technical : [];
+            const toolsKeywords = Array.isArray(keywords.tools) ? keywords.tools : [];
+
+            const jdKeywords = [
+                ...technicalKeywords.slice(0, 3),
+                ...toolsKeywords.slice(0, 2),
+            ].join(', ');
+
+            const vars = {
+                target_job_title: jobAnalysis.title,
+                target_company: jobAnalysis.company || 'Target Company',
+                jd_keywords: jdKeywords,
+                companies: companiesList,
+            };
+
+            const { data } = await LLMBlackBox.executeJSON<{ titles: string[] }>(
+                'phase4',
+                'jobTitleGenerator',
+                vars,
+                userConfig
+            );
+
+            console.log('✅ Generated job titles:', data.titles);
+            return data.titles;
+        } catch (error) {
+            console.error('⚠️ Error generating job titles:', error);
+            // Fallback: use target title with seniority progression
+            return userProfile.experience.map((_, idx) => {
+                if (idx === 0) return jobAnalysis.title; // Most recent = exact match
+                if (idx === 1) return `${jobAnalysis.title.replace('Senior ', '').replace('Lead ', '')}`; // Remove seniority
+                return `Junior ${jobAnalysis.title.replace('Senior ', '').replace('Lead ', '')}`; // Earlier = junior
+            });
+        }
     }
 
     /**

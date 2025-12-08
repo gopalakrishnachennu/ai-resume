@@ -47,9 +47,9 @@ export default function EditorPage() {
 
     const [sections, setSections] = useState<Section[]>([
         { id: 'summary', name: 'Professional Summary', type: 'summary', visible: true, order: 0 },
-        { id: 'experience', name: 'Experience', type: 'experience', visible: true, order: 1 },
-        { id: 'education', name: 'Education', type: 'education', visible: true, order: 2 },
-        { id: 'skills', name: 'Skills', type: 'skills', visible: true, order: 3 },
+        { id: 'skills', name: 'Skills', type: 'skills', visible: true, order: 1 },
+        { id: 'experience', name: 'Experience', type: 'experience', visible: true, order: 2 },
+        { id: 'education', name: 'Education', type: 'education', visible: true, order: 3 },
     ]);
 
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['summary', 'experience', 'education', 'skills']));
@@ -57,6 +57,8 @@ export default function EditorPage() {
     const [editingSectionName, setEditingSectionName] = useState('');
 
     const [jobAnalysis, setJobAnalysis] = useState<any>(null);
+    const [jobTitle, setJobTitle] = useState('');
+    const [jobCompany, setJobCompany] = useState('');
     const [atsScore, setAtsScore] = useState(0);
     const [techSkillInput, setTechSkillInput] = useState('');
 
@@ -91,6 +93,10 @@ export default function EditorPage() {
 
                 if (resumeDoc.exists()) {
                     const resumeData = resumeDoc.data();
+
+                    // Load job title and company
+                    setJobTitle(resumeData.jobTitle || '');
+                    setJobCompany(resumeData.jobCompany || '');
 
                     // Check if this is AI-generated resume (new format)
                     if (resumeData.professionalSummary || resumeData.technicalSkills) {
@@ -231,14 +237,16 @@ export default function EditorPage() {
             const resumeDoc = await getDoc(resumeDocRef);
 
             if (resumeDoc.exists()) {
-                // Update existing AI-generated resume with ATS score
+                // Update existing AI-generated resume with ATS score and editable fields
                 await setDoc(resumeDocRef, {
                     ...resumeDoc.data(),
+                    jobTitle: jobTitle || jobAnalysis.title,
+                    jobCompany: jobCompany || jobAnalysis.company,
                     atsScore: atsScoreData,
                     updatedAt: serverTimestamp(),
                 }, { merge: true });
 
-                toast.success('Resume updated with ATS score! 🎉');
+                toast.success('Resume updated! 🎉');
             } else {
                 // Save to appliedResumes (old format)
                 await setDoc(doc(db, 'appliedResumes', resumeId as string), {
@@ -571,12 +579,22 @@ export default function EditorPage() {
                         </button>
                         <div className="h-6 w-px bg-gray-300"></div>
                         <div>
-                            <h1 className="text-sm font-semibold text-gray-900">
-                                {jobAnalysis?.title || 'Resume Editor'}
-                            </h1>
-                            <p className="text-xs text-gray-500">
-                                {jobAnalysis?.company || 'Untitled'}
-                            </p>
+                            <input
+                                type="text"
+                                value={jobTitle || jobAnalysis?.title || 'Resume Editor'}
+                                onChange={(e) => setJobTitle(e.target.value)}
+                                onBlur={handleSave}
+                                className="text-sm font-semibold text-gray-900 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1"
+                                placeholder="Job Title"
+                            />
+                            <input
+                                type="text"
+                                value={jobCompany || jobAnalysis?.company || 'Untitled'}
+                                onChange={(e) => setJobCompany(e.target.value)}
+                                onBlur={handleSave}
+                                className="text-xs text-gray-500 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 mt-0.5"
+                                placeholder="Company"
+                            />
                         </div>
                     </div>
 
@@ -837,11 +855,11 @@ export default function EditorPage() {
                                                                 Currently working here
                                                             </label>
                                                             <textarea
-                                                                value={exp.bullets[0] || ''}
-                                                                onChange={(e) => updateExperience(idx, 'bullets', [e.target.value])}
+                                                                value={exp.bullets?.join('\n') || ''}
+                                                                onChange={(e) => updateExperience(idx, 'bullets', e.target.value.split('\n'))}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400 resize-none"
                                                                 placeholder="Key achievements (one per line)"
-                                                                rows={2}
+                                                                rows={6}
                                                             />
                                                         </div>
                                                     ))}
