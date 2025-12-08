@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { toast } from 'react-hot-toast';
-
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import ApiKeySetup from '@/components/ApiKeySetup';
+import AppHeader from '@/components/AppHeader';
+import { JobProcessingService } from '@/lib/llm-black-box/services/jobProcessing';
 
 export default function GeneratePage() {
     const { user } = useAuthStore();
@@ -17,6 +19,72 @@ export default function GeneratePage() {
     const [showManualEntry, setShowManualEntry] = useState(false);
     const [manualTitle, setManualTitle] = useState('');
     const [manualCompany, setManualCompany] = useState('');
+
+    // API Key state
+    const [showApiKeySetup, setShowApiKeySetup] = useState(false);
+    const [llmConfig, setLlmConfig] = useState<any>(null);
+    const [checkingApiKey, setCheckingApiKey] = useState(true);
+
+    useEffect(() => {
+        if (user) {
+            checkApiKey();
+        } else {
+            // If no user, assume API key setup is needed or use public key
+            setCheckingApiKey(false);
+            setShowApiKeySetup(true); // Or handle anonymous access differently
+        }
+    }, [user]);
+
+    // Load JD from URL parameter if present
+    useEffect(() => {
+        const loadJDFromUrl = async () => {
+            const params = new URLSearchParams(window.location.search);
+            const jdId = params.get('jdId');
+
+            if (jdId && user) {
+                try {
+                    const jdDoc = await getDoc(doc(db, 'jobs', jdId));
+                    if (jdDoc.exists()) {
+                        const jdData = jdDoc.data();
+                        setJobDescription(jdData.originalDescription || '');
+                        toast.success('Job description loaded!');
+                    }
+                } catch (error) {
+                    console.error('Error loading JD:', error);
+                    toast.error('Failed to load job description');
+                }
+            }
+        };
+
+        loadJDFromUrl();
+    }, [user]);
+
+    const checkApiKey = async () => {
+        if (!user) {
+            setCheckingApiKey(false);
+            setShowApiKeySetup(true);
+            return;
+        }
+        try {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                if (userData.llmConfig?.apiKey) {
+                    setLlmConfig(userData.llmConfig);
+                    setShowApiKeySetup(false);
+                } else {
+                    setShowApiKeySetup(true);
+                }
+            } else {
+                setShowApiKeySetup(true);
+            }
+        } catch (error) {
+            console.error('Error checking API key:', error);
+            setShowApiKeySetup(true);
+        } finally {
+            setCheckingApiKey(false);
+        }
+    };
 
     const handleManualEntry = () => {
         if (!manualTitle.trim()) {
@@ -49,143 +117,241 @@ export default function GeneratePage() {
             return;
         }
 
+        if (!llmConfig?.apiKey) {
+            toast.error('Please configure your API key first');
+            setShowApiKeySetup(true);
+            return;
+        }
+
+        if (!user) {
+            toast.error('Please sign in to continue');
+            return;
+        }
+
         setAnalyzing(true);
 
         try {
-            const model = genAI.getGenerativeModel({
-                model: 'gemini-2.5-flash',
-                generationConfig: {
-                    temperature: 0.1,
-                    maxOutputTokens: 512,
+            // Generate unique job ID
+            const jobId = `job_${Date.now()}_${user.uid}`;
+
+            // Use new JobProcessingService with LLM Black Box
+            const result = await JobProcessingService.processJobDescription(
+                jobId,
+                user.uid,
+                jobDescription,
+                {
+                    provider: llmConfig.provider,
+                    apiKey: llmConfig.apiKey,
                 }
-            });
+            );
 
-            const prompt = `Extract from this job description and return ONLY valid JSON (no text before/after):
+            // Transform to expected format
+            const transformedAnalysis = {
+                title: result.jobAnalysis.title,
+                company: result.jobAnalysis.company,
+                keywords: {
+                    technical: result.jobAnalysis.requiredSkills.slice(0, 10),
+                    soft: result.jobAnalysis.keywords.filter(k =>
+                        ['leadership', 'communication', 'teamwork', 'problem-solving'].includes(k.toLowerCase())
+                    ),
+                    tools: result.jobAnalysis.preferredSkills.slice(0, 5),
+                },
+                requirements: {
+                    mustHave: result.jobAnalysis.qualifications,
+                    niceToHave: result.jobAnalysis.responsibilities.slice(0, 3),
+                },
+                yearsExperience: result.jobAnalysis.yearsRequired,
+            };
 
-${jobDescription.substring(0, 1000)}
+            setAnalysis(transformedAnalysis);
 
-JSON format:
-{"title":"job title","company":"company or empty","keywords":{"technical":["skill1","skill2"],"soft":["skill1"],"tools":["tool1"]},"requirements":{"mustHave":["req1"],"niceToHave":["req1"]},"yearsExperience":5}`;
-
-            const result = await model.generateContent(prompt);
-            const response = result.response;
-
-            // Wait for the full response
-            const text = await response.text();
-
-            console.log('AI Response (full):', text);
-            console.log('Response length:', text.length);
-
-            // Try to extract JSON from the response
-            let parsedAnalysis;
-
-            // Clean markdown formatting
-            let jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-            // Try to find JSON object in the text
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                jsonText = jsonMatch[0];
+            // Show cache status
+            if (result.cached) {
+                toast.success(`✅ Job analyzed from cache! (0 tokens used)`, {
+                    duration: 3000,
+                    icon: '⚡',
+                });
+            } else {
+                toast.success(`✅ Job analyzed! (${result.tokensUsed} tokens, ${result.processingTime}ms)`, {
+                    duration: 3000,
+                });
             }
 
-            console.log('Extracted JSON text:', jsonText);
-
-            // Try to parse as-is first
-            try {
-                parsedAnalysis = JSON.parse(jsonText);
-                console.log('Successfully parsed JSON:', parsedAnalysis);
-            } catch (firstError) {
-                console.log('Initial parse failed, attempting to fix...');
-
-                // Try to fix incomplete JSON
-                try {
-                    // Count braces
-                    const openBraces = (jsonText.match(/\{/g) || []).length;
-                    const closeBraces = (jsonText.match(/\}/g) || []).length;
-
-                    if (openBraces > closeBraces) {
-                        // Add missing closing braces
-                        const missing = openBraces - closeBraces;
-                        jsonText += '}'.repeat(missing);
-                        console.log('Added', missing, 'closing braces');
-                    }
-
-                    // Try parsing again
-                    parsedAnalysis = JSON.parse(jsonText);
-                    console.log('Successfully parsed after fixing braces:', parsedAnalysis);
-                } catch (secondError) {
-                    console.error('JSON Parse Error:', secondError);
-                    console.error('Failed to parse:', jsonText);
-
-                    // Use fallback data
-                    parsedAnalysis = {
-                        title: "Software Engineer",
-                        company: "Company Name",
-                        keywords: {
-                            technical: ["Python", "JavaScript", "AWS"],
-                            soft: ["Communication", "Leadership"],
-                            tools: ["Git", "Docker"]
-                        },
-                        requirements: {
-                            mustHave: ["5+ years experience"],
-                            niceToHave: ["Additional skills"]
-                        },
-                        yearsExperience: 5
-                    };
-                    toast.error('AI response was incomplete. Using fallback data.');
-                }
-            }
-
-            // Validate and fill missing fields
-            if (!parsedAnalysis.title) parsedAnalysis.title = "Position";
-            if (!parsedAnalysis.company) parsedAnalysis.company = "";
-            if (!parsedAnalysis.keywords) parsedAnalysis.keywords = { technical: [], soft: [], tools: [] };
-            if (!parsedAnalysis.keywords.technical) parsedAnalysis.keywords.technical = [];
-            if (!parsedAnalysis.keywords.soft) parsedAnalysis.keywords.soft = [];
-            if (!parsedAnalysis.keywords.tools) parsedAnalysis.keywords.tools = [];
-            if (!parsedAnalysis.requirements) parsedAnalysis.requirements = { mustHave: [], niceToHave: [] };
-            if (!parsedAnalysis.requirements.mustHave) parsedAnalysis.requirements.mustHave = [];
-            if (!parsedAnalysis.requirements.niceToHave) parsedAnalysis.requirements.niceToHave = [];
-            if (!parsedAnalysis.yearsExperience) parsedAnalysis.yearsExperience = 0;
-
-            console.log('Final analysis:', parsedAnalysis);
-            setAnalysis(parsedAnalysis);
-            toast.success('Job description analyzed! 🎉');
         } catch (error: any) {
             console.error('Analysis error:', error);
-            toast.error('Failed to analyze job description. Please try again.');
+            toast.error(error.message || 'Failed to analyze job description. Please try again.');
         } finally {
             setAnalyzing(false);
         }
     };
 
-    const handleGenerateResume = () => {
-        // Store analysis in localStorage for now
-        localStorage.setItem('jobAnalysis', JSON.stringify(analysis));
-        localStorage.setItem('jobDescription', jobDescription);
+    const handleGenerateResume = async () => {
+        if (!user || !analysis) {
+            toast.error('Missing required data');
+            return;
+        }
 
-        // Navigate to editor (we'll build this next)
-        router.push('/editor/new');
-        toast.success('Generating your resume...');
+        if (!llmConfig?.apiKey) {
+            toast.error('Please configure your API key first');
+            setShowApiKeySetup(true);
+            return;
+        }
+
+        try {
+            toast.loading('Generating your resume...', { id: 'generate' });
+
+            // Step 1: Fetch user profile from Firebase
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (!userDoc.exists()) {
+                throw new Error('User profile not found. Please complete your profile first.');
+            }
+
+            const userData = userDoc.data();
+
+            // Step 2: Transform user data to UserProfile format
+            const userProfile = {
+                personalInfo: {
+                    name: userData.profile?.name || userData.name || user.displayName || '',
+                    email: userData.profile?.email || userData.email || user.email || '',
+                    phone: userData.profile?.phone || userData.phone || '',
+                    location: userData.profile?.location || userData.location || '',
+                    linkedin: userData.profile?.linkedin || userData.linkedin || '',
+                    github: userData.profile?.github || userData.github || '',
+                },
+                experience: (userData.baseExperience || userData.experience || []).map((exp: any) => ({
+                    company: exp.company || '',
+                    title: exp.title || '',
+                    location: exp.location || '',
+                    startDate: exp.startDate || '',
+                    endDate: exp.endDate || '',
+                    current: exp.current || false,
+                })),
+                education: (userData.baseEducation || userData.education || []).map((edu: any) => ({
+                    school: edu.school || '',
+                    degree: edu.degree || '',
+                    field: edu.field || '',
+                    graduationDate: edu.graduationDate || '',
+                })),
+            };
+
+            // Validate user has experience
+            if (!userProfile.experience || userProfile.experience.length === 0) {
+                throw new Error('Please add your work experience in Profile Settings first.');
+            }
+
+            // Step 3: Transform analysis to JobAnalysis format
+            const jobAnalysis = {
+                title: analysis.title || '',
+                company: analysis.company || '',
+                requiredSkills: analysis.keywords?.technical || [],
+                preferredSkills: analysis.keywords?.tools || [],
+                keywords: [
+                    ...(analysis.keywords?.technical || []),
+                    ...(analysis.keywords?.soft || []),
+                    ...(analysis.keywords?.tools || []),
+                ],
+                experienceLevel: 'Mid' as const,
+                yearsRequired: analysis.yearsExperience || 0,
+                qualifications: analysis.requirements?.mustHave || [],
+                responsibilities: analysis.requirements?.niceToHave || [],
+            };
+
+            // Step 4: Generate resume using AI
+            toast.loading('AI is generating your resume sections...', { id: 'generate' });
+
+            const { ResumeGenerationService } = await import('@/lib/llm-black-box/services/resumeGeneration');
+
+            const resumeId = `resume_${Date.now()}_${user.uid}`;
+
+            const result = await ResumeGenerationService.generateResume(
+                resumeId,
+                user.uid,
+                userProfile,
+                jobAnalysis,
+                {
+                    provider: llmConfig.provider,
+                    apiKey: llmConfig.apiKey,
+                }
+            );
+
+            // Step 5: Create resume document in Firestore
+            toast.loading('Saving your resume...', { id: 'generate' });
+
+            const resumeData = {
+                userId: user.uid,
+                jobTitle: analysis.title,
+                jobCompany: analysis.company,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+
+                // Personal Info
+                personalInfo: userProfile.personalInfo,
+
+                // AI-Generated Content
+                professionalSummary: result.resume.professionalSummary,
+                technicalSkills: result.resume.technicalSkills,
+                experience: result.resume.experience,
+                education: result.resume.education,
+
+                // Metadata
+                cached: result.cached,
+                tokensUsed: result.tokensUsed,
+                processingTime: result.processingTime,
+            };
+
+            await setDoc(doc(db, 'resumes', resumeId), resumeData);
+
+            // Step 6: Show success and redirect
+            if (result.cached) {
+                toast.success(`✅ Resume generated from cache! (0 tokens)`, {
+                    id: 'generate',
+                    duration: 3000,
+                    icon: '⚡',
+                });
+            } else {
+                toast.success(`✅ Resume generated! (${result.tokensUsed} tokens, ${result.processingTime}ms)`, {
+                    id: 'generate',
+                    duration: 3000,
+                });
+            }
+
+            // Redirect to editor
+            setTimeout(() => {
+                router.push(`/editor/${resumeId}`);
+            }, 1000);
+
+        } catch (error: any) {
+            console.error('Resume generation error:', error);
+            toast.error(error.message || 'Failed to generate resume. Please try again.', {
+                id: 'generate',
+            });
+        }
     };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-            {/* Header */}
-            <header className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg"></div>
-                        <span className="text-xl font-bold text-gray-900">AI Resume Builder</span>
+            {/* API Key Setup Modal */}
+            {showApiKeySetup && (
+                <ApiKeySetup
+                    onComplete={() => {
+                        setShowApiKeySetup(false);
+                        checkApiKey();
+                    }}
+                />
+            )}
+
+            {/* Loading State */}
+            {checkingApiKey && (
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Checking configuration...</p>
                     </div>
-                    <button
-                        onClick={() => router.push('/dashboard')}
-                        className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors"
-                    >
-                        ← Back to Dashboard
-                    </button>
                 </div>
-            </header>
+            )}
+
+            {/* Header */}
+            <AppHeader title="Generate Resume" showBack={true} backUrl="/dashboard" />
 
             {/* Main Content */}
             <main className="max-w-5xl mx-auto px-4 py-12">
