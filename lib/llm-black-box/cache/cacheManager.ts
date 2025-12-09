@@ -11,6 +11,7 @@ import {
     doc,
     getDoc,
     setDoc,
+    deleteDoc,
     query,
     where,
     getDocs,
@@ -162,7 +163,7 @@ export class FirebaseCacheManager {
             let count = 0;
 
             for (const docSnap of snapshot.docs) {
-                await docSnap.ref.delete();
+                await deleteDoc(docSnap.ref);
                 count++;
             }
 
@@ -235,7 +236,7 @@ export class FirebaseCacheManager {
                 const expiresAt = entry.expiresAt.toMillis();
 
                 if (now > expiresAt) {
-                    await docSnap.ref.delete();
+                    await deleteDoc(docSnap.ref);
                     count++;
                 }
             }
