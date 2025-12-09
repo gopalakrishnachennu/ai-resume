@@ -1575,7 +1575,6 @@ export default function EditorPage() {
                                     top: 0,
                                     height: `${PAGE_HEIGHT_IN}in`,
                                     width: `${PAGE_WIDTH_IN}in`,
-                                    boxSizing: 'border-box',
                                     ...pageContentStyle,
                                 }}
                             >
