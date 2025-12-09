@@ -1,3 +1,5 @@
+import React from 'react';
+
 /**
  * Parse text with markdown-like formatting
  * **text** → bold
