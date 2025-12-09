@@ -87,7 +87,7 @@ export class TemplateEngine {
     private static handleConditionals(template: string, vars: TemplateVars): string {
         // Handle if-else blocks
         template = template.replace(
-            /\{%\s*if\s+([a-zA-Z0-9_.]+)\s*%\}(.*?)\{%\s*else\s*%\}(.*?)\{%\s*endif\s*%\}/gs,
+            /\{%\s*if\s+([a-zA-Z0-9_.]+)\s*%\}([\s\S]*?)\{%\s*else\s*%\}([\s\S]*?)\{%\s*endif\s*%\}/g,
             (match, condition, ifContent, elseContent) => {
                 const value = this.getNestedValue(vars, condition);
                 return this.isTruthy(value) ? ifContent : elseContent;
@@ -96,7 +96,7 @@ export class TemplateEngine {
 
         // Handle if-only blocks
         template = template.replace(
-            /\{%\s*if\s+([a-zA-Z0-9_.]+)\s*%\}(.*?)\{%\s*endif\s*%\}/gs,
+            /\{%\s*if\s+([a-zA-Z0-9_.]+)\s*%\}([\s\S]*?)\{%\s*endif\s*%\}/g,
             (match, condition, content) => {
                 const value = this.getNestedValue(vars, condition);
                 return this.isTruthy(value) ? content : '';
@@ -112,7 +112,7 @@ export class TemplateEngine {
      */
     private static handleLoops(template: string, vars: TemplateVars): string {
         return template.replace(
-            /\{%\s*for\s+(\w+)\s+in\s+(\w+)\s*%\}(.*?)\{%\s*endfor\s*%\}/gs,
+            /\{%\s*for\s+(\w+)\s+in\s+(\w+)\s*%\}([\s\S]*?)\{%\s*endfor\s*%\}/g,
             (match, itemName, arrayName, content) => {
                 const array = vars[arrayName];
 
