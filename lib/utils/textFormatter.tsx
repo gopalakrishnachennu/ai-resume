@@ -12,7 +12,7 @@ export function parseFormattedText(text: string) {
     const lines = text.split(/\n|\\n/);
 
     return lines.map((line, lineIdx) => {
-        const parts: JSX.Element[] = [];
+        const parts: React.ReactElement[] = [];
         let currentText = line;
         let partIdx = 0;
 
