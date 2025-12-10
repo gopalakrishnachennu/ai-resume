@@ -26,7 +26,7 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
         }
 
         if (!user) {
-            toast.error('Initializing... Please try again in a moment');
+            // Silently wait for user to initialize
             return;
         }
 
@@ -152,10 +152,10 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
                     {/* Save Button */}
                     <button
                         onClick={handleSave}
-                        disabled={saving || !apiKey.trim()}
+                        disabled={saving || !apiKey.trim() || !user}
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
                     >
-                        {saving ? 'Saving...' : 'Save & Continue'}
+                        {!user ? 'Initializing...' : saving ? 'Saving...' : 'Save & Continue'}
                     </button>
 
                     <p className="text-xs text-gray-500 text-center">
