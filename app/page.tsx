@@ -18,7 +18,7 @@ export default function Home() {
               Sign In
             </Link>
             <Link
-              href="/signup"
+              href="/generate"
               className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
             >
               Get Started
@@ -43,7 +43,7 @@ export default function Home() {
           </p>
           <div className="flex gap-4 justify-center">
             <Link
-              href="/signup"
+              href="/generate"
               className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold text-lg hover:shadow-2xl transition-all transform hover:scale-105"
             >
               🚀 Start Building Free
