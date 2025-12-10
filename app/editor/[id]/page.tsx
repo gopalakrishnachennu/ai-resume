@@ -523,7 +523,10 @@ export default function EditorPage() {
     }, [resumeData]);
 
     const handleSave = async () => {
-        if (!user || !jobAnalysis) return;
+        if (!user) {
+            toast.error('Please login to save');
+            return;
+        }
 
         setSaving(true);
 
@@ -545,8 +548,8 @@ export default function EditorPage() {
                 // Update existing AI-generated resume with ATS score and editable fields
                 await setDoc(resumeDocRef, {
                     ...resumeDoc.data(),
-                    jobTitle: jobTitle || jobAnalysis.title,
-                    jobCompany: jobCompany || jobAnalysis.company,
+                    jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
+                    jobCompany: jobCompany || jobAnalysis?.company || '',
                     atsScore: atsScoreData,
                     updatedAt: serverTimestamp(),
                 }, { merge: true });
@@ -556,8 +559,8 @@ export default function EditorPage() {
                 // Save to appliedResumes (old format)
                 await setDoc(doc(db, 'appliedResumes', resumeId as string), {
                     userId: user.uid,
-                    jobTitle: jobAnalysis.title,
-                    company: jobAnalysis.company,
+                    jobTitle: jobAnalysis?.title || 'Untitled',
+                    company: jobAnalysis?.company || '',
                     jobDescription: localStorage.getItem('jobDescription') || '',
                     resumeData,
                     sections,
