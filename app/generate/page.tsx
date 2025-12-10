@@ -11,6 +11,7 @@ import AppHeader from '@/components/AppHeader';
 import { JobProcessingService } from '@/lib/llm-black-box/services/jobProcessing';
 import { useGuestAuth } from '@/lib/hooks/useGuestAuth';
 import { UpgradePrompt } from '@/components/guest/UpgradePrompt';
+import ProfilePrompt from '@/components/ProfilePrompt';
 
 export default function GeneratePage() {
     const { user } = useAuthStore();
@@ -30,6 +31,10 @@ export default function GeneratePage() {
 
     // Guest upgrade prompt
     const [showUpgrade, setShowUpgrade] = useState(false);
+
+    // Profile prompt
+    const [showProfilePrompt, setShowProfilePrompt] = useState(false);
+    const [profilePromptMessage, setProfilePromptMessage] = useState('');
 
     useEffect(() => {
         if (user) {
@@ -215,7 +220,10 @@ export default function GeneratePage() {
             // Step 1: Fetch user profile from Firebase
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (!userDoc.exists()) {
-                throw new Error('User profile not found. Please complete your profile first.');
+                toast.dismiss('generate');
+                setProfilePromptMessage('Please complete your profile to generate a resume');
+                setShowProfilePrompt(true);
+                return;
             }
 
             const userData = userDoc.data();
@@ -248,7 +256,10 @@ export default function GeneratePage() {
 
             // Validate user has experience
             if (!userProfile.experience || userProfile.experience.length === 0) {
-                throw new Error('Please add your work experience in Profile Settings first.');
+                toast.dismiss('generate');
+                setProfilePromptMessage('Please add your work experience to generate a resume');
+                setShowProfilePrompt(true);
+                return;
             }
 
             // Step 3: Transform analysis to JobAnalysis format
@@ -627,6 +638,13 @@ We are looking for a Senior Software Engineer with 5+ years of experience in:
 
             {/* Upgrade Prompt Modal */}
             <UpgradePrompt show={showUpgrade} onClose={() => setShowUpgrade(false)} />
+
+            {/* Profile Prompt Modal */}
+            <ProfilePrompt
+                show={showProfilePrompt}
+                onClose={() => setShowProfilePrompt(false)}
+                message={profilePromptMessage}
+            />
         </div>
     );
 }
