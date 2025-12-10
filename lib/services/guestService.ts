@@ -172,6 +172,27 @@ export async function upgradeGuestToGoogleAccount(): Promise<User> {
     }
 }
 
+// Simple in-memory cache for global settings
+let cachedGlobalSettings: any = null;
+let lastFetchTime = 0;
+
+async function getGlobalSettings() {
+    if (cachedGlobalSettings && Date.now() - lastFetchTime < 60000) { // 1 min cache
+        return cachedGlobalSettings;
+    }
+    try {
+        const settingsDoc = await getDoc(doc(db, 'settings', 'global'));
+        if (settingsDoc.exists()) {
+            cachedGlobalSettings = settingsDoc.data();
+            lastFetchTime = Date.now();
+            return cachedGlobalSettings;
+        }
+    } catch (e) {
+        console.error('Failed to fetch global settings:', e);
+    }
+    return null;
+}
+
 /**
  * Check if user has reached usage limits
  */
@@ -181,8 +202,14 @@ export async function checkUsageLimits(user: User): Promise<{
     current?: number;
     max?: number;
 }> {
+    // Fetch dynamic config
+    const globalSettings = await getGlobalSettings();
+    // Merge with default config (deep merge would be better, but this works for top-level)
+    // We specifically need guest limits
+    const guestConfig = globalSettings?.guest || APP_CONFIG.guest;
+
     // Logged-in users have unlimited access
-    if (!user.isAnonymous || APP_CONFIG.guest.unlimited) {
+    if (!user.isAnonymous || guestConfig.unlimited) {
         return { canUse: true };
     }
 
@@ -193,7 +220,7 @@ export async function checkUsageLimits(user: User): Promise<{
     }
 
     const usage = userDoc.data().usage || {};
-    const limits = APP_CONFIG.guest.limits;
+    const limits = guestConfig.limits;
 
     // Check each limit
     const checks = [

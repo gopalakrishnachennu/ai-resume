@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 import Link from 'next/link';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { toast } from 'react-hot-toast';
 
 type ConfigSection = 'auth' | 'guest' | 'loggedIn' | 'features' | 'ui' | 'ai' | 'storage' | 'analytics' | 'admin';
 
@@ -25,11 +28,16 @@ export default function AdminSettingsPage() {
         );
     }
 
-    const handleSave = () => {
-        // TODO: Save to Firebase or file system
-        console.log('Saving config:', config);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+    const handleSave = async () => {
+        try {
+            await setDoc(doc(db, 'settings', 'global'), config);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+            toast.success('Settings saved to database!');
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            toast.error('Failed to save settings');
+        }
     };
 
     const sections = [
@@ -102,8 +110,8 @@ export default function AdminSettingsPage() {
                                         key={section.id}
                                         onClick={() => setActiveSection(section.id)}
                                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeSection === section.id
-                                                ? 'bg-indigo-50 text-indigo-600 font-semibold'
-                                                : 'text-gray-700 hover:bg-gray-50'
+                                            ? 'bg-indigo-50 text-indigo-600 font-semibold'
+                                            : 'text-gray-700 hover:bg-gray-50'
                                             }`}
                                     >
                                         <span className="text-xl">{section.icon}</span>
