@@ -9,9 +9,12 @@ import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import ApiKeySetup from '@/components/ApiKeySetup';
 import AppHeader from '@/components/AppHeader';
 import { JobProcessingService } from '@/lib/llm-black-box/services/jobProcessing';
+import { useGuestAuth } from '@/lib/hooks/useGuestAuth';
+import { UpgradePrompt } from '@/components/guest/UpgradePrompt';
 
 export default function GeneratePage() {
     const { user } = useAuthStore();
+    const { usageLimits, trackUsage } = useGuestAuth();
     const router = useRouter();
     const [jobDescription, setJobDescription] = useState('');
     const [analyzing, setAnalyzing] = useState(false);
@@ -24,6 +27,9 @@ export default function GeneratePage() {
     const [showApiKeySetup, setShowApiKeySetup] = useState(false);
     const [llmConfig, setLlmConfig] = useState<any>(null);
     const [checkingApiKey, setCheckingApiKey] = useState(true);
+
+    // Guest upgrade prompt
+    const [showUpgrade, setShowUpgrade] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -186,6 +192,13 @@ export default function GeneratePage() {
     };
 
     const handleGenerateResume = async () => {
+        // Check usage limits for guest users
+        if (!usageLimits.canUse) {
+            setShowUpgrade(true);
+            toast.error('You\'ve reached your free limit. Sign up for unlimited access!');
+            return;
+        }
+
         if (!user || !analysis) {
             toast.error('Missing required data');
             return;
@@ -314,6 +327,9 @@ export default function GeneratePage() {
                     duration: 3000,
                 });
             }
+
+            // Track usage for guest users
+            await trackUsage('resumeGenerations');
 
             // Redirect to editor
             setTimeout(() => {
@@ -599,6 +615,9 @@ We are looking for a Senior Software Engineer with 5+ years of experience in:
                     )}
                 </div>
             </main>
+
+            {/* Upgrade Prompt Modal */}
+            <UpgradePrompt show={showUpgrade} onClose={() => setShowUpgrade(false)} />
         </div>
     );
 }
