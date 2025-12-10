@@ -34,11 +34,8 @@ export default function GeneratePage() {
     useEffect(() => {
         if (user) {
             checkApiKey();
-        } else {
-            // If no user, assume API key setup is needed or use public key
-            setCheckingApiKey(false);
-            setShowApiKeySetup(true); // Or handle anonymous access differently
         }
+        // Don't force API key setup for guests - they'll be prompted when needed
     }, [user]);
 
     // Load JD from URL parameter if present

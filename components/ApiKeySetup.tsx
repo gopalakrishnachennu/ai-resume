@@ -26,7 +26,7 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
         }
 
         if (!user) {
-            toast.error('Please log in first');
+            toast.error('Initializing... Please try again in a moment');
             return;
         }
 
