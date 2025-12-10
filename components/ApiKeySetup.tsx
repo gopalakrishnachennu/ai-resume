@@ -64,8 +64,15 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
 
             // ALSO save to localStorage (for instant load on same computer)
             if (user.isAnonymous) {
-                GuestCacheService.saveApiKey(provider, apiKey.trim());
-                console.log('[ApiKeySetup] Saved to cache for guest user');
+                // IMPORTANT: Clear old cache first to prevent stale provider data
+                const oldCache = GuestCacheService.loadApiKey();
+                if (oldCache && (oldCache.provider !== provider || oldCache.apiKey !== apiKey.trim())) {
+                    console.log('[ApiKeySetup] Clearing old cache before update');
+                    GuestCacheService.saveApiKey(provider, apiKey.trim()); // This will overwrite
+                } else {
+                    GuestCacheService.saveApiKey(provider, apiKey.trim());
+                }
+                console.log('[ApiKeySetup] Saved to cache for guest user:', { provider, keyLength: apiKey.trim().length });
             }
 
             toast.success('API key saved successfully! 🎉');
