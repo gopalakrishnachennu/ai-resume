@@ -12,6 +12,7 @@ import {
     incrementUsage,
     checkAndResetUsage,
     getGuestRestrictions,
+    getGlobalSettings,
 } from '@/lib/services/guestService';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 
@@ -51,13 +52,19 @@ export function useGuestAuth() {
                 // Check restrictions
                 const perms = await getGuestRestrictions(firebaseUser);
                 setRestrictions(perms);
-            } else if (APP_CONFIG.guest.enabled && !APP_CONFIG.auth.requireLogin) {
-                // Auto sign-in as guest
-                try {
-                    const guestUser = await initializeGuestUser();
-                    setUser(guestUser);
-                } catch (error) {
-                    console.error('Failed to initialize guest user:', error);
+            } else {
+                // Check dynamic settings before auto-login
+                const settings = await getGlobalSettings();
+                const guestConfig = settings?.guest || APP_CONFIG.guest;
+
+                if (guestConfig.enabled && !APP_CONFIG.auth.requireLogin) {
+                    // Auto sign-in as guest
+                    try {
+                        const guestUser = await initializeGuestUser();
+                        setUser(guestUser);
+                    } catch (error) {
+                        console.error('Failed to initialize guest user:', error);
+                    }
                 }
             }
 

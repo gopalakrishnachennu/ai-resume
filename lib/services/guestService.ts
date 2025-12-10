@@ -176,7 +176,7 @@ export async function upgradeGuestToGoogleAccount(): Promise<User> {
 let cachedGlobalSettings: any = null;
 let lastFetchTime = 0;
 
-async function getGlobalSettings() {
+export async function getGlobalSettings() {
     if (cachedGlobalSettings && Date.now() - lastFetchTime < 60000) { // 1 min cache
         return cachedGlobalSettings;
     }
@@ -340,7 +340,10 @@ export async function getGuestRestrictions(user: User) {
  * Check if usage should be reset
  */
 export async function checkAndResetUsage(user: User) {
-    if (!user.isAnonymous || !APP_CONFIG.guest.expiry.enabled) {
+    const globalSettings = await getGlobalSettings();
+    const guestConfig = globalSettings?.guest || APP_CONFIG.guest;
+
+    if (!user.isAnonymous || !guestConfig.expiry.enabled) {
         return;
     }
 
@@ -360,7 +363,7 @@ export async function checkAndResetUsage(user: User) {
     const now = new Date();
     const daysSinceReset = Math.floor((now.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (daysSinceReset >= APP_CONFIG.guest.expiry.days) {
+    if (daysSinceReset >= guestConfig.expiry.days) {
         // Reset usage
         await updateDoc(userRef, {
             'usage.resumeGenerations': 0,
