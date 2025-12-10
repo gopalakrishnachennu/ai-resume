@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { getProviderConfig } from '@/lib/constants/aiProviderIcons';
@@ -51,32 +49,13 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
         setSaving(true);
 
         try {
-            const llmConfig = {
-                provider,
-                apiKey: apiKey.trim(),
-                updatedAt: new Date().toISOString(),
-            };
+            // ✅ V2 PIPELINE - Automatic validation, save, cache, toast
+            const { updateApiKey } = await import('@/lib/core/pipelines');
+            const success = await updateApiKey(apiKey.trim(), provider, user);
 
-            // Save to Firestore (for data collection & cross-device)
-            await setDoc(doc(db, 'users', user.uid), {
-                llmConfig
-            }, { merge: true });
-
-            // ALSO save to localStorage (for instant load on same computer)
-            if (user.isAnonymous) {
-                // IMPORTANT: Clear old cache first to prevent stale provider data
-                const oldCache = GuestCacheService.loadApiKey();
-                if (oldCache && (oldCache.provider !== provider || oldCache.apiKey !== apiKey.trim())) {
-                    console.log('[ApiKeySetup] Clearing old cache before update');
-                    GuestCacheService.saveApiKey(provider, apiKey.trim()); // This will overwrite
-                } else {
-                    GuestCacheService.saveApiKey(provider, apiKey.trim());
-                }
-                console.log('[ApiKeySetup] Saved to cache for guest user:', { provider, keyLength: apiKey.trim().length });
+            if (success) {
+                onComplete();
             }
-
-            toast.success('API key saved successfully! 🎉');
-            onComplete();
         } catch (error) {
             console.error('Error saving API key:', error);
             toast.error('Failed to save API key');
