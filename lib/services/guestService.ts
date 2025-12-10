@@ -196,7 +196,7 @@ async function getGlobalSettings() {
 /**
  * Check if user has reached usage limits
  */
-export async function checkUsageLimits(user: User): Promise<{
+export async function checkUsageLimits(user: User, checkType?: string): Promise<{
     canUse: boolean;
     limitType?: string;
     current?: number;
@@ -206,8 +206,6 @@ export async function checkUsageLimits(user: User): Promise<{
 }> {
     // Fetch dynamic config
     const globalSettings = await getGlobalSettings();
-    // Merge with default config (deep merge would be better, but this works for top-level)
-    // We specifically need guest limits
     const guestConfig = globalSettings?.guest || APP_CONFIG.guest;
 
     // Logged-in users have unlimited access
@@ -231,10 +229,32 @@ export async function checkUsageLimits(user: User): Promise<{
         { type: 'aiSuggestions', current: usage.aiSuggestions || 0, max: limits.aiSuggestions },
         { type: 'pdfDownloads', current: usage.pdfDownloads || 0, max: limits.pdfDownloads },
         { type: 'docxDownloads', current: usage.docxDownloads || 0, max: limits.docxDownloads },
+        { type: 'resumeEdits', current: usage.resumeEdits || 0, max: limits.resumeEdits },
     ];
 
     const resumeStats = checks.find(c => c.type === 'resumeGenerations');
 
+    // If checking a specific type
+    if (checkType) {
+        const check = checks.find(c => c.type === checkType);
+        if (check && check.current >= check.max) {
+            return {
+                canUse: false,
+                limitType: check.type,
+                current: check.current,
+                max: check.max,
+                resumeUsage: resumeStats?.current || 0,
+                resumeLimit: resumeStats?.max || 3,
+            };
+        }
+        return {
+            canUse: true,
+            resumeUsage: resumeStats?.current || 0,
+            resumeLimit: resumeStats?.max || 3,
+        };
+    }
+
+    // Check all limits (default behavior)
     for (const check of checks) {
         if (check.current >= check.max) {
             return {
@@ -281,6 +301,39 @@ export async function incrementUsage(
     });
 
     console.log(`📊 Usage updated: ${type} = ${newCount}`);
+}
+
+/**
+ * Get all guest restrictions
+ */
+export async function getGuestRestrictions(user: User) {
+    if (!user.isAnonymous) {
+        // Return all true for logged in users
+        return {
+            canDownloadPDF: true,
+            canDownloadDOCX: true,
+            canSaveResumes: true,
+            canEditResumes: true,
+            canViewHistory: true,
+            canUseAI: true,
+        };
+    }
+
+    const globalSettings = await getGlobalSettings();
+    const guestConfig = globalSettings?.guest || APP_CONFIG.guest;
+
+    if (guestConfig.unlimited) {
+        return {
+            canDownloadPDF: true,
+            canDownloadDOCX: true,
+            canSaveResumes: true,
+            canEditResumes: true,
+            canViewHistory: true,
+            canUseAI: true,
+        };
+    }
+
+    return guestConfig.restrictions;
 }
 
 /**

@@ -3,6 +3,7 @@
 import { CSSProperties, ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { useGuestAuth } from '@/lib/hooks/useGuestAuth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from 'react-hot-toast';
@@ -29,7 +30,9 @@ const PREVIEW_SCALE = 0.72;
 export default function EditorPage() {
     const params = useParams();
     const router = useRouter();
+
     const { user } = useAuthStore();
+    const { isGuest, restrictions, checkLimit, incrementUsage } = useGuestAuth();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -528,6 +531,23 @@ export default function EditorPage() {
             return;
         }
 
+        if (!user) {
+            toast.error('Please login to save');
+            return;
+        }
+
+        if (isGuest) {
+            if (!restrictions.canSaveResumes) {
+                toast.error('Guest saving is disabled. Please upgrade.');
+                return;
+            }
+            const limit = await checkLimit('resumeEdits');
+            if (!limit.canUse) {
+                toast.error(`Edit limit reached (${limit.current}/${limit.max})`);
+                return;
+            }
+        }
+
         setSaving(true);
 
         try {
@@ -580,10 +600,23 @@ export default function EditorPage() {
             toast.error('Failed to save resume');
         } finally {
             setSaving(false);
+            if (isGuest) await incrementUsage('resumeEdits');
         }
     };
 
     const generatePDF = async () => {
+        if (isGuest) {
+            if (!restrictions.canDownloadPDF) {
+                toast.error('Guest PDF download is disabled. Please upgrade.');
+                return;
+            }
+            const limit = await checkLimit('pdfDownloads');
+            if (!limit.canUse) {
+                toast.error(`PDF download limit reached (${limit.current}/${limit.max})`);
+                return;
+            }
+        }
+
         try {
             const pdfMakeModule = await import('pdfmake/build/pdfmake');
             const pdfMake = (pdfMakeModule as any).default || pdfMakeModule;
@@ -769,8 +802,9 @@ export default function EditorPage() {
 
             pdfMake
                 .createPdf(docDefinition)
-                .download(`${resumeData.personalInfo.name || 'Resume'}_Resume.pdf`, () => {
+                .download(`${resumeData.personalInfo.name || 'Resume'}_Resume.pdf`, async () => {
                     toast.success('PDF downloaded! 📄');
+                    if (isGuest) await incrementUsage('pdfDownloads');
                 });
         } catch (error) {
             console.error('PDF generation error:', error);
@@ -779,6 +813,18 @@ export default function EditorPage() {
     };
 
     const generateDOCX = async () => {
+        if (isGuest) {
+            if (!restrictions.canDownloadDOCX) {
+                toast.error('Guest DOCX download is disabled. Please upgrade.');
+                return;
+            }
+            const limit = await checkLimit('docxDownloads');
+            if (!limit.canUse) {
+                toast.error(`DOCX download limit reached (${limit.current}/${limit.max})`);
+                return;
+            }
+        }
+
         try {
             const docxModule = await import('docx');
             const fileSaverModule = await import('file-saver');
@@ -942,6 +988,7 @@ export default function EditorPage() {
             const blob = await Packer.toBlob(doc);
             saveAs(blob, `${resumeData.personalInfo.name || 'Resume'}_Resume.docx`);
             toast.success('DOCX downloaded! 📄');
+            if (isGuest) await incrementUsage('docxDownloads');
         } catch (error) {
             console.error('DOCX generation error:', error);
             toast.error('Failed to generate DOCX');

@@ -11,6 +11,7 @@ import {
     checkUsageLimits,
     incrementUsage,
     checkAndResetUsage,
+    getGuestRestrictions,
 } from '@/lib/services/guestService';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 
@@ -25,6 +26,14 @@ export function useGuestAuth() {
         resumeUsage?: number;
         resumeLimit?: number;
     }>({ canUse: true });
+    const [restrictions, setRestrictions] = useState({
+        canDownloadPDF: true,
+        canDownloadDOCX: true,
+        canSaveResumes: true,
+        canEditResumes: true,
+        canViewHistory: true,
+        canUseAI: true,
+    });
 
     useEffect(() => {
         // Listen to auth state changes
@@ -38,6 +47,10 @@ export function useGuestAuth() {
                 // Check usage limits
                 const limits = await checkUsageLimits(firebaseUser);
                 setUsageLimits(limits);
+
+                // Check restrictions
+                const perms = await getGuestRestrictions(firebaseUser);
+                setRestrictions(perms);
             } else if (APP_CONFIG.guest.enabled && !APP_CONFIG.auth.requireLogin) {
                 // Auto sign-in as guest
                 try {
@@ -90,8 +103,10 @@ export function useGuestAuth() {
         isGuest: user?.isAnonymous || false,
         isLoggedIn: user && !user.isAnonymous,
         usageLimits,
-        trackUsage,
         upgradeToEmail,
         upgradeToGoogle,
+        checkLimit: (type: any) => user ? checkUsageLimits(user, type) : Promise.resolve({ canUse: false, current: 0, max: 0 }),
+        incrementUsage: (type: any) => user && incrementUsage(user, type),
+        restrictions,
     };
 }

@@ -16,7 +16,7 @@ import { GuestCacheService } from '@/lib/services/guestCacheService';
 
 export default function GeneratePage() {
     const { user } = useAuthStore();
-    const { usageLimits, trackUsage, loading: guestAuthLoading } = useGuestAuth();
+    const { usageLimits, incrementUsage, checkLimit, loading: guestAuthLoading } = useGuestAuth();
     const router = useRouter();
     const [jobDescription, setJobDescription] = useState('');
     const [analyzing, setAnalyzing] = useState(false);
@@ -144,9 +144,16 @@ export default function GeneratePage() {
         }
     };
 
-    const handleManualEntry = () => {
+    const handleManualEntry = async () => {
         if (!manualTitle.trim()) {
             toast.error('Please enter a job title');
+            return;
+        }
+
+        // Check limit
+        const limit = await checkLimit('jdAnalyses');
+        if (!limit.canUse) {
+            setShowUpgrade(true);
             return;
         }
 
@@ -167,6 +174,7 @@ export default function GeneratePage() {
 
         setAnalysis(manualAnalysis);
         toast.success('Ready to generate resume!');
+        await incrementUsage('jdAnalyses');
     };
 
     const handleAnalyze = async () => {
@@ -183,6 +191,13 @@ export default function GeneratePage() {
 
         if (!user) {
             toast.error('Please sign in to continue');
+            return;
+        }
+
+        // Check usage limits for guest users
+        const limit = await checkLimit('jdAnalyses');
+        if (!limit.canUse) {
+            setShowUpgrade(true);
             return;
         }
 
@@ -234,6 +249,7 @@ export default function GeneratePage() {
                     duration: 3000,
                 });
             }
+            await incrementUsage('jdAnalyses');
 
         } catch (error: any) {
             console.error('Analysis error:', error);
@@ -244,13 +260,6 @@ export default function GeneratePage() {
     };
 
     const handleGenerateResume = async () => {
-        // Check usage limits for guest users
-        if (!usageLimits.canUse) {
-            setShowUpgrade(true);
-            toast.error('You\'ve reached your free limit. Sign up for unlimited access!');
-            return;
-        }
-
         if (!user || !analysis) {
             toast.error('Missing required data');
             return;
@@ -259,6 +268,13 @@ export default function GeneratePage() {
         if (!llmConfig?.apiKey) {
             toast.error('Please configure your API key first');
             setShowApiKeySetup(true);
+            return;
+        }
+
+        // Check usage limits for guest users
+        const limit = await checkLimit('resumeGenerations');
+        if (!limit.canUse) {
+            setShowUpgrade(true);
             return;
         }
 
@@ -387,7 +403,7 @@ export default function GeneratePage() {
             }
 
             // Track usage for guest users
-            await trackUsage('resumeGenerations');
+            await incrementUsage('resumeGenerations');
 
             // Redirect to editor
             setTimeout(() => {
