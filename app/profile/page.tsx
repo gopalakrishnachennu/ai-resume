@@ -9,10 +9,11 @@ import { toast } from 'react-hot-toast';
 import AppHeader from '@/components/AppHeader';
 
 export default function ProfilePage() {
-    const { user } = useAuthStore();
+    const { user, loading: authLoading } = useAuthStore();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    // const [authLoading, setAuthLoading] = useState(true); // Removed local state
 
     const [profile, setProfile] = useState({
         phone: '',
@@ -62,14 +63,8 @@ export default function ProfilePage() {
     });
     const [showApiKey, setShowApiKey] = useState(false);
 
-    const [authLoading, setAuthLoading] = useState(true);
-
     useEffect(() => {
-        const initAuth = async () => {
-            await useAuthStore.getState().initialize();
-            setAuthLoading(false);
-        };
-        initAuth();
+        useAuthStore.getState().initialize();
     }, []);
 
     useEffect(() => {

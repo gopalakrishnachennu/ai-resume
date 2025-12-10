@@ -10,10 +10,10 @@ import { authService } from '@/lib/services/auth';
 import { toast } from 'react-hot-toast';
 
 export default function DashboardPage() {
-    const { user } = useAuthStore();
+    const { user, loading: authLoading } = useAuthStore();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [authLoading, setAuthLoading] = useState(true); // ✅ Track auth loading
+    // const [authLoading, setAuthLoading] = useState(true); // Removed local state
     const [appliedResumes, setAppliedResumes] = useState<any[]>([]);
     const [analyzedJDs, setAnalyzedJDs] = useState<any[]>([]);
     const [stats, setStats] = useState({
@@ -21,7 +21,7 @@ export default function DashboardPage() {
         avgAts: 0,
         thisWeek: 0,
     });
-    const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid'); // Default to grid view
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
     const [deleteModal, setDeleteModal] = useState<{
         show: boolean;
         resumeId: string;
@@ -33,11 +33,7 @@ export default function DashboardPage() {
     });
 
     useEffect(() => {
-        const initAuth = async () => {
-            await useAuthStore.getState().initialize();
-            setAuthLoading(false); // ✅ Auth loaded
-        };
-        initAuth();
+        useAuthStore.getState().initialize();
     }, []);
 
     useEffect(() => {

@@ -31,7 +31,7 @@ export default function EditorPage() {
     const params = useParams();
     const router = useRouter();
 
-    const { user } = useAuthStore();
+    const { user, loading: authLoading } = useAuthStore();
     const { isGuest, restrictions, checkLimit, incrementUsage } = useGuestAuth();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -324,14 +324,8 @@ export default function EditorPage() {
         return runs.length ? runs : [baseRun(text)];
     };
 
-    const [authLoading, setAuthLoading] = useState(true);
-
     useEffect(() => {
-        const initAuth = async () => {
-            await useAuthStore.getState().initialize();
-            setAuthLoading(false);
-        };
-        initAuth();
+        useAuthStore.getState().initialize();
     }, []);
 
     useEffect(() => {
