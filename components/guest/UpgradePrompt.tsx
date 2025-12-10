@@ -200,7 +200,7 @@ export function UpgradePrompt({ show, onClose }: UpgradePromptProps) {
 export function UsageCounter() {
     const { user, isGuest, usageLimits } = useGuestAuth();
 
-    if (!isGuest || !APP_CONFIG.ui.showUsageCounter) {
+    if (!isGuest || !APP_CONFIG.ui.showUsageCounter || usageLimits.unlimited) {
         return null;
     }
 

@@ -26,6 +26,7 @@ export function useGuestAuth() {
         max?: number;
         resumeUsage?: number;
         resumeLimit?: number;
+        unlimited?: boolean;
     }>({ canUse: true });
     const [restrictions, setRestrictions] = useState({
         canDownloadPDF: true,

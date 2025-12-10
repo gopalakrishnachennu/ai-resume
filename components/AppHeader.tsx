@@ -73,7 +73,7 @@ export default function AppHeader({ title = 'AI Resume Builder', showBack = fals
     };
 
     const getUsageBadge = () => {
-        if (!isGuest || APP_CONFIG.guest.unlimited) return null;
+        if (!isGuest || usageLimits.unlimited) return null;
 
         const total = usageLimits.resumeLimit || APP_CONFIG.guest.limits.resumeGenerations;
         const used = usageLimits.resumeUsage || 0;

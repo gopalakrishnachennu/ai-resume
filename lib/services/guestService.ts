@@ -203,6 +203,7 @@ export async function checkUsageLimits(user: User, checkType?: string): Promise<
     max?: number;
     resumeUsage?: number;
     resumeLimit?: number;
+    unlimited?: boolean;
 }> {
     // Fetch dynamic config
     const globalSettings = await getGlobalSettings();
@@ -210,7 +211,7 @@ export async function checkUsageLimits(user: User, checkType?: string): Promise<
 
     // Logged-in users have unlimited access
     if (!user.isAnonymous || guestConfig.unlimited) {
-        return { canUse: true };
+        return { canUse: true, unlimited: true };
     }
 
     // Get user document
