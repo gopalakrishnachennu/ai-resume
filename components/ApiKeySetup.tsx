@@ -117,7 +117,7 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
                             <h4 className="font-semibold text-green-800">Free Tries Available!</h4>
                             <p className="text-sm text-green-700 mt-1">
                                 You have <strong>{freeTriesLeft} free generations</strong> left using our Global API Key.
-                                You can close this window and try it out!
+                                You can skip setup below and try it out!
                             </p>
                         </div>
                     </div>
@@ -198,6 +198,15 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
                     <p className="text-xs text-gray-500 text-center">
                         You can change this later in Profile Settings
                     </p>
+
+                    {globalKeyAvailable && (
+                        <button
+                            onClick={onComplete}
+                            className="w-full mt-2 bg-white border border-green-500 text-green-600 py-3 rounded-lg font-semibold hover:bg-green-50 transition-all shadow-sm"
+                        >
+                            Skip Setup & Use Free Tries ({freeTriesLeft} left)
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
