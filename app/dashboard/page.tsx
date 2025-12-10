@@ -13,6 +13,7 @@ export default function DashboardPage() {
     const { user } = useAuthStore();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
+    const [authLoading, setAuthLoading] = useState(true); // ✅ Track auth loading
     const [appliedResumes, setAppliedResumes] = useState<any[]>([]);
     const [analyzedJDs, setAnalyzedJDs] = useState<any[]>([]);
     const [stats, setStats] = useState({
@@ -32,16 +33,24 @@ export default function DashboardPage() {
     });
 
     useEffect(() => {
-        useAuthStore.getState().initialize();
+        const initAuth = async () => {
+            await useAuthStore.getState().initialize();
+            setAuthLoading(false); // ✅ Auth loaded
+        };
+        initAuth();
     }, []);
 
     useEffect(() => {
+        // ✅ Wait for auth to finish loading
+        if (authLoading) return;
+
+        // ✅ Only redirect if definitely no user
         if (!user) {
             router.push('/login');
             return;
         }
         loadData();
-    }, [user]);
+    }, [user, authLoading]);
 
     const loadData = async () => {
         if (!user) {

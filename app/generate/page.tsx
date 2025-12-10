@@ -37,6 +37,35 @@ export default function GeneratePage() {
     const [showProfilePrompt, setShowProfilePrompt] = useState(false);
     const [profilePromptMessage, setProfilePromptMessage] = useState('');
 
+    // ✅ RESTORE data from localStorage on mount (survives refresh)
+    useEffect(() => {
+        const savedJD = localStorage.getItem('draft_jobDescription');
+        const savedAnalysis = localStorage.getItem('draft_analysis');
+
+        if (savedJD) setJobDescription(savedJD);
+        if (savedAnalysis) {
+            try {
+                setAnalysis(JSON.parse(savedAnalysis));
+            } catch (e) {
+                console.error('Failed to parse saved analysis:', e);
+            }
+        }
+    }, []);
+
+    // ✅ SAVE job description to localStorage (auto-save)
+    useEffect(() => {
+        if (jobDescription) {
+            localStorage.setItem('draft_jobDescription', jobDescription);
+        }
+    }, [jobDescription]);
+
+    // ✅ SAVE analysis to localStorage (auto-save)
+    useEffect(() => {
+        if (analysis) {
+            localStorage.setItem('draft_analysis', JSON.stringify(analysis));
+        }
+    }, [analysis]);
+
     // Check API key after guest auth completes
     useEffect(() => {
         if (!guestAuthLoading && user) {

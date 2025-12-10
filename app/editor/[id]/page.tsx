@@ -321,16 +321,66 @@ export default function EditorPage() {
         return runs.length ? runs : [baseRun(text)];
     };
 
+    const [authLoading, setAuthLoading] = useState(true);
+
     useEffect(() => {
+        const initAuth = async () => {
+            await useAuthStore.getState().initialize();
+            setAuthLoading(false);
+        };
+        initAuth();
+    }, []);
+
+    useEffect(() => {
+        if (authLoading) return;
+
         if (!user) {
             router.push('/login');
             return;
         }
         loadData();
-    }, [user]);
+    }, [user, authLoading]);
+
+    // ✅ AUTO-SAVE to localStorage
+    useEffect(() => {
+        if (resumeData && Object.keys(resumeData).length > 0 && !loading) {
+            const draftKey = `draft_resume_${params.id}`;
+            localStorage.setItem(draftKey, JSON.stringify({
+                resumeData,
+                sections,
+                settings,
+                updatedAt: Date.now()
+            }));
+        }
+    }, [resumeData, sections, settings, params.id, loading]);
 
     const loadData = async () => {
         try {
+            // ✅ Check for local draft first (survives refresh)
+            const draftKey = `draft_resume_${params.id}`;
+            const savedDraft = localStorage.getItem(draftKey);
+
+            if (savedDraft) {
+                try {
+                    const draft = JSON.parse(savedDraft);
+                    // Only use draft if it's recent (e.g., less than 24 hours)
+                    if (Date.now() - draft.updatedAt < 24 * 60 * 60 * 1000) {
+                        setResumeData(draft.resumeData);
+                        if (draft.sections) setSections(draft.sections);
+                        if (draft.settings) setSettings(draft.settings);
+
+                        const analysisStr = localStorage.getItem('jobAnalysis');
+                        if (analysisStr) setJobAnalysis(JSON.parse(analysisStr));
+
+                        setLoading(false);
+                        toast.success('Restored unsaved changes');
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Error parsing draft:', e);
+                }
+            }
+
             const analysisStr = localStorage.getItem('jobAnalysis');
             if (analysisStr) {
                 setJobAnalysis(JSON.parse(analysisStr));

@@ -62,13 +62,25 @@ export default function ProfilePage() {
     });
     const [showApiKey, setShowApiKey] = useState(false);
 
+    const [authLoading, setAuthLoading] = useState(true);
+
     useEffect(() => {
+        const initAuth = async () => {
+            await useAuthStore.getState().initialize();
+            setAuthLoading(false);
+        };
+        initAuth();
+    }, []);
+
+    useEffect(() => {
+        if (authLoading) return;
+
         if (!user) {
             router.push('/login');
             return;
         }
         loadProfile();
-    }, [user]);
+    }, [user, authLoading]);
 
     const loadProfile = async () => {
         if (!user) return;
