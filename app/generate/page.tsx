@@ -36,12 +36,12 @@ export default function GeneratePage() {
     const [showProfilePrompt, setShowProfilePrompt] = useState(false);
     const [profilePromptMessage, setProfilePromptMessage] = useState('');
 
+    // Check API key after guest auth completes
     useEffect(() => {
-        if (user) {
+        if (!guestAuthLoading && user) {
             checkApiKey();
         }
-        // Don't force API key setup for guests - they'll be prompted when needed
-    }, [user]);
+    }, [guestAuthLoading, user]);
 
     // Load JD from URL parameter if present
     useEffect(() => {
