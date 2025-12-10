@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/store/authStore';
@@ -160,10 +160,10 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
                     {/* Save Button */}
                     <button
                         onClick={handleSave}
-                        disabled={saving || !apiKey.trim() || !user}
+                        disabled={saving || !apiKey.trim() || !userReady}
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
                     >
-                        {!user ? 'Initializing...' : saving ? 'Saving...' : 'Save & Continue'}
+                        {!userReady ? 'Initializing...' : saving ? 'Saving...' : 'Save & Continue'}
                     </button>
 
                     <p className="text-xs text-gray-500 text-center">
