@@ -18,13 +18,10 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
     const [provider, setProvider] = useState<'gemini' | 'openai' | 'claude'>(existingProvider || 'gemini');
     const [apiKey, setApiKey] = useState(existingKey || '');
     const [saving, setSaving] = useState(false);
-    const [userReady, setUserReady] = useState(false);
 
-    // Track when user becomes available
+    // Debug: Log user state changes
     useEffect(() => {
-        if (user) {
-            setUserReady(true);
-        }
+        console.log('[ApiKeySetup] User state changed:', user ? `User ID: ${user.uid}` : 'No user');
     }, [user]);
 
     const handleSave = async () => {
@@ -160,10 +157,10 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
                     {/* Save Button */}
                     <button
                         onClick={handleSave}
-                        disabled={saving || !apiKey.trim() || !userReady}
+                        disabled={saving || !apiKey.trim() || !user}
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
                     >
-                        {!userReady ? 'Initializing...' : saving ? 'Saving...' : 'Save & Continue'}
+                        {!user ? 'Initializing...' : saving ? 'Saving...' : 'Save & Continue'}
                     </button>
 
                     <p className="text-xs text-gray-500 text-center">
