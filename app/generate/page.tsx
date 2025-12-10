@@ -26,7 +26,7 @@ export default function GeneratePage() {
     // API Key state
     const [showApiKeySetup, setShowApiKeySetup] = useState(false);
     const [llmConfig, setLlmConfig] = useState<any>(null);
-    const [checkingApiKey, setCheckingApiKey] = useState(true);
+    const [checkingApiKey, setCheckingApiKey] = useState(false);
 
     // Guest upgrade prompt
     const [showUpgrade, setShowUpgrade] = useState(false);
@@ -65,9 +65,11 @@ export default function GeneratePage() {
     const checkApiKey = async () => {
         if (!user) {
             setCheckingApiKey(false);
-            setShowApiKeySetup(true);
             return;
         }
+
+        setCheckingApiKey(true);
+
         try {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (userDoc.exists()) {
