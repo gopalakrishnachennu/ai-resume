@@ -201,6 +201,8 @@ export async function checkUsageLimits(user: User): Promise<{
     limitType?: string;
     current?: number;
     max?: number;
+    resumeUsage?: number;
+    resumeLimit?: number;
 }> {
     // Fetch dynamic config
     const globalSettings = await getGlobalSettings();
@@ -231,6 +233,8 @@ export async function checkUsageLimits(user: User): Promise<{
         { type: 'docxDownloads', current: usage.docxDownloads || 0, max: limits.docxDownloads },
     ];
 
+    const resumeStats = checks.find(c => c.type === 'resumeGenerations');
+
     for (const check of checks) {
         if (check.current >= check.max) {
             return {
@@ -238,11 +242,17 @@ export async function checkUsageLimits(user: User): Promise<{
                 limitType: check.type,
                 current: check.current,
                 max: check.max,
+                resumeUsage: resumeStats?.current || 0,
+                resumeLimit: resumeStats?.max || 3,
             };
         }
     }
 
-    return { canUse: true };
+    return {
+        canUse: true,
+        resumeUsage: resumeStats?.current || 0,
+        resumeLimit: resumeStats?.max || 3,
+    };
 }
 
 /**

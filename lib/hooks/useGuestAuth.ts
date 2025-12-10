@@ -22,6 +22,8 @@ export function useGuestAuth() {
         limitType?: string;
         current?: number;
         max?: number;
+        resumeUsage?: number;
+        resumeLimit?: number;
     }>({ canUse: true });
 
     useEffect(() => {

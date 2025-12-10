@@ -75,8 +75,8 @@ export default function AppHeader({ title = 'AI Resume Builder', showBack = fals
     const getUsageBadge = () => {
         if (!isGuest || APP_CONFIG.guest.unlimited) return null;
 
-        const total = APP_CONFIG.guest.limits.resumeGenerations;
-        const used = usageLimits.current || 0;
+        const total = usageLimits.resumeLimit || APP_CONFIG.guest.limits.resumeGenerations;
+        const used = usageLimits.resumeUsage || 0;
         const percentage = (used / total) * 100;
 
         return (

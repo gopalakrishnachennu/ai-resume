@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
 import { APP_CONFIG } from '@/lib/config/appConfig';
 import Link from 'next/link';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from 'react-hot-toast';
 
@@ -18,7 +18,34 @@ export default function AdminSettingsPage() {
 
     useEffect(() => {
         requireAuth();
+        loadSettings();
     }, [isAuthenticated, isLoading]);
+
+    const loadSettings = async () => {
+        try {
+            const docRef = doc(db, 'settings', 'global');
+            const docSnap = await getDoc(docRef); // getDoc is already imported? No, need to check imports.
+            if (docSnap.exists()) {
+                const savedConfig = docSnap.data();
+                // Merge saved config with default config to ensure all fields exist
+                setConfig(prev => ({
+                    ...prev,
+                    ...savedConfig,
+                    guest: {
+                        ...prev.guest,
+                        ...savedConfig.guest,
+                        limits: {
+                            ...prev.guest.limits,
+                            ...savedConfig.guest?.limits
+                        }
+                    }
+                }));
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            toast.error('Failed to load saved settings');
+        }
+    };
 
     if (isLoading || !isAuthenticated) {
         return (
