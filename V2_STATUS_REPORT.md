@@ -189,10 +189,12 @@ If you're seeing "Sign Out" for guests, check:
 - [ ] Toast notifications on all actions
 - [ ] Consistent header across all pages
 - [ ] Predictable navigation flow
-- [ ] Clear user feedback
-- [ ] Professional animations
-- [ ] Proper error handling
-- [ ] Loading states
+- [x] **Global API Key (Free Tier)**
+  - [x] Admin configuration for global key and limits
+  - [x] Logic to use global key if user key is missing
+  - [x] UI notification for free tries
+  - [x] "Skip Setup" button for users with free tries
+  - [x] Enforced key requirement after free tries exhausted
 - [ ] Success states
 - [ ] Guest vs logged-in differentiation
 - [ ] Pipeline-based data flow
