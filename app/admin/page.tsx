@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
 import Link from 'next/link';
+import { collection, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function AdminDashboard() {
     const { isAuthenticated, isLoading, logout, requireAuth } = useAdminAuth();
@@ -19,6 +21,53 @@ export default function AdminDashboard() {
     useEffect(() => {
         requireAuth();
     }, [isAuthenticated, isLoading]);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            loadStats();
+        }
+    }, [isAuthenticated]);
+
+    const loadStats = async () => {
+        try {
+            // Get all users
+            const usersSnap = await getDocs(collection(db, 'users'));
+            const totalUsers = usersSnap.size;
+
+            let guestUsers = 0;
+            usersSnap.docs.forEach(doc => {
+                if (doc.data().isAnonymous) guestUsers++;
+            });
+            const loggedInUsers = totalUsers - guestUsers;
+
+            // Get all resumes
+            const resumesSnap = await getDocs(collection(db, 'resumes'));
+            const totalResumes = resumesSnap.size;
+
+            // Today's resumes
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayTimestamp = Timestamp.fromDate(today);
+
+            let todayResumes = 0;
+            resumesSnap.docs.forEach(doc => {
+                const data = doc.data();
+                if (data.createdAt && data.createdAt >= todayTimestamp) {
+                    todayResumes++;
+                }
+            });
+
+            setStats({
+                totalUsers,
+                guestUsers,
+                loggedInUsers,
+                totalResumes,
+                todayResumes,
+            });
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    };
 
     if (isLoading || !isAuthenticated) {
         return (
