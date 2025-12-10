@@ -16,6 +16,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { APP_CONFIG } from '@/lib/config/appConfig';
+import { GuestCacheService } from './guestCacheService';
 
 /**
  * Initialize guest user
@@ -106,6 +107,9 @@ export async function upgradeGuestToEmailAccount(
             upgradeMethod: 'email',
         });
 
+        // Clear guest cache (now use Firebase only)
+        GuestCacheService.clearAll();
+
         console.log('✅ Guest upgraded to email account');
         return result.user;
     } catch (error: any) {
@@ -154,6 +158,9 @@ export async function upgradeGuestToGoogleAccount(): Promise<User> {
             upgradedAt: serverTimestamp(),
             upgradeMethod: 'google',
         });
+
+        // Clear guest cache (now use Firebase only)
+        GuestCacheService.clearAll();
 
         console.log('✅ Guest upgraded to Google account');
         return result.user;

@@ -12,6 +12,7 @@ import { JobProcessingService } from '@/lib/llm-black-box/services/jobProcessing
 import { useGuestAuth } from '@/lib/hooks/useGuestAuth';
 import { UpgradePrompt } from '@/components/guest/UpgradePrompt';
 import ProfilePrompt from '@/components/ProfilePrompt';
+import { GuestCacheService } from '@/lib/services/guestCacheService';
 
 export default function GeneratePage() {
     const { user } = useAuthStore();
@@ -76,12 +77,30 @@ export default function GeneratePage() {
         setCheckingApiKey(true);
 
         try {
+            // For guest users: Check cache FIRST for instant load
+            if (user.isAnonymous) {
+                const cached = GuestCacheService.loadApiKey();
+                if (cached) {
+                    setLlmConfig(cached);
+                    setShowApiKeySetup(false);
+                    setCheckingApiKey(false);
+                    console.log('[Generate] Loaded API key from cache (instant!)');
+                    return;
+                }
+            }
+
+            // Then check Firebase (for logged-in users or if cache miss)
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 if (userData.llmConfig?.apiKey) {
                     setLlmConfig(userData.llmConfig);
                     setShowApiKeySetup(false);
+
+                    // Cache for guest users
+                    if (user.isAnonymous) {
+                        GuestCacheService.saveApiKey(userData.llmConfig.provider, userData.llmConfig.apiKey);
+                    }
                 } else {
                     setShowApiKeySetup(true);
                 }

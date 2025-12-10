@@ -6,6 +6,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { getProviderConfig } from '@/lib/constants/aiProviderIcons';
+import { GuestCacheService } from '@/lib/services/guestCacheService';
 
 interface ApiKeySetupProps {
     onComplete: () => void;
@@ -18,6 +19,18 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
     const [provider, setProvider] = useState<'gemini' | 'openai' | 'claude'>(existingProvider || 'gemini');
     const [apiKey, setApiKey] = useState(existingKey || '');
     const [saving, setSaving] = useState(false);
+
+    // Load from cache on mount (for guest users)
+    useEffect(() => {
+        if (!existingKey && !existingProvider) {
+            const cached = GuestCacheService.loadApiKey();
+            if (cached) {
+                setProvider(cached.provider as 'gemini' | 'openai' | 'claude');
+                setApiKey(cached.apiKey);
+                console.log('[ApiKeySetup] Loaded from cache');
+            }
+        }
+    }, [existingKey, existingProvider]);
 
     // Debug: Log user state changes
     useEffect(() => {
@@ -38,14 +51,22 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
         setSaving(true);
 
         try {
-            // Save to Firestore
+            const llmConfig = {
+                provider,
+                apiKey: apiKey.trim(),
+                updatedAt: new Date().toISOString(),
+            };
+
+            // Save to Firestore (for data collection & cross-device)
             await setDoc(doc(db, 'users', user.uid), {
-                llmConfig: {
-                    provider,
-                    apiKey: apiKey.trim(),
-                    updatedAt: new Date().toISOString(),
-                }
+                llmConfig
             }, { merge: true });
+
+            // ALSO save to localStorage (for instant load on same computer)
+            if (user.isAnonymous) {
+                GuestCacheService.saveApiKey(provider, apiKey.trim());
+                console.log('[ApiKeySetup] Saved to cache for guest user');
+            }
 
             toast.success('API key saved successfully! 🎉');
             onComplete();
