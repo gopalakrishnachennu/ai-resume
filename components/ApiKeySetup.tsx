@@ -18,6 +18,14 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
     const [provider, setProvider] = useState<'gemini' | 'openai' | 'claude'>(existingProvider || 'gemini');
     const [apiKey, setApiKey] = useState(existingKey || '');
     const [saving, setSaving] = useState(false);
+    const [userReady, setUserReady] = useState(false);
+
+    // Track when user becomes available
+    useEffect(() => {
+        if (user) {
+            setUserReady(true);
+        }
+    }, [user]);
 
     const handleSave = async () => {
         if (!apiKey.trim()) {
