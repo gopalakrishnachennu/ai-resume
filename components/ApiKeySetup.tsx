@@ -36,11 +36,6 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
     }, [user]);
 
     const handleSave = async () => {
-        if (!apiKey.trim()) {
-            toast.error('Please enter an API key');
-            return;
-        }
-
         if (!user) {
             // Silently wait for user to initialize
             return;
@@ -49,7 +44,7 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
         setSaving(true);
 
         try {
-            // ✅ V2 PIPELINE - Automatic validation, save, cache, toast
+            // ✅ V2 PIPELINE - Handles validation, save, cache, AND toasts
             const { updateApiKey } = await import('@/lib/core/pipelines');
             const success = await updateApiKey(apiKey.trim(), provider, user);
 
@@ -58,7 +53,7 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
             }
         } catch (error) {
             console.error('Error saving API key:', error);
-            toast.error('Failed to save API key');
+            // Pipeline already showed error toast, no need to show another
         } finally {
             setSaving(false);
         }
