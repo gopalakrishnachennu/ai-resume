@@ -4,11 +4,22 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/lib/hooks/useAdminAuth';
 import { useAuthStore } from '@/store/authStore';
+import { auth } from '@/lib/firebase';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 export default function AdminLoginPage() {
     const router = useRouter();
     const { isAuthenticated, isAdmin, isLoading } = useAdminAuth();
-    const { user, loginWithGoogle, loginWithEmail } = useAuthStore();
+    const { user } = useAuthStore();
+
+    const handleGoogleLogin = async () => {
+        try {
+            const provider = new GoogleAuthProvider();
+            await signInWithPopup(auth, provider);
+        } catch (error) {
+            console.error('Login error:', error);
+        }
+    };
 
     useEffect(() => {
         if (isAdmin && isAuthenticated) {
@@ -67,7 +78,7 @@ export default function AdminLoginPage() {
                     {/* Login Buttons */}
                     <div className="space-y-4">
                         <button
-                            onClick={loginWithGoogle}
+                            onClick={handleGoogleLogin}
                             className="w-full flex items-center justify-center gap-3 px-6 py-3 border-2 border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all group"
                         >
                             <svg className="w-5 h-5" viewBox="0 0 24 24">
