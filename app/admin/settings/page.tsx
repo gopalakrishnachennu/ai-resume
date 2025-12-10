@@ -301,6 +301,7 @@ export default function AdminSettingsPage() {
                                                 />
                                             </div>
                                         </div>
+
                                     </div>
                                 </div>
                             )}
@@ -457,6 +458,55 @@ export default function AdminSettingsPage() {
                                             value={config.ai.providers.anthropic}
                                             onChange={(v) => setConfig({ ...config, ai: { ...config.ai, providers: { ...config.ai.providers, anthropic: v } } })}
                                         />
+                                    </div>
+
+                                    <div className="border-t pt-6 mt-6">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Global API Key (Free Tries)</h3>
+                                        <p className="text-sm text-gray-600 mb-4">
+                                            Configure a global API key to allow users to try the app without their own key.
+                                        </p>
+
+                                        <div className="space-y-4">
+                                            <ToggleField
+                                                label="Enable Global API Key"
+                                                value={config.ai.globalKey?.enabled || false}
+                                                onChange={(v) => setConfig({ ...config, ai: { ...config.ai, globalKey: { ...config.ai.globalKey, enabled: v } } })}
+                                            />
+
+                                            {config.ai.globalKey?.enabled && (
+                                                <>
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-sm font-medium text-gray-700">Provider</label>
+                                                        <select
+                                                            className="border rounded-md p-2"
+                                                            value={config.ai.globalKey?.provider || 'gemini'}
+                                                            onChange={(e) => setConfig({ ...config, ai: { ...config.ai, globalKey: { ...config.ai.globalKey, provider: e.target.value } } })}
+                                                        >
+                                                            <option value="gemini">Google Gemini</option>
+                                                            <option value="openai">OpenAI</option>
+                                                            <option value="claude">Anthropic Claude</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-sm font-medium text-gray-700">API Key</label>
+                                                        <input
+                                                            type="password"
+                                                            className="border rounded-md p-2"
+                                                            value={config.ai.globalKey?.key || ''}
+                                                            onChange={(e) => setConfig({ ...config, ai: { ...config.ai, globalKey: { ...config.ai.globalKey, key: e.target.value } } })}
+                                                            placeholder="sk-..."
+                                                        />
+                                                    </div>
+
+                                                    <NumberField
+                                                        label="Free Tries Limit"
+                                                        value={config.ai.globalKey?.limit || 3}
+                                                        onChange={(v) => setConfig({ ...config, ai: { ...config.ai, globalKey: { ...config.ai.globalKey, limit: v } } })}
+                                                    />
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}

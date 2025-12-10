@@ -208,8 +208,22 @@ export async function checkUsageLimits(user: User, checkType?: string): Promise<
     // Fetch dynamic config
     const globalSettings = await getGlobalSettings();
     const guestConfig = globalSettings?.guest || APP_CONFIG.guest;
+    const globalKeyConfig = globalSettings?.ai?.globalKey || APP_CONFIG.ai.globalKey;
 
-    // Logged-in users have unlimited access
+    // Special check for Global API Usage (applies to everyone using the global key)
+    if (checkType === 'globalApiUsage') {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const usage = userDoc.exists() ? (userDoc.data().usage || {}) : {};
+        const current = usage.globalApiUsage || 0;
+        const max = globalKeyConfig?.limit || 3;
+
+        if (current >= max) {
+            return { canUse: false, limitType: 'Free Tries', current, max };
+        }
+        return { canUse: true, current, max };
+    }
+
+    // Logged-in users have unlimited access (for other things)
     if (!user.isAnonymous || guestConfig.unlimited) {
         return { canUse: true, unlimited: true };
     }
@@ -281,10 +295,10 @@ export async function checkUsageLimits(user: User, checkType?: string): Promise<
  */
 export async function incrementUsage(
     user: User,
-    type: keyof typeof APP_CONFIG.guest.limits
+    type: string
 ) {
-    if (!user.isAnonymous) {
-        return; // Don't track for logged-in users
+    if (!user.isAnonymous && type !== 'globalApiUsage') {
+        return; // Don't track for logged-in users (unless it's global usage)
     }
 
     const userRef = doc(db, 'users', user.uid);

@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { getProviderConfig } from '@/lib/constants/aiProviderIcons';
 import { GuestCacheService } from '@/lib/services/guestCacheService';
+import { getGlobalSettings, checkUsageLimits } from '@/lib/services/guestService';
 
 interface ApiKeySetupProps {
     onComplete: () => void;
@@ -17,6 +18,8 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
     const [provider, setProvider] = useState<'gemini' | 'openai' | 'claude'>(existingProvider || 'gemini');
     const [apiKey, setApiKey] = useState(existingKey || '');
     const [saving, setSaving] = useState(false);
+    const [globalKeyAvailable, setGlobalKeyAvailable] = useState(false);
+    const [freeTriesLeft, setFreeTriesLeft] = useState(0);
 
     // Load from cache on mount (for guest users)
     useEffect(() => {
@@ -33,6 +36,21 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
     // Debug: Log user state changes
     useEffect(() => {
         console.log('[ApiKeySetup] User state changed:', user ? `User ID: ${user.uid}` : 'No user');
+
+        const checkGlobalKey = async () => {
+            if (!user) return;
+            const settings = await getGlobalSettings();
+            const globalKey = settings?.ai?.globalKey;
+
+            if (globalKey?.enabled && globalKey?.key) {
+                const limit = await checkUsageLimits(user, 'globalApiUsage');
+                if (limit.canUse) {
+                    setGlobalKeyAvailable(true);
+                    setFreeTriesLeft((limit.max || 3) - (limit.current || 0));
+                }
+            }
+        };
+        checkGlobalKey();
     }, [user]);
 
     const handleSave = async () => {
@@ -91,13 +109,25 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative">
+                {globalKeyAvailable && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+                        <div className="text-2xl">🎁</div>
+                        <div>
+                            <h4 className="font-semibold text-green-800">Free Tries Available!</h4>
+                            <p className="text-sm text-green-700 mt-1">
+                                You have <strong>{freeTriesLeft} free generations</strong> left using our Global API Key.
+                                You can close this window and try it out!
+                            </p>
+                        </div>
+                    </div>
+                )}
                 <div className="text-center mb-6">
                     <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
                         <span className="text-3xl">🤖</span>
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        AI Configuration Required
+                        Configure AI Provider
                     </h2>
                     <p className="text-gray-600 text-sm">
                         Choose your preferred AI provider and enter your API key to enable AI-powered resume generation

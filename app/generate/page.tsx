@@ -12,11 +12,12 @@ import { JobProcessingService } from '@/lib/llm-black-box/services/jobProcessing
 import { useGuestAuth } from '@/lib/hooks/useGuestAuth';
 import { UpgradePrompt } from '@/components/guest/UpgradePrompt';
 import ProfilePrompt from '@/components/ProfilePrompt';
+import { checkUsageLimits, incrementUsage, getGlobalSettings } from '@/lib/services/guestService';
 import { GuestCacheService } from '@/lib/services/guestCacheService';
 
 export default function GeneratePage() {
     const { user } = useAuthStore();
-    const { usageLimits, incrementUsage, checkLimit, loading: guestAuthLoading } = useGuestAuth();
+    const { usageLimits, incrementUsage: incrementGuestUsage, checkLimit, loading: guestAuthLoading } = useGuestAuth();
     const router = useRouter();
     const [jobDescription, setJobDescription] = useState('');
     const [analyzing, setAnalyzing] = useState(false);
@@ -174,7 +175,7 @@ export default function GeneratePage() {
 
         setAnalysis(manualAnalysis);
         toast.success('Ready to generate resume!');
-        await incrementUsage('jdAnalyses');
+        await incrementGuestUsage('jdAnalyses');
     };
 
     const handleAnalyze = async () => {
@@ -183,14 +184,34 @@ export default function GeneratePage() {
             return;
         }
 
-        if (!llmConfig?.apiKey) {
-            toast.error('Please configure your API key first');
-            setShowApiKeySetup(true);
+        if (!user) {
+            toast.error('Please sign in to continue');
             return;
         }
 
-        if (!user) {
-            toast.error('Please sign in to continue');
+        let apiKeyToUse = llmConfig?.apiKey;
+        let providerToUse = llmConfig?.provider;
+        let usingGlobalKey = false;
+
+        if (!apiKeyToUse) {
+            // Check global key
+            const settings = await getGlobalSettings();
+            const globalKey = settings?.ai?.globalKey;
+
+            if (globalKey?.enabled && globalKey?.key) {
+                // Check usage limit
+                const limit = await checkUsageLimits(user, 'globalApiUsage');
+                if (limit.canUse) {
+                    apiKeyToUse = globalKey.key;
+                    providerToUse = globalKey.provider;
+                    usingGlobalKey = true;
+                }
+            }
+        }
+
+        if (!apiKeyToUse) {
+            toast.error('Please configure your API key first');
+            setShowApiKeySetup(true);
             return;
         }
 
@@ -213,12 +234,16 @@ export default function GeneratePage() {
                 user.uid,
                 jobDescription,
                 {
-                    provider: llmConfig.provider,
-                    apiKey: llmConfig.apiKey,
+                    provider: providerToUse,
+                    apiKey: apiKeyToUse,
                 }
             );
 
             // Transform to expected format
+            if (usingGlobalKey) {
+                await incrementUsage(user, 'globalApiUsage');
+            }
+
             const transformedAnalysis = {
                 title: result.jobAnalysis.title,
                 company: result.jobAnalysis.company,
@@ -249,7 +274,7 @@ export default function GeneratePage() {
                     duration: 3000,
                 });
             }
-            await incrementUsage('jdAnalyses');
+            await incrementGuestUsage('jdAnalyses');
 
         } catch (error: any) {
             console.error('Analysis error:', error);
@@ -265,7 +290,27 @@ export default function GeneratePage() {
             return;
         }
 
-        if (!llmConfig?.apiKey) {
+        let apiKeyToUse = llmConfig?.apiKey;
+        let providerToUse = llmConfig?.provider;
+        let usingGlobalKey = false;
+
+        if (!apiKeyToUse) {
+            // Check global key
+            const settings = await getGlobalSettings();
+            const globalKey = settings?.ai?.globalKey;
+
+            if (globalKey?.enabled && globalKey?.key) {
+                // Check usage limit
+                const limit = await checkUsageLimits(user, 'globalApiUsage');
+                if (limit.canUse) {
+                    apiKeyToUse = globalKey.key;
+                    providerToUse = globalKey.provider;
+                    usingGlobalKey = true;
+                }
+            }
+        }
+
+        if (!apiKeyToUse) {
             toast.error('Please configure your API key first');
             setShowApiKeySetup(true);
             return;
@@ -356,10 +401,14 @@ export default function GeneratePage() {
                 userProfile,
                 jobAnalysis,
                 {
-                    provider: llmConfig.provider,
-                    apiKey: llmConfig.apiKey,
+                    provider: providerToUse,
+                    apiKey: apiKeyToUse,
                 }
             );
+
+            if (usingGlobalKey) {
+                await incrementUsage(user, 'globalApiUsage');
+            }
 
             // Step 5: Create resume document in Firestore
             toast.loading('Saving your resume...', { id: 'generate' });
@@ -403,7 +452,7 @@ export default function GeneratePage() {
             }
 
             // Track usage for guest users
-            await incrementUsage('resumeGenerations');
+            await incrementGuestUsage('resumeGenerations');
 
             // Redirect to editor
             setTimeout(() => {

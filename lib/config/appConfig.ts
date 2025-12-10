@@ -117,6 +117,13 @@ export const APP_CONFIG = {
             anthropic: false,                 // Enable Claude
         },
 
+        globalKey: {
+            enabled: false,
+            provider: 'gemini',
+            key: '',
+            limit: 3,
+        },
+
         limits: {
             maxTokensPerRequest: 2000,        // Max tokens per request
             maxRequestsPerMinute: 10,         // Rate limit
