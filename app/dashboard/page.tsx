@@ -294,13 +294,35 @@ export default function DashboardPage() {
                         };
                     });
 
-                apps = [...legacyApps, ...jobApps].sort((a, b) => {
+                apps = [...legacyApps, ...jobApps];
+
+                // Apply status filter to legacy apps
+                if (statusFilter !== 'all') {
+                    apps = apps.filter(app => app.status === statusFilter);
+                }
+
+                // Apply search filter to legacy apps
+                if (searchQuery.trim()) {
+                    const query = searchQuery.toLowerCase();
+                    apps = apps.filter(app => {
+                        if (searchField === 'title' || searchField === 'all') {
+                            if (app.jobTitle?.toLowerCase().includes(query)) return true;
+                        }
+                        if (searchField === 'company' || searchField === 'all') {
+                            if (app.jobCompany?.toLowerCase().includes(query)) return true;
+                        }
+                        return false;
+                    });
+                }
+
+                // Sort
+                apps.sort((a, b) => {
                     const dateA = a.createdAt?.toMillis?.() || 0;
                     const dateB = b.createdAt?.toMillis?.() || 0;
                     return dateB - dateA;
                 });
 
-                console.log(`[Dashboard] Loaded ${legacyApps.length} resumes + ${jobApps.length} jobs`);
+                console.log(`[Dashboard] Loaded ${legacyApps.length} resumes + ${jobApps.length} jobs (filtered: ${apps.length})`);
             }
 
             setApplications(apps);
@@ -341,11 +363,37 @@ export default function DashboardPage() {
 
     const handleDelete = async () => {
         try {
-            await ApplicationService.delete(deleteModal.appId);
-            toast.success('Application deleted!');
+            const appId = deleteModal.appId;
+
+            // Detect which collection this came from based on ID pattern
+            if (appId.startsWith('resume_')) {
+                // Legacy resume from 'resumes' collection
+                const { deleteDoc, doc } = await import('firebase/firestore');
+                await deleteDoc(doc(db, 'resumes', appId));
+                console.log('[Dashboard] Deleted from resumes:', appId);
+            } else if (appId.startsWith('job_')) {
+                // Legacy job from 'jobs' collection  
+                const { deleteDoc, doc } = await import('firebase/firestore');
+                await deleteDoc(doc(db, 'jobs', appId));
+                console.log('[Dashboard] Deleted from jobs:', appId);
+            } else if (appId.startsWith('app_')) {
+                // New application from 'applications' collection
+                await ApplicationService.delete(appId);
+            } else {
+                // Unknown format - try applications first, then resumes
+                try {
+                    await ApplicationService.delete(appId);
+                } catch {
+                    const { deleteDoc, doc } = await import('firebase/firestore');
+                    await deleteDoc(doc(db, 'resumes', appId));
+                }
+            }
+
+            toast.success('Deleted successfully!');
             setDeleteModal({ show: false, appId: '', appTitle: '' });
             loadApplications();
         } catch (error) {
+            console.error('Delete error:', error);
             toast.error('Failed to delete');
         }
     };
