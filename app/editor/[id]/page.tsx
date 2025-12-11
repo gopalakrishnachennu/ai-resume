@@ -1344,10 +1344,10 @@ export default function EditorPage() {
             </header>
 
             {/* Full-Width Content */}
-            <main className="max-w-[1800px] mx-auto px-6 py-6">
-                <div className="grid grid-cols-2 gap-6">
+            <main className="max-w-[1800px] mx-auto px-6 py-6 h-[calc(100vh-80px)]">
+                <div className="grid grid-cols-2 gap-6 h-full">
                     {/* Editor Panel */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
                         <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 px-6 py-4 border-b border-slate-200 flex-shrink-0">
                             <div className="flex items-center gap-2">
                                 <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1752,8 +1752,8 @@ export default function EditorPage() {
                     </div>
 
                     {/* Preview Panel - PDF-like View */}
-                    <div className="bg-slate-100 rounded-2xl sticky top-24" style={{ maxHeight: 'calc(100vh - 120px)' }}>
-                        <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 px-6 py-4 border-b border-slate-200 rounded-t-2xl">
+                    <div className="bg-slate-100 rounded-2xl h-full flex flex-col overflow-hidden">
+                        <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 px-6 py-4 border-b border-slate-200 rounded-t-2xl flex-shrink-0">
                             <div className="flex items-center gap-2">
                                 <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1764,14 +1764,7 @@ export default function EditorPage() {
                         </div>
 
                         {/* PDF Viewer Container */}
-                        <div
-                            className="bg-slate-100"
-                            style={{
-                                maxHeight: 'calc(100vh - 180px)',
-                                overflow: 'auto',
-                                padding: '16px 24px',
-                            }}
-                        >
+                        <div className="flex-1 overflow-auto p-4 bg-slate-100">
                             <div className="w-full flex flex-col items-center" style={{ gap: '8px' }}>
                                 {(paginatedPages.length ? paginatedPages : [pageBlocks]).map((page, pageIndex, arr) => (
                                     <div key={pageIndex} className="flex flex-col items-center w-full" style={{ gap: '4px' }}>
@@ -1824,55 +1817,59 @@ export default function EditorPage() {
                         </div> {/* Close PDF viewer container (line 855) */}
                     </div> {/* Close preview panel (line 849) */}
                 </div> {/* Close grid */}
-            </main>
+            </main >
 
             {/* Settings Panel */}
-            {showSettings && (
-                <SettingsPanel
-                    settings={settings}
-                    onSettingsChange={setSettings}
-                    onClose={() => setShowSettings(false)}
-                />
-            )}
+            {
+                showSettings && (
+                    <SettingsPanel
+                        settings={settings}
+                        onSettingsChange={setSettings}
+                        onClose={() => setShowSettings(false)}
+                    />
+                )
+            }
 
             {/* Add Custom Section Modal */}
-            {showAddSectionModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Add Custom Section</h3>
-                        <p className="text-sm text-slate-600 mb-4">
-                            Create a new section for your resume (e.g., Projects, Certifications, Awards, Publications)
-                        </p>
-                        <input
-                            type="text"
-                            value={newSectionName}
-                            onChange={(e) => setNewSectionName(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && addCustomSection()}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-4"
-                            placeholder="Section name..."
-                            autoFocus
-                        />
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowAddSectionModal(false);
-                                    setNewSectionName('');
-                                }}
-                                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={addCustomSection}
-                                disabled={!newSectionName.trim()}
-                                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            >
-                                Create Section
-                            </button>
+            {
+                showAddSectionModal && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
+                            <h3 className="text-lg font-semibold text-slate-900 mb-4">Add Custom Section</h3>
+                            <p className="text-sm text-slate-600 mb-4">
+                                Create a new section for your resume (e.g., Projects, Certifications, Awards, Publications)
+                            </p>
+                            <input
+                                type="text"
+                                value={newSectionName}
+                                onChange={(e) => setNewSectionName(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && addCustomSection()}
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-4"
+                                placeholder="Section name..."
+                                autoFocus
+                            />
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowAddSectionModal(false);
+                                        setNewSectionName('');
+                                    }}
+                                    className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={addCustomSection}
+                                    disabled={!newSectionName.trim()}
+                                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    Create Section
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
