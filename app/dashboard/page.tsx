@@ -405,6 +405,80 @@ export default function DashboardPage() {
         }
     };
 
+    const loadJobDescription = async (app: Application) => {
+        // If we already have the JD, show it directly
+        if (app.jobDescription) {
+            setJdModal({
+                show: true,
+                title: app.jobTitle,
+                company: app.jobCompany || '',
+                description: app.jobDescription,
+            });
+            return;
+        }
+
+        // Otherwise try to fetch it
+        toast.loading('Loading job description...', { id: 'loadjd' });
+
+        try {
+            // First try the resumes collection
+            const resumeId = app.resumeId || app.id;
+            const resumeDoc = await getDoc(doc(db, 'resumes', resumeId));
+
+            if (resumeDoc.exists() && resumeDoc.data().jobDescription) {
+                toast.dismiss('loadjd');
+                setJdModal({
+                    show: true,
+                    title: app.jobTitle,
+                    company: app.jobCompany || '',
+                    description: resumeDoc.data().jobDescription,
+                });
+                return;
+            }
+
+            // Try the jobs collection by matching title
+            const jobsQuery = query(
+                collection(db, 'jobs'),
+                where('userId', '==', user?.uid),
+            );
+            const jobsSnapshot = await getDocs(jobsQuery);
+
+            for (const jobDoc of jobsSnapshot.docs) {
+                const jobData = jobDoc.data();
+                if (jobData.parsedData?.title === app.jobTitle ||
+                    jobData.parsedData?.company === app.jobCompany) {
+                    toast.dismiss('loadjd');
+                    setJdModal({
+                        show: true,
+                        title: app.jobTitle,
+                        company: app.jobCompany || '',
+                        description: jobData.originalDescription || 'No job description available.',
+                    });
+                    return;
+                }
+            }
+
+            // No JD found
+            toast.dismiss('loadjd');
+            setJdModal({
+                show: true,
+                title: app.jobTitle,
+                company: app.jobCompany || '',
+                description: 'Job description not found in database. New resumes will store the JD automatically.',
+            });
+
+        } catch (error) {
+            console.error('Error loading JD:', error);
+            toast.error('Failed to load job description', { id: 'loadjd' });
+            setJdModal({
+                show: true,
+                title: app.jobTitle,
+                company: app.jobCompany || '',
+                description: 'Error loading job description.',
+            });
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-50">
@@ -757,12 +831,7 @@ export default function DashboardPage() {
                                                 </Link>
                                             )}
                                             <button
-                                                onClick={() => setJdModal({
-                                                    show: true,
-                                                    title: app.jobTitle,
-                                                    company: app.jobCompany || '',
-                                                    description: app.jobDescription || 'No job description available.',
-                                                })}
+                                                onClick={() => loadJobDescription(app)}
                                                 className="p-2.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
                                                 title="View Job Description"
                                             >

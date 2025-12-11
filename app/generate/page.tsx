@@ -466,6 +466,7 @@ export default function GeneratePage() {
                 userId: user.uid,
                 jobTitle: analysis.title,
                 jobCompany: analysis.company,
+                jobDescription: jobDescription, // Save the original JD text
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
 
