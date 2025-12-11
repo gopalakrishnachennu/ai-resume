@@ -40,14 +40,23 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
         const checkGlobalKey = async () => {
             if (!user) return;
             const settings = await getGlobalSettings();
+            console.log('[ApiKeySetup] Global Settings:', settings);
+
             const globalKey = settings?.ai?.globalKey;
+            console.log('[ApiKeySetup] Global Key Config:', globalKey);
 
             if (globalKey?.enabled && globalKey?.key) {
                 const limit = await checkUsageLimits(user, 'globalApiUsage');
+                console.log('[ApiKeySetup] Usage Limit:', limit);
+
                 if (limit.canUse) {
                     setGlobalKeyAvailable(true);
                     setFreeTriesLeft((limit.max || 3) - (limit.current || 0));
+                } else {
+                    console.log('[ApiKeySetup] Limit reached or cannot use');
                 }
+            } else {
+                console.log('[ApiKeySetup] Global key disabled or missing');
             }
         };
         checkGlobalKey();
@@ -127,7 +136,7 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
                         <span className="text-3xl">🤖</span>
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        Configure AI Provider
+                        AI Configuration Required
                     </h2>
                     <p className="text-gray-600 text-sm">
                         Choose your preferred AI provider and enter your API key to enable AI-powered resume generation

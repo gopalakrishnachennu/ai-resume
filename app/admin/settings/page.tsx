@@ -38,6 +38,14 @@ export default function AdminSettingsPage() {
                             ...prev.guest.limits,
                             ...savedConfig.guest?.limits
                         }
+                    },
+                    ai: {
+                        ...prev.ai,
+                        ...savedConfig.ai,
+                        globalKey: {
+                            ...prev.ai.globalKey,
+                            ...savedConfig.ai?.globalKey
+                        }
                     }
                 }));
             }
