@@ -239,12 +239,21 @@ export default function GeneratePage() {
             return;
         }
 
-        // Check profile completion
+        // Check profile completion - either has experience data or display name
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         const userData = userDoc.data();
 
-        if (!userData?.personalInfo?.fullName) {
-            setProfilePromptMessage('Please complete your profile with at least your name before generating a resume.');
+        // Check for ANY profile data - user has saved something
+        const hasProfileData = userData && (
+            userData.baseExperience?.length > 0 ||
+            userData.baseEducation?.length > 0 ||
+            userData.baseSkills?.technical?.length > 0 ||
+            userData.profile?.phone ||
+            user.displayName
+        );
+
+        if (!hasProfileData) {
+            setProfilePromptMessage('Please complete your profile with at least some basic information before generating a resume.');
             setShowProfilePrompt(true);
             return;
         }
