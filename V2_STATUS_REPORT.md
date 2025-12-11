@@ -195,6 +195,8 @@ If you're seeing "Sign Out" for guests, check:
   - [x] UI notification for free tries
   - [x] "Skip Setup" button for users with free tries
   - [x] Enforced key requirement after free tries exhausted
+  - [x] Fixed Admin Settings save bug
+  - [x] Added Debug Info for troubleshooting
 - [ ] Success states
 - [ ] Guest vs logged-in differentiation
 - [ ] Pipeline-based data flow
