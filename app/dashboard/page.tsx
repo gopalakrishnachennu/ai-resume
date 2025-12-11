@@ -225,7 +225,8 @@ export default function DashboardPage() {
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
             const thisWeek = apps.filter(a => {
-                const created = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+                if (!a.createdAt) return false;
+                const created = a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt as any);
                 return created > oneWeekAgo;
             }).length;
 
