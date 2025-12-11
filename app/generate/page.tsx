@@ -43,6 +43,9 @@ export default function GeneratePage() {
     // User menu
     const [showUserMenu, setShowUserMenu] = useState(false);
 
+    // Free tries counter
+    const [freeTriesInfo, setFreeTriesInfo] = useState<{ used: number; total: number; available: boolean } | null>(null);
+
     const tryUseGlobalApiKey = async () => {
         if (!user) return false;
 
@@ -94,6 +97,27 @@ export default function GeneratePage() {
             localStorage.setItem('draft_analysis', JSON.stringify(analysis));
         }
     }, [analysis]);
+
+    // Load free tries info
+    useEffect(() => {
+        const loadFreeTriesInfo = async () => {
+            if (!user) return;
+            const settings = await getGlobalSettings();
+            const globalKey = settings?.ai?.globalKey;
+
+            if (globalKey?.enabled && globalKey?.key) {
+                const limit = await checkUsageLimits(user, 'globalApiUsage');
+                setFreeTriesInfo({
+                    used: limit.current || 0,
+                    total: limit.max || 3,
+                    available: limit.canUse
+                });
+            } else {
+                setFreeTriesInfo(null);
+            }
+        };
+        loadFreeTriesInfo();
+    }, [user]);
 
     // Check API key after guest auth completes
     useEffect(() => {
@@ -407,6 +431,22 @@ export default function GeneratePage() {
                             <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
                             <h1 className="text-lg font-semibold text-slate-900">Generate Resume</h1>
                         </div>
+
+                        {/* Free Tries Counter */}
+                        {freeTriesInfo && freeTriesInfo.available && (
+                            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-full">
+                                <span className="text-emerald-600 text-xs">🎁</span>
+                                <span className="text-xs font-medium text-emerald-700">
+                                    {freeTriesInfo.total - freeTriesInfo.used} Free Tries Left
+                                </span>
+                            </div>
+                        )}
+                        {freeTriesInfo && !freeTriesInfo.available && (
+                            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full">
+                                <span className="text-amber-600 text-xs">⚠️</span>
+                                <span className="text-xs font-medium text-amber-700">No Free Tries Left</span>
+                            </div>
+                        )}
 
                         {/* Step Indicator */}
                         <div className="hidden md:flex items-center gap-3">
