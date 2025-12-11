@@ -148,6 +148,21 @@ export default function DashboardPage() {
         description: '',
     });
 
+    // Resume Preview Modal
+    const [resumeModal, setResumeModal] = useState<{
+        show: boolean;
+        loading: boolean;
+        title: string;
+        company: string;
+        data: any;
+    }>({
+        show: false,
+        loading: false,
+        title: '',
+        company: '',
+        data: null,
+    });
+
     useEffect(() => {
         useAuthStore.getState().initialize();
     }, []);
@@ -343,6 +358,50 @@ export default function DashboardPage() {
             loadApplications();
         } catch (error) {
             toast.error('Failed to update status');
+        }
+    };
+
+    const loadResumePreview = async (app: Application) => {
+        setResumeModal({
+            show: true,
+            loading: true,
+            title: app.jobTitle,
+            company: app.jobCompany || '',
+            data: null,
+        });
+
+        try {
+            // Try to get from application's embedded resume first
+            if (app.resume) {
+                setResumeModal(prev => ({ ...prev, loading: false, data: app.resume }));
+                return;
+            }
+
+            // Otherwise fetch from resumes collection
+            const resumeId = app.resumeId || app.id;
+            const resumeDoc = await getDoc(doc(db, 'resumes', resumeId));
+
+            if (resumeDoc.exists()) {
+                const data = resumeDoc.data();
+                setResumeModal(prev => ({
+                    ...prev,
+                    loading: false,
+                    data: {
+                        personalInfo: data.personalInfo,
+                        professionalSummary: data.professionalSummary,
+                        technicalSkills: data.technicalSkills,
+                        experience: data.experience || [],
+                        education: data.education || [],
+                    },
+                }));
+            } else {
+                setResumeModal(prev => ({ ...prev, loading: false, data: null }));
+                toast.error('Resume data not found');
+            }
+        } catch (error) {
+            console.error('Error loading resume:', error);
+            setResumeModal(prev => ({ ...prev, loading: false }));
+            toast.error('Failed to load resume');
         }
     };
 
@@ -711,6 +770,18 @@ export default function DashboardPage() {
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                 </svg>
                                             </button>
+                                            {app.hasResume && (
+                                                <button
+                                                    onClick={() => loadResumePreview(app)}
+                                                    className="p-2.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors"
+                                                    title="Preview Generated Resume"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                    </svg>
+                                                </button>
+                                            )}
                                             <button className="p-2.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors" title="Download">
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -820,6 +891,136 @@ export default function DashboardPage() {
                             >
                                 Close
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Resume Preview Modal */}
+            {resumeModal.show && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setResumeModal({ show: false, loading: false, title: '', company: '', data: null })}>
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-6 py-4 border-b border-slate-100 flex items-start justify-between bg-gradient-to-r from-emerald-50 to-teal-50">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">Generated Resume</span>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900">{resumeModal.title}</h3>
+                                {resumeModal.company && <p className="text-sm text-slate-500">{resumeModal.company}</p>}
+                            </div>
+                            <button
+                                onClick={() => setResumeModal({ show: false, loading: false, title: '', company: '', data: null })}
+                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/50 rounded-lg transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="px-6 py-4 overflow-y-auto flex-1">
+                            {resumeModal.loading ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin"></div>
+                                </div>
+                            ) : resumeModal.data ? (
+                                <div className="space-y-6">
+                                    {/* Professional Summary */}
+                                    {resumeModal.data.professionalSummary && (
+                                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4">
+                                            <h4 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
+                                                Professional Summary
+                                            </h4>
+                                            <p className="text-sm text-slate-700 leading-relaxed">{resumeModal.data.professionalSummary}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Technical Skills */}
+                                    {resumeModal.data.technicalSkills && (
+                                        <div className="bg-slate-50 rounded-xl p-4">
+                                            <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                                </svg>
+                                                Technical Skills
+                                            </h4>
+                                            <div className="space-y-2">
+                                                {typeof resumeModal.data.technicalSkills === 'object' ? (
+                                                    Object.entries(resumeModal.data.technicalSkills).map(([category, skills]) => (
+                                                        <div key={category}>
+                                                            <span className="text-xs font-medium text-slate-500 uppercase">{category}:</span>
+                                                            <div className="flex flex-wrap gap-1.5 mt-1">
+                                                                {(Array.isArray(skills) ? skills : [skills]).map((skill: string, i: number) => (
+                                                                    <span key={i} className="px-2 py-0.5 bg-white text-slate-700 text-xs rounded-md border border-slate-200">
+                                                                        {skill}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <p className="text-sm text-slate-600">{resumeModal.data.technicalSkills}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Experience */}
+                                    {resumeModal.data.experience?.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                                Experience
+                                            </h4>
+                                            <div className="space-y-4">
+                                                {resumeModal.data.experience.slice(0, 3).map((exp: any, i: number) => (
+                                                    <div key={i} className="bg-slate-50 rounded-xl p-4">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div>
+                                                                <h5 className="font-medium text-slate-900">{exp.title}</h5>
+                                                                <p className="text-sm text-slate-500">{exp.company}</p>
+                                                            </div>
+                                                            <span className="text-xs text-slate-400">{exp.startDate} - {exp.endDate || 'Present'}</span>
+                                                        </div>
+                                                        {exp.achievements && (
+                                                            <ul className="text-sm text-slate-600 space-y-1">
+                                                                {(Array.isArray(exp.achievements) ? exp.achievements : [exp.achievements]).slice(0, 3).map((ach: string, j: number) => (
+                                                                    <li key={j} className="flex items-start gap-2">
+                                                                        <span className="text-emerald-500 mt-1">•</span>
+                                                                        <span>{ach}</span>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <p className="text-slate-500">Resume data not available</p>
+                                </div>
+                            )}
+                        </div>
+                        <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+                            <button
+                                onClick={() => setResumeModal({ show: false, loading: false, title: '', company: '', data: null })}
+                                className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                            >
+                                Close
+                            </button>
+                            <Link
+                                href={`/editor/${resumeModal.data?.resumeId || ''}`}
+                                className="flex-1 py-2.5 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors text-center"
+                            >
+                                Open in Editor
+                            </Link>
                         </div>
                     </div>
                 </div>
