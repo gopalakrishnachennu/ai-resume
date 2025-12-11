@@ -20,6 +20,7 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
     const [saving, setSaving] = useState(false);
     const [globalKeyAvailable, setGlobalKeyAvailable] = useState(false);
     const [freeTriesLeft, setFreeTriesLeft] = useState(0);
+    const [debugInfo, setDebugInfo] = useState({ enabled: false, hasKey: false });
 
     // Load from cache on mount (for guest users)
     useEffect(() => {
@@ -44,6 +45,11 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
 
             const globalKey = settings?.ai?.globalKey;
             console.log('[ApiKeySetup] Global Key Config:', globalKey);
+
+            setDebugInfo({
+                enabled: !!globalKey?.enabled,
+                hasKey: !!globalKey?.key
+            });
 
             if (globalKey?.enabled && globalKey?.key) {
                 const limit = await checkUsageLimits(user, 'globalApiUsage');
@@ -216,6 +222,10 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
                             Skip Setup & Use Free Tries ({freeTriesLeft} left)
                         </button>
                     )}
+
+                    <div className="mt-4 pt-4 border-t border-gray-100 text-[10px] text-gray-400 text-center font-mono">
+                        <p>Debug: Global Key: {debugInfo.enabled ? 'ON' : 'OFF'} | Key: {debugInfo.hasKey ? 'SET' : 'MISSING'} | Tries: {freeTriesLeft}</p>
+                    </div>
                 </div>
             </div>
         </div>
