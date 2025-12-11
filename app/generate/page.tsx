@@ -38,6 +38,29 @@ export default function GeneratePage() {
     const [showProfilePrompt, setShowProfilePrompt] = useState(false);
     const [profilePromptMessage, setProfilePromptMessage] = useState('');
 
+    const tryUseGlobalApiKey = async () => {
+        if (!user) return false;
+
+        const settings = await getGlobalSettings();
+        const globalKey = settings?.ai?.globalKey;
+
+        if (!globalKey?.enabled || !globalKey?.key) {
+            return false;
+        }
+
+        const limit = await checkUsageLimits(user, 'globalApiUsage');
+        if (!limit.canUse) {
+            return false;
+        }
+
+        setLlmConfig({
+            provider: globalKey.provider,
+            apiKey: globalKey.key,
+            isGlobal: true,
+        });
+        return true;
+    };
+
     // ✅ RESTORE data from localStorage on mount (survives refresh)
     useEffect(() => {
         const savedJD = localStorage.getItem('draft_jobDescription');
@@ -132,10 +155,22 @@ export default function GeneratePage() {
                         GuestCacheService.saveApiKey(userData.llmConfig.provider, userData.llmConfig.apiKey);
                     }
                 } else {
-                    setShowApiKeySetup(true);
+                    const usedGlobalKey = await tryUseGlobalApiKey();
+                    if (!usedGlobalKey) {
+                        setShowApiKeySetup(true);
+                    } else {
+                        setShowApiKeySetup(false);
+                        return;
+                    }
                 }
             } else {
-                setShowApiKeySetup(true);
+                const usedGlobalKey = await tryUseGlobalApiKey();
+                if (!usedGlobalKey) {
+                    setShowApiKeySetup(true);
+                } else {
+                    setShowApiKeySetup(false);
+                    return;
+                }
             }
         } catch (error) {
             console.error('Error checking API key:', error);
@@ -191,25 +226,35 @@ export default function GeneratePage() {
 
         let apiKeyToUse = llmConfig?.apiKey;
         let providerToUse = llmConfig?.provider;
-        let usingGlobalKey = false;
+        let usingGlobalKey = llmConfig?.isGlobal || false;
 
         if (!apiKeyToUse) {
             // Check global key
+            console.log('[Generate] Checking global key for analysis...');
             const settings = await getGlobalSettings();
             const globalKey = settings?.ai?.globalKey;
+            console.log('[Generate] Global Key Settings:', globalKey);
 
             if (globalKey?.enabled && globalKey?.key) {
                 // Check usage limit
                 const limit = await checkUsageLimits(user, 'globalApiUsage');
+                console.log('[Generate] Global Key Limit:', limit);
+
                 if (limit.canUse) {
                     apiKeyToUse = globalKey.key;
                     providerToUse = globalKey.provider;
                     usingGlobalKey = true;
+                    console.log('[Generate] Using Global Key for analysis!');
+                } else {
+                    console.log('[Generate] Global Key limit reached or unavailable');
                 }
+            } else {
+                console.log('[Generate] Global Key not enabled or missing');
             }
         }
 
         if (!apiKeyToUse) {
+            console.log('[Generate] No API key found (Personal or Global). Showing setup modal.');
             toast.error('Please configure your API key first');
             setShowApiKeySetup(true);
             return;
@@ -292,20 +337,24 @@ export default function GeneratePage() {
 
         let apiKeyToUse = llmConfig?.apiKey;
         let providerToUse = llmConfig?.provider;
-        let usingGlobalKey = false;
+        let usingGlobalKey = llmConfig?.isGlobal || false;
 
         if (!apiKeyToUse) {
             // Check global key
+            console.log('Checking global key...');
             const settings = await getGlobalSettings();
             const globalKey = settings?.ai?.globalKey;
+            console.log('Global Key Settings:', globalKey);
 
             if (globalKey?.enabled && globalKey?.key) {
                 // Check usage limit
                 const limit = await checkUsageLimits(user, 'globalApiUsage');
+                console.log('Global Key Limit:', limit);
                 if (limit.canUse) {
                     apiKeyToUse = globalKey.key;
                     providerToUse = globalKey.provider;
                     usingGlobalKey = true;
+                    console.log('Using Global Key!');
                 }
             }
         }
@@ -472,9 +521,17 @@ export default function GeneratePage() {
             {/* API Key Setup Modal */}
             {showApiKeySetup && (
                 <ApiKeySetup
-                    onComplete={() => {
+                    onComplete={(skipped) => {
                         setShowApiKeySetup(false);
-                        checkApiKey();
+                        if (!skipped) {
+                            checkApiKey();
+                        } else {
+                            tryUseGlobalApiKey().then((success) => {
+                                if (!success) {
+                                    setShowApiKeySetup(true);
+                                }
+                            });
+                        }
                     }}
                 />
             )}

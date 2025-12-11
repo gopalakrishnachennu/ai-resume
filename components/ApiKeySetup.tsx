@@ -8,7 +8,7 @@ import { GuestCacheService } from '@/lib/services/guestCacheService';
 import { getGlobalSettings, checkUsageLimits } from '@/lib/services/guestService';
 
 interface ApiKeySetupProps {
-    onComplete: () => void;
+    onComplete: (skipped?: boolean) => void;
     existingProvider?: 'gemini' | 'openai' | 'claude';
     existingKey?: string;
 }
@@ -201,7 +201,7 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
 
                     {globalKeyAvailable && (
                         <button
-                            onClick={onComplete}
+                            onClick={() => onComplete(true)}
                             className="w-full mt-2 bg-white border border-green-500 text-green-600 py-3 rounded-lg font-semibold hover:bg-green-50 transition-all shadow-sm"
                         >
                             Skip Setup & Use Free Tries ({freeTriesLeft} left)
