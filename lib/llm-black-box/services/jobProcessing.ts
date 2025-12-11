@@ -84,11 +84,12 @@ export class JobProcessingService {
         // Step 3: Cache miss - Call LLM Black Box
         console.log(`🤖 Calling LLM for job analysis...`);
 
-        const { data, response } = await LLMBlackBox.executeJSON<JobAnalysis>(
+        const { data, response } = await LLMBlackBox.executeJSONWithUser<JobAnalysis>(
             'phase1',
             'jobParser',
             { job_description: jobDescription },
             userConfig,
+            userId,
             { debug: true }
         );
 
@@ -172,7 +173,8 @@ export class JobProcessingService {
         userConfig: {
             provider: 'openai' | 'claude' | 'gemini';
             apiKey: string;
-        }
+        },
+        userId?: string
     ): Promise<string[]> {
         const hash = FirebaseCacheManager.generateKey(`keywords_${jobDescription}`);
 
@@ -184,11 +186,12 @@ export class JobProcessingService {
         }
 
         // Call LLM
-        const { data } = await LLMBlackBox.executeJSON<string[]>(
+        const { data } = await LLMBlackBox.executeJSONWithUser<string[]>(
             'phase1',
             'keywordExtractor',
             { job_description: jobDescription },
-            userConfig
+            userConfig,
+            userId
         );
 
         // Cache result
@@ -205,7 +208,8 @@ export class JobProcessingService {
         userConfig: {
             provider: 'openai' | 'claude' | 'gemini';
             apiKey: string;
-        }
+        },
+        userId?: string
     ): Promise<{
         level: 'Entry' | 'Mid' | 'Senior' | 'Lead' | 'Executive';
         yearsMin: number;
@@ -222,11 +226,12 @@ export class JobProcessingService {
         }
 
         // Call LLM
-        const { data } = await LLMBlackBox.executeJSON(
+        const { data } = await LLMBlackBox.executeJSONWithUser(
             'phase1',
             'experienceDetector',
             { job_description: jobDescription },
-            userConfig
+            userConfig,
+            userId
         );
 
         // Cache result

@@ -106,9 +106,9 @@ export class ResumeGenerationService {
 
         // Generate all sections in parallel for speed
         const [summary, skills, experienceWithResponsibilities] = await Promise.all([
-            this.generateProfessionalSummary(userProfile, jobAnalysis, userConfig),
-            this.generateTechnicalSkills(userProfile, jobAnalysis, userConfig),
-            this.generateExperienceResponsibilities(userProfile, jobAnalysis, userConfig),
+            this.generateProfessionalSummary(userProfile, jobAnalysis, userConfig, userId),
+            this.generateTechnicalSkills(userProfile, jobAnalysis, userConfig, userId),
+            this.generateExperienceResponsibilities(userProfile, jobAnalysis, userConfig, userId),
         ]);
 
         // ALWAYS generate job titles to match the target JD (dynamic!)
@@ -117,7 +117,7 @@ export class ResumeGenerationService {
         let finalExperience = experienceWithResponsibilities;
 
         try {
-            const generatedTitles = await this.generateJobTitles(userProfile, jobAnalysis, userConfig);
+            const generatedTitles = await this.generateJobTitles(userProfile, jobAnalysis, userConfig, userId);
 
             // Apply generated titles to experience
             finalExperience = experienceWithResponsibilities.map((exp, idx) => ({
@@ -161,7 +161,8 @@ export class ResumeGenerationService {
     private static async generateProfessionalSummary(
         userProfile: UserProfile,
         jobAnalysis: JobAnalysis,
-        userConfig: any
+        userConfig: any,
+        userId: string
     ): Promise<string> {
         // Calculate years of experience
         const yearsExp = this.calculateYearsOfExperience(userProfile.experience);
@@ -196,12 +197,13 @@ Experience Level: ${jobAnalysis.experienceLevel || 'Mid'}
             current_title: recentRole.title,
         };
 
-        // Use execute (not executeJSON) since prompt returns plain text
-        const result = await LLMBlackBox.execute(
+        // Use executeWithUser
+        const result = await LLMBlackBox.executeWithUser(
             'phase2',
             'summaryWriter',
             vars,
-            userConfig
+            userConfig,
+            userId
         );
 
         console.log('✅ Generated professional summary');
@@ -216,7 +218,8 @@ Experience Level: ${jobAnalysis.experienceLevel || 'Mid'}
     private static async generateTechnicalSkills(
         userProfile: UserProfile,
         jobAnalysis: JobAnalysis,
-        userConfig: any
+        userConfig: any,
+        userId: string
     ): Promise<Record<string, string>> {
         // Extract skills from user profile
         const userSkills = userProfile.experience
@@ -244,11 +247,12 @@ Preferred Skills: ${jobAnalysis.preferredSkills.join(', ')}
             user_skills: userSkills || 'No skills provided',
         };
 
-        const result = await LLMBlackBox.execute(
+        const result = await LLMBlackBox.executeWithUser(
             'phase2',
             'skillsOptimizer',
             vars,
-            userConfig
+            userConfig,
+            userId
         );
 
         // Parse the response using LLMRouter which handles markdown
@@ -284,7 +288,8 @@ Preferred Skills: ${jobAnalysis.preferredSkills.join(', ')}
     private static async generateExperienceResponsibilities(
         userProfile: UserProfile,
         jobAnalysis: JobAnalysis,
-        userConfig: any
+        userConfig: any,
+        userId: string
     ): Promise<GeneratedResume['experience']> {
         const experienceWithResponsibilities = [];
         const totalCompanies = userProfile.experience.length;
@@ -319,12 +324,13 @@ Preferred Skills: ${jobAnalysis.preferredSkills.join(', ')}
                 skills_section: skillsSection,
             };
 
-            // Use the prompt registry
-            const result = await LLMBlackBox.execute(
+            // Use the prompt registry with user override
+            const result = await LLMBlackBox.executeWithUser(
                 'phase2',
                 'experienceWriter',
                 vars,
-                userConfig
+                userConfig,
+                userId
             );
 
             // Parse responsibilities using LLMRouter
@@ -378,7 +384,8 @@ Preferred Skills: ${jobAnalysis.preferredSkills.join(', ')}
     private static async generateJobTitles(
         userProfile: UserProfile,
         jobAnalysis: JobAnalysis,
-        userConfig: { provider: 'openai' | 'claude' | 'gemini'; apiKey: string }
+        userConfig: { provider: 'openai' | 'claude' | 'gemini'; apiKey: string },
+        userId: string
     ): Promise<string[]> {
         try {
             // Prepare companies list
@@ -403,11 +410,12 @@ Preferred Skills: ${jobAnalysis.preferredSkills.join(', ')}
                 companies: companiesList,
             };
 
-            const { data } = await LLMBlackBox.executeJSON<{ titles: string[] }>(
+            const { data } = await LLMBlackBox.executeJSONWithUser<{ titles: string[] }>(
                 'phase4',
                 'jobTitleGenerator',
                 vars,
-                userConfig
+                userConfig,
+                userId
             );
 
             console.log('✅ Generated job titles:', data.titles);

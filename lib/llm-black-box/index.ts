@@ -7,13 +7,15 @@
  * - Prompt caching
  * - Token optimization
  * - Multi-provider routing
+ * - Dynamic prompt loading from Firebase
  * 
  * Usage:
  * ```typescript
- * const result = await LLMBlackBox.execute(
+ * const result = await LLMBlackBox.executeWithUser(
  *   'phase1', 'jobParser',
  *   { job_description: '...' },
- *   { provider: 'gemini', apiKey: '...' }
+ *   { provider: 'gemini', apiKey: '...' },
+ *   userId // Optional: load user's custom prompts
  * );
  * ```
  */
@@ -23,6 +25,11 @@ import { TemplateEngine } from './engine/templateEngine';
 import { PromptCache } from './engine/promptCache';
 import { TokenOptimizer } from './core/tokenOptimizer';
 import { LLMRouter, LLMRequest, LLMResponse } from './core/llmRouter';
+import { getActivePrompts, FlatPromptKey, PromptConfig } from '@/lib/services/promptService';
+
+// In-memory cache for dynamic prompts
+let _dynamicPrompts: Record<FlatPromptKey, PromptConfig> | null = null;
+let _dynamicPromptsUserId: string | null = null;
 
 export interface BlackBoxRequest {
     phase: keyof typeof PROMPT_REGISTRY;
@@ -199,9 +206,163 @@ export class LLMBlackBox {
     }
 
     /**
-     * Execute and parse JSON response
-     * Convenience method for prompts that return JSON
+     * Load dynamic prompts from Firebase for a user
+     * Caches in memory for performance
      */
+    static async loadDynamicPrompts(userId?: string): Promise<void> {
+        // Skip if same user's prompts are already loaded
+        if (_dynamicPrompts && _dynamicPromptsUserId === userId) {
+            return;
+        }
+
+        try {
+            _dynamicPrompts = await getActivePrompts(userId);
+            _dynamicPromptsUserId = userId || null;
+            console.log(`[LLMBlackBox] Loaded dynamic prompts for user: ${userId || 'default'}`);
+        } catch (error) {
+            console.error('[LLMBlackBox] Failed to load dynamic prompts, using defaults');
+            _dynamicPrompts = null;
+        }
+    }
+
+    /**
+     * Get a dynamic prompt from Firebase cache
+     */
+    static getDynamicPrompt(phase: string, promptKey: string): PromptConfig | null {
+        if (!_dynamicPrompts) return null;
+        const key = `${phase}.${promptKey}` as FlatPromptKey;
+        return _dynamicPrompts[key] || null;
+    }
+
+    /**
+     * Execute with user's custom prompts from Firebase
+     * This is the recommended method for user-facing operations
+     */
+    static async executeWithUser(
+        phase: keyof typeof PROMPT_REGISTRY,
+        promptKey: string,
+        vars: Record<string, any>,
+        userConfig: {
+            provider: 'openai' | 'claude' | 'gemini';
+            apiKey: string;
+            model?: string;
+        },
+        userId?: string,
+        options?: {
+            skipCache?: boolean;
+            skipOptimization?: boolean;
+            debug?: boolean;
+        }
+    ): Promise<BlackBoxResponse> {
+        // Load user's custom prompts
+        await this.loadDynamicPrompts(userId);
+
+        const startTime = Date.now();
+        const fullKey = `${phase}.${promptKey}`;
+
+        if (options?.debug) {
+            console.log(`🚀 Executing with user prompts: ${fullKey}`);
+        }
+
+        // Try to get dynamic prompt first, fallback to registry
+        const dynamicPrompt = this.getDynamicPrompt(phase, promptKey);
+        const phasePrompts = PROMPT_REGISTRY[phase] as any;
+        const registryTemplate: PromptTemplate = phasePrompts?.[promptKey];
+
+        // Use dynamic prompt if available, otherwise registry
+        const template: PromptTemplate = dynamicPrompt ? {
+            system: dynamicPrompt.system,
+            user: dynamicPrompt.user,
+            maxTokens: dynamicPrompt.maxTokens,
+            temperature: dynamicPrompt.temperature,
+        } : registryTemplate;
+
+        if (!template) {
+            throw new Error(`Prompt not found: ${fullKey}`);
+        }
+
+        // Render template
+        const rendered = TemplateEngine.render(template.user, vars);
+
+        // Optimize tokens
+        let optimizedPrompt = rendered;
+        let optimization = { originalTokens: 0, optimizedTokens: 0, savings: 0, savingsPercent: 0 };
+
+        if (!options?.skipOptimization) {
+            const result = TokenOptimizer.optimize(rendered, vars);
+            optimizedPrompt = result.optimized;
+            optimization = {
+                originalTokens: result.originalTokens,
+                optimizedTokens: result.optimizedTokens,
+                savings: result.savings,
+                savingsPercent: result.savingsPercent,
+            };
+        }
+
+        // Call LLM
+        const llmRequest: LLMRequest = {
+            provider: userConfig.provider,
+            apiKey: userConfig.apiKey,
+            system: template.system,
+            user: optimizedPrompt,
+            maxTokens: template.maxTokens,
+            temperature: template.temperature,
+            model: userConfig.model,
+        };
+
+        const llmResponse = await LLMRouter.call(llmRequest);
+
+        if (!LLMRouter.validateResponse(llmResponse)) {
+            throw new Error('Invalid response from LLM');
+        }
+
+        const totalTime = Date.now() - startTime;
+
+        if (options?.debug) {
+            console.log(`✅ Completed in ${totalTime}ms (using ${dynamicPrompt ? 'custom' : 'default'} prompt)`);
+        }
+
+        return {
+            ...llmResponse,
+            promptUsed: optimizedPrompt,
+            optimization,
+            cacheHit: false, // Dynamic prompts don't use cache
+        };
+    }
+
+    /**
+     * Clear dynamic prompt cache (forces reload on next call)
+     */
+    static clearDynamicPrompts() {
+        _dynamicPrompts = null;
+        _dynamicPromptsUserId = null;
+    }
+
+    /**
+     * Execute and parse JSON response with user's custom prompts
+     */
+    static async executeJSONWithUser<T = any>(
+        phase: keyof typeof PROMPT_REGISTRY,
+        promptKey: string,
+        vars: Record<string, any>,
+        userConfig: {
+            provider: 'openai' | 'claude' | 'gemini';
+            apiKey: string;
+            model?: string;
+        },
+        userId?: string,
+        options?: {
+            skipCache?: boolean;
+            skipOptimization?: boolean;
+            debug?: boolean;
+        }
+    ): Promise<{ data: T; response: BlackBoxResponse }> {
+        const response = await this.executeWithUser(phase, promptKey, vars, userConfig, userId, options);
+        const { LLMRouter } = await import('./core/llmRouter');
+        const data = LLMRouter.parseJSON<T>(response.content);
+
+        return { data, response };
+    }
     static async executeJSON<T = any>(
         phase: keyof typeof PROMPT_REGISTRY,
         promptKey: string,
