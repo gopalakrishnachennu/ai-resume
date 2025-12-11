@@ -193,8 +193,20 @@ export default function GeneratePage() {
 
         let apiKeyToUse = llmConfig?.apiKey;
         let providerToUse = llmConfig?.provider;
-        let usedGlobalKey = false;
+        let usedGlobalKey = llmConfig?.isGlobal || false;
 
+        // CHECK 1: If already using global key from llmConfig, re-check limit
+        if (llmConfig?.isGlobal) {
+            const globalLimit = await checkUsageLimits(user, 'globalApiUsage');
+            if (!globalLimit.canUse) {
+                toast.error(`You've used all ${globalLimit.max} free tries. Please add your own API key.`);
+                setLlmConfig(null); // Clear the global config
+                setShowApiKeySetup(true);
+                return;
+            }
+        }
+
+        // CHECK 2: If no API key, try to get global key
         if (!apiKeyToUse) {
             const settings = await getGlobalSettings();
             const globalKey = settings?.ai?.globalKey;
@@ -315,8 +327,20 @@ export default function GeneratePage() {
 
         let apiKeyToUse = llmConfig?.apiKey;
         let providerToUse = llmConfig?.provider;
-        let usedGlobalKey = false;
+        let usedGlobalKey = llmConfig?.isGlobal || false;
 
+        // CHECK 1: If already using global key from llmConfig, re-check limit
+        if (llmConfig?.isGlobal) {
+            const globalLimit = await checkUsageLimits(user, 'globalApiUsage');
+            if (!globalLimit.canUse) {
+                toast.error(`You've used all ${globalLimit.max} free tries. Please add your own API key.`);
+                setLlmConfig(null); // Clear the global config
+                setShowApiKeySetup(true);
+                return;
+            }
+        }
+
+        // CHECK 2: If no API key, try to get global key
         if (!apiKeyToUse) {
             const settings = await getGlobalSettings();
             const globalKey = settings?.ai?.globalKey;
