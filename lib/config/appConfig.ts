@@ -118,7 +118,7 @@ export const APP_CONFIG = {
         },
 
         globalKey: {
-            enabled: true,
+            enabled: false,
             provider: 'gemini',
             key: '',
             limit: 3,

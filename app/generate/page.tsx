@@ -121,40 +121,21 @@ export default function GeneratePage() {
 
             // Then check Firebase (for logged-in users or if cache miss)
             const userDoc = await getDoc(doc(db, 'users', user.uid));
-            let hasUserKey = false;
-
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 if (userData.llmConfig?.apiKey) {
                     setLlmConfig(userData.llmConfig);
                     setShowApiKeySetup(false);
-                    hasUserKey = true;
 
                     // Cache for guest users
                     if (user.isAnonymous) {
                         GuestCacheService.saveApiKey(userData.llmConfig.provider, userData.llmConfig.apiKey);
                     }
-                }
-            }
-
-            if (!hasUserKey) {
-                // Check for Global API Key availability
-                const settings = await getGlobalSettings();
-                const globalKey = settings?.ai?.globalKey;
-                let canUseGlobal = false;
-
-                if (globalKey?.enabled && globalKey?.key) {
-                    const limit = await checkUsageLimits(user, 'globalApiUsage');
-                    if (limit.canUse) {
-                        canUseGlobal = true;
-                    }
-                }
-
-                if (canUseGlobal) {
-                    setShowApiKeySetup(false);
                 } else {
                     setShowApiKeySetup(true);
                 }
+            } else {
+                setShowApiKeySetup(true);
             }
         } catch (error) {
             console.error('Error checking API key:', error);

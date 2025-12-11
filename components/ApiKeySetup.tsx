@@ -20,7 +20,6 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
     const [saving, setSaving] = useState(false);
     const [globalKeyAvailable, setGlobalKeyAvailable] = useState(false);
     const [freeTriesLeft, setFreeTriesLeft] = useState(0);
-    const [debugInfo, setDebugInfo] = useState({ enabled: false, hasKey: false });
 
     // Load from cache on mount (for guest users)
     useEffect(() => {
@@ -41,28 +40,14 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
         const checkGlobalKey = async () => {
             if (!user) return;
             const settings = await getGlobalSettings();
-            console.log('[ApiKeySetup] Global Settings:', settings);
-
             const globalKey = settings?.ai?.globalKey;
-            console.log('[ApiKeySetup] Global Key Config:', globalKey);
-
-            setDebugInfo({
-                enabled: !!globalKey?.enabled,
-                hasKey: !!globalKey?.key
-            });
 
             if (globalKey?.enabled && globalKey?.key) {
                 const limit = await checkUsageLimits(user, 'globalApiUsage');
-                console.log('[ApiKeySetup] Usage Limit:', limit);
-
                 if (limit.canUse) {
                     setGlobalKeyAvailable(true);
                     setFreeTriesLeft((limit.max || 3) - (limit.current || 0));
-                } else {
-                    console.log('[ApiKeySetup] Limit reached or cannot use');
                 }
-            } else {
-                console.log('[ApiKeySetup] Global key disabled or missing');
             }
         };
         checkGlobalKey();
@@ -142,7 +127,7 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
                         <span className="text-3xl">🤖</span>
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        AI Configuration Required
+                        Configure AI Provider
                     </h2>
                     <p className="text-gray-600 text-sm">
                         Choose your preferred AI provider and enter your API key to enable AI-powered resume generation
@@ -222,10 +207,6 @@ export default function ApiKeySetup({ onComplete, existingProvider, existingKey 
                             Skip Setup & Use Free Tries ({freeTriesLeft} left)
                         </button>
                     )}
-
-                    <div className="mt-4 pt-4 border-t border-gray-100 text-[10px] text-gray-400 text-center font-mono">
-                        <p>Debug: Global Key: {debugInfo.enabled ? 'ON' : 'OFF'} | Key: {debugInfo.hasKey ? 'SET' : 'MISSING'} | Tries: {freeTriesLeft}</p>
-                    </div>
                 </div>
             </div>
         </div>
