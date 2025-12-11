@@ -58,7 +58,76 @@ export interface BlackBoxResponse extends LLMResponse {
     cacheHit: boolean;
 }
 
+export interface ExecuteOptions {
+    skipCache?: boolean;
+    skipOptimization?: boolean;
+    debug?: boolean;
+    userId?: string;
+    forceReloadPrompts?: boolean;
+}
+
 export class LLMBlackBox {
+    /**
+     * Pick a prompt template, preferring dynamic Firebase prompts when loaded
+     */
+    private static resolveTemplate(
+        phase: keyof typeof PROMPT_REGISTRY,
+        promptKey: string
+    ): PromptTemplate {
+        const dynamicPrompt = this.getDynamicPrompt(String(phase), promptKey);
+        const phasePrompts = PROMPT_REGISTRY[phase] as any;
+        const registryTemplate: PromptTemplate = phasePrompts?.[promptKey];
+
+        if (dynamicPrompt) {
+            return {
+                system: dynamicPrompt.system,
+                user: dynamicPrompt.user,
+                maxTokens: dynamicPrompt.maxTokens,
+                temperature: dynamicPrompt.temperature,
+            };
+        }
+
+        if (!registryTemplate) {
+            throw new Error(`Prompt not found: ${phase}.${promptKey}`);
+        }
+
+        return registryTemplate;
+    }
+
+    /**
+     * Render a prompt with validation + caching
+     */
+    private static renderPrompt(
+        fullKey: string,
+        template: PromptTemplate,
+        vars: Record<string, any>,
+        skipCache: boolean = false
+    ): string {
+        if (!skipCache) {
+            const cached = PromptCache.get(fullKey, vars);
+            if (cached) return cached;
+        }
+
+        const validation = TemplateEngine.validate(template.user);
+        if (!validation.valid) {
+            console.error(`Template validation failed for ${fullKey}:`, validation.errors);
+            throw new Error(`Invalid template: ${validation.errors.join(', ')}`);
+        }
+
+        const varCheck = TemplateEngine.hasRequiredVars(template.user, vars);
+        if (!varCheck.valid) {
+            console.warn(`Missing variables for ${fullKey}:`, varCheck.missing);
+        }
+
+        const rendered = TemplateEngine.render(template.user, vars);
+
+        if (!skipCache) {
+            PromptCache.set(fullKey, vars, rendered);
+        }
+
+        return rendered;
+    }
+
     /**
      * Get rendered prompt with caching
      * This is the core method that combines template + cache
@@ -71,45 +140,8 @@ export class LLMBlackBox {
     ): string {
         const fullKey = `${phase}.${promptKey}`;
 
-        // Check cache first (unless skipped)
-        if (!skipCache) {
-            const cached = PromptCache.get(fullKey, vars);
-            if (cached) {
-                return cached;
-            }
-        }
-
-        // Get template from registry
-        const phasePrompts = PROMPT_REGISTRY[phase] as any;
-        const template: PromptTemplate = phasePrompts?.[promptKey];
-
-        if (!template) {
-            throw new Error(`Prompt not found: ${fullKey}`);
-        }
-
-        // Validate template syntax
-        const validation = TemplateEngine.validate(template.user);
-        if (!validation.valid) {
-            console.error(`Template validation failed for ${fullKey}:`, validation.errors);
-            throw new Error(`Invalid template: ${validation.errors.join(', ')}`);
-        }
-
-        // Check if all required variables are present
-        const varCheck = TemplateEngine.hasRequiredVars(template.user, vars);
-        if (!varCheck.valid) {
-            console.warn(`Missing variables for ${fullKey}:`, varCheck.missing);
-            // Don't throw - let template engine handle with empty strings
-        }
-
-        // Render template
-        const rendered = TemplateEngine.render(template.user, vars);
-
-        // Cache rendered prompt
-        if (!skipCache) {
-            PromptCache.set(fullKey, vars, rendered);
-        }
-
-        return rendered;
+        const template = this.resolveTemplate(phase, promptKey);
+        return this.renderPrompt(fullKey, template, vars, skipCache);
     }
 
     /**
@@ -125,14 +157,13 @@ export class LLMBlackBox {
             apiKey: string;
             model?: string;
         },
-        options?: {
-            skipCache?: boolean;
-            skipOptimization?: boolean;
-            debug?: boolean;
-        }
+        options?: ExecuteOptions
     ): Promise<BlackBoxResponse> {
         const startTime = Date.now();
         const fullKey = `${phase}.${promptKey}`;
+
+        // Load dynamic prompts (per-user or admin defaults)
+        await this.loadDynamicPrompts(options?.userId, options?.forceReloadPrompts);
 
         if (options?.debug) {
             console.log(`🚀 Executing: ${fullKey}`);
@@ -140,11 +171,8 @@ export class LLMBlackBox {
         }
 
         // Step 1: Get rendered prompt (with caching)
-        const prompt = this.getPrompt(phase, promptKey, vars, options?.skipCache);
-
-        // Step 2: Get template config
-        const phasePrompts = PROMPT_REGISTRY[phase] as any;
-        const template: PromptTemplate = phasePrompts[promptKey];
+        const template = this.resolveTemplate(phase, promptKey);
+        const prompt = this.renderPrompt(fullKey, template, vars, options?.skipCache);
 
         // Step 3: Optimize tokens (unless skipped)
         let optimizedPrompt = prompt;
@@ -209,19 +237,23 @@ export class LLMBlackBox {
      * Load dynamic prompts from Firebase for a user
      * Caches in memory for performance
      */
-    static async loadDynamicPrompts(userId?: string): Promise<void> {
+    static async loadDynamicPrompts(userId?: string, forceReload: boolean = false): Promise<void> {
         // Skip if same user's prompts are already loaded
-        if (_dynamicPrompts && _dynamicPromptsUserId === userId) {
+        if (!forceReload && _dynamicPrompts && _dynamicPromptsUserId === userId) {
             return;
         }
 
         try {
             _dynamicPrompts = await getActivePrompts(userId);
             _dynamicPromptsUserId = userId || null;
+            // Clear template cache when switching users/admin defaults to avoid stale renders
+            PromptCache.clear();
             console.log(`[LLMBlackBox] Loaded dynamic prompts for user: ${userId || 'default'}`);
         } catch (error) {
             console.error('[LLMBlackBox] Failed to load dynamic prompts, using defaults');
             _dynamicPrompts = null;
+            _dynamicPromptsUserId = null;
+            PromptCache.clear();
         }
     }
 
@@ -248,86 +280,15 @@ export class LLMBlackBox {
             model?: string;
         },
         userId?: string,
-        options?: {
-            skipCache?: boolean;
-            skipOptimization?: boolean;
-            debug?: boolean;
-        }
+        options?: ExecuteOptions
     ): Promise<BlackBoxResponse> {
-        // Load user's custom prompts
-        await this.loadDynamicPrompts(userId);
-
-        const startTime = Date.now();
-        const fullKey = `${phase}.${promptKey}`;
-
-        if (options?.debug) {
-            console.log(`🚀 Executing with user prompts: ${fullKey}`);
-        }
-
-        // Try to get dynamic prompt first, fallback to registry
-        const dynamicPrompt = this.getDynamicPrompt(phase, promptKey);
-        const phasePrompts = PROMPT_REGISTRY[phase] as any;
-        const registryTemplate: PromptTemplate = phasePrompts?.[promptKey];
-
-        // Use dynamic prompt if available, otherwise registry
-        const template: PromptTemplate = dynamicPrompt ? {
-            system: dynamicPrompt.system,
-            user: dynamicPrompt.user,
-            maxTokens: dynamicPrompt.maxTokens,
-            temperature: dynamicPrompt.temperature,
-        } : registryTemplate;
-
-        if (!template) {
-            throw new Error(`Prompt not found: ${fullKey}`);
-        }
-
-        // Render template
-        const rendered = TemplateEngine.render(template.user, vars);
-
-        // Optimize tokens
-        let optimizedPrompt = rendered;
-        let optimization = { originalTokens: 0, optimizedTokens: 0, savings: 0, savingsPercent: 0 };
-
-        if (!options?.skipOptimization) {
-            const result = TokenOptimizer.optimize(rendered, vars);
-            optimizedPrompt = result.optimized;
-            optimization = {
-                originalTokens: result.originalTokens,
-                optimizedTokens: result.optimizedTokens,
-                savings: result.savings,
-                savingsPercent: result.savingsPercent,
-            };
-        }
-
-        // Call LLM
-        const llmRequest: LLMRequest = {
-            provider: userConfig.provider,
-            apiKey: userConfig.apiKey,
-            system: template.system,
-            user: optimizedPrompt,
-            maxTokens: template.maxTokens,
-            temperature: template.temperature,
-            model: userConfig.model,
-        };
-
-        const llmResponse = await LLMRouter.call(llmRequest);
-
-        if (!LLMRouter.validateResponse(llmResponse)) {
-            throw new Error('Invalid response from LLM');
-        }
-
-        const totalTime = Date.now() - startTime;
-
-        if (options?.debug) {
-            console.log(`✅ Completed in ${totalTime}ms (using ${dynamicPrompt ? 'custom' : 'default'} prompt)`);
-        }
-
-        return {
-            ...llmResponse,
-            promptUsed: optimizedPrompt,
-            optimization,
-            cacheHit: false, // Dynamic prompts don't use cache
-        };
+        return this.execute(phase, promptKey, vars, userConfig, {
+            skipCache: options?.skipCache ?? true, // default: avoid shared cache for user prompts
+            skipOptimization: options?.skipOptimization,
+            debug: options?.debug,
+            userId,
+            forceReloadPrompts: options?.forceReloadPrompts,
+        });
     }
 
     /**
@@ -339,30 +300,9 @@ export class LLMBlackBox {
     }
 
     /**
-     * Execute and parse JSON response with user's custom prompts
+     * Execute and parse JSON response
+     * Convenience method for prompts that return JSON
      */
-    static async executeJSONWithUser<T = any>(
-        phase: keyof typeof PROMPT_REGISTRY,
-        promptKey: string,
-        vars: Record<string, any>,
-        userConfig: {
-            provider: 'openai' | 'claude' | 'gemini';
-            apiKey: string;
-            model?: string;
-        },
-        userId?: string,
-        options?: {
-            skipCache?: boolean;
-            skipOptimization?: boolean;
-            debug?: boolean;
-        }
-    ): Promise<{ data: T; response: BlackBoxResponse }> {
-        const response = await this.executeWithUser(phase, promptKey, vars, userConfig, userId, options);
-        const { LLMRouter } = await import('./core/llmRouter');
-        const data = LLMRouter.parseJSON<T>(response.content);
-
-        return { data, response };
-    }
     static async executeJSON<T = any>(
         phase: keyof typeof PROMPT_REGISTRY,
         promptKey: string,
@@ -372,11 +312,7 @@ export class LLMBlackBox {
             apiKey: string;
             model?: string;
         },
-        options?: {
-            skipCache?: boolean;
-            skipOptimization?: boolean;
-            debug?: boolean;
-        }
+        options?: ExecuteOptions
     ): Promise<{ data: T; response: BlackBoxResponse }> {
         const response = await this.execute(phase, promptKey, vars, userConfig, options);
         const data = LLMRouter.parseJSON<T>(response.content);
@@ -398,7 +334,8 @@ export class LLMBlackBox {
             provider: 'openai' | 'claude' | 'gemini';
             apiKey: string;
         },
-        sharedContext?: Record<string, any>
+        sharedContext?: Record<string, any>,
+        options?: ExecuteOptions
     ): Promise<BlackBoxResponse[]> {
         // TODO: Implement batch optimization
         // For now, execute sequentially
@@ -409,7 +346,8 @@ export class LLMBlackBox {
                 request.phase,
                 request.promptKey,
                 { ...sharedContext, ...request.vars },
-                userConfig
+                userConfig,
+                options
             );
             results.push(result);
         }

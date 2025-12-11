@@ -106,6 +106,13 @@ export default function AdminDashboard() {
             href: '/admin/settings#guest',
             color: 'from-orange-500 to-red-600',
         },
+        {
+            title: 'Prompt Defaults',
+            description: 'Edit global prompts for all users',
+            icon: '🧠',
+            href: '/admin/prompts',
+            color: 'from-purple-500 to-indigo-600',
+        },
     ];
 
     const statCards = [

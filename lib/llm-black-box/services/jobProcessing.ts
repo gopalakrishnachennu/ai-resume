@@ -84,13 +84,12 @@ export class JobProcessingService {
         // Step 3: Cache miss - Call LLM Black Box
         console.log(`🤖 Calling LLM for job analysis...`);
 
-        const { data, response } = await LLMBlackBox.executeJSONWithUser<JobAnalysis>(
+        const { data, response } = await LLMBlackBox.executeJSON<JobAnalysis>(
             'phase1',
             'jobParser',
             { job_description: jobDescription },
             userConfig,
-            userId,
-            { debug: true }
+            { debug: true, userId }
         );
 
         // Step 4: Cache the result
@@ -173,8 +172,7 @@ export class JobProcessingService {
         userConfig: {
             provider: 'openai' | 'claude' | 'gemini';
             apiKey: string;
-        },
-        userId?: string
+        }
     ): Promise<string[]> {
         const hash = FirebaseCacheManager.generateKey(`keywords_${jobDescription}`);
 
@@ -186,12 +184,11 @@ export class JobProcessingService {
         }
 
         // Call LLM
-        const { data } = await LLMBlackBox.executeJSONWithUser<string[]>(
+        const { data } = await LLMBlackBox.executeJSON<string[]>(
             'phase1',
             'keywordExtractor',
             { job_description: jobDescription },
-            userConfig,
-            userId
+            userConfig
         );
 
         // Cache result
@@ -208,8 +205,7 @@ export class JobProcessingService {
         userConfig: {
             provider: 'openai' | 'claude' | 'gemini';
             apiKey: string;
-        },
-        userId?: string
+        }
     ): Promise<{
         level: 'Entry' | 'Mid' | 'Senior' | 'Lead' | 'Executive';
         yearsMin: number;
@@ -226,12 +222,11 @@ export class JobProcessingService {
         }
 
         // Call LLM
-        const { data } = await LLMBlackBox.executeJSONWithUser(
+        const { data } = await LLMBlackBox.executeJSON(
             'phase1',
             'experienceDetector',
             { job_description: jobDescription },
-            userConfig,
-            userId
+            userConfig
         );
 
         // Cache result
