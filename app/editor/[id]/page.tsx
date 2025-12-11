@@ -551,7 +551,7 @@ export default function EditorPage() {
         }
 
         // Validate company name is not empty
-        const companyName = jobCompany;
+        const companyName = jobCompany || jobAnalysis?.company;
         if (!companyName || !companyName.trim()) {
             setShowCompanyModal(true);
             return;
@@ -1291,10 +1291,12 @@ export default function EditorPage() {
                                 />
                                 <input
                                     type="text"
-                                    value={jobCompany}
+                                    value={jobCompany || jobAnalysis?.company || ''}
                                     onChange={(e) => setJobCompany(e.target.value)}
                                     onBlur={handleSave}
-                                    className={`text-xs bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block ${!jobCompany ? 'text-red-500 italic' : 'text-slate-500'
+                                    className={`text-xs bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block ${!(jobCompany || jobAnalysis?.company)
+                                        ? 'text-red-500 italic'
+                                        : 'text-slate-500'
                                         }`}
                                     placeholder="Enter company name (required)"
                                 />

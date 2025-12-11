@@ -257,7 +257,7 @@ export class ApplicationService {
                     userId,
                     jobTitle: resume.jobTitle || 'Untitled',
                     jobCompany: resume.jobCompany || resume.company || '',
-                    jobDescription: resume.jobDescription,
+                    jobDescription: resume.jobDescription || null,
                     hasResume: true,
                     resumeId: resumeDoc.id,
                     resume: {
