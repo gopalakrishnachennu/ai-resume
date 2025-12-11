@@ -206,12 +206,77 @@ export default function DashboardPage() {
         if (!user) return;
 
         try {
-            const apps = await ApplicationService.getApplications(user.uid, {
+            // Try to get applications from new collection
+            let apps = await ApplicationService.getApplications(user.uid, {
                 status: statusFilter,
                 searchField,
                 searchQuery,
                 sortBy,
             });
+
+            // If no applications found, load legacy resumes directly
+            if (apps.length === 0) {
+                console.log('[Dashboard] No applications found, loading legacy resumes...');
+
+                // Load from resumes collection directly
+                const resumesQuery = query(
+                    collection(db, 'resumes'),
+                    where('userId', '==', user.uid)
+                );
+                const resumesSnapshot = await getDocs(resumesQuery);
+
+                const legacyApps: Application[] = resumesSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        userId: user.uid,
+                        jobTitle: data.jobTitle || 'Untitled',
+                        jobCompany: data.jobCompany || data.company || '',
+                        hasResume: true,
+                        resumeId: doc.id,
+                        status: 'generated' as ApplicationStatus,
+                        atsScore: data.atsScore?.total,
+                        version: 1,
+                        createdAt: data.createdAt,
+                        generatedAt: data.createdAt,
+                        updatedAt: data.updatedAt || data.createdAt,
+                    };
+                });
+
+                // Also load jobs as draft applications
+                const jobsQuery = query(
+                    collection(db, 'jobs'),
+                    where('userId', '==', user.uid)
+                );
+                const jobsSnapshot = await getDocs(jobsQuery);
+
+                const jobApps: Application[] = jobsSnapshot.docs
+                    .filter(doc => !legacyApps.some(app => app.jobTitle === doc.data().parsedData?.title))
+                    .map(doc => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            userId: user.uid,
+                            jobId: doc.id,
+                            jobTitle: data.parsedData?.title || 'Untitled',
+                            jobCompany: data.parsedData?.company || '',
+                            hasResume: false,
+                            status: 'draft' as ApplicationStatus,
+                            version: 1,
+                            createdAt: data.createdAt,
+                            analyzedAt: data.createdAt,
+                            updatedAt: data.createdAt,
+                        };
+                    });
+
+                apps = [...legacyApps, ...jobApps].sort((a, b) => {
+                    const dateA = a.createdAt?.toMillis?.() || 0;
+                    const dateB = b.createdAt?.toMillis?.() || 0;
+                    return dateB - dateA;
+                });
+
+                console.log(`[Dashboard] Loaded ${legacyApps.length} resumes + ${jobApps.length} jobs`);
+            }
 
             setApplications(apps);
 
