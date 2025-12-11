@@ -305,7 +305,16 @@ export default function GeneratePage() {
                 jobDescription: jobDescription,
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
-                personalInfo: userData.personalInfo,
+                // Build personalInfo from available data
+                personalInfo: {
+                    fullName: user.displayName || user.email?.split('@')[0] || 'User',
+                    email: user.email || '',
+                    phone: userData?.profile?.phone || '',
+                    location: userData?.profile?.location || '',
+                    linkedin: userData?.profile?.linkedin || '',
+                    github: userData?.profile?.github || '',
+                    portfolio: userData?.profile?.portfolio || '',
+                },
                 professionalSummary: result.resume.professionalSummary,
                 technicalSkills: result.resume.technicalSkills,
                 experience: result.resume.experience,
