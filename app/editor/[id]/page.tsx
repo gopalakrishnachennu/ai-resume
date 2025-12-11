@@ -574,12 +574,14 @@ export default function EditorPage() {
             const resumeDoc = await getDoc(resumeDocRef);
 
             if (resumeDoc.exists()) {
-                // Update existing AI-generated resume with ATS score and editable fields
+                // Update existing AI-generated resume with ATS score, settings, and editable fields
                 await setDoc(resumeDocRef, {
                     ...resumeDoc.data(),
                     jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
                     jobCompany: jobCompany || jobAnalysis?.company || '',
                     atsScore: atsScoreData,
+                    settings,  // Save formatting settings
+                    sections,  // Save section order
                     updatedAt: serverTimestamp(),
                 }, { merge: true });
 
@@ -842,11 +844,13 @@ export default function EditorPage() {
                 throw new Error('saveAs not available');
             }
 
-            const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = docxModule as any;
+            const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, TabStopType, TabStopPosition } = docxModule as any;
 
             const px = (pt: number) => pt * 2; // docx uses half-points
             const letterWidth = 8.5 * 1440;
             const letterHeight = 11 * 1440;
+            // Calculate right tab position based on page width and margins
+            const rightTabPos = Math.round((8.5 - settings.margins.left - settings.margins.right) * 1440);
 
             const heading = (text: string) => new Paragraph({
                 children: [new TextRun({ text, bold: settings.headerStyle === 'bold', size: px(settings.fontSize.headers), color: settings.fontColor.headers, font: settings.fontFamily })],
@@ -908,18 +912,24 @@ export default function EditorPage() {
                 if (section.type === 'experience' && resumeData.experience.length > 0) {
                     sectionChildren.push(heading(section.name));
                     resumeData.experience.forEach((exp: any) => {
+                        // Title + Date (right-aligned via tab stop)
                         sectionChildren.push(new Paragraph({
                             children: [
                                 new TextRun({ text: exp.title || '', bold: true, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
-                                new TextRun({ text: `  ${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`, color: settings.fontColor.contact, size: px(settings.fontSize.body), font: settings.fontFamily }),
+                                new TextRun({ text: '\t' }),
+                                new TextRun({ text: `${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`, color: settings.fontColor.contact, size: px(settings.fontSize.body), font: settings.fontFamily }),
                             ],
+                            tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
                             spacing: { after: 40 },
                         }));
+                        // Company + Location (right-aligned via tab stop)
                         sectionChildren.push(new Paragraph({
                             children: [
                                 new TextRun({ text: exp.company || '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
-                                new TextRun({ text: exp.location ? `  ${exp.location}` : '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
+                                new TextRun({ text: '\t' }),
+                                new TextRun({ text: exp.location || '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
                             ],
+                            tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
                             spacing: { after: 60 },
                         }));
                         exp.bullets.filter((b: string) => b.trim()).forEach((b: string) => {
@@ -939,18 +949,24 @@ export default function EditorPage() {
                     sectionChildren.push(heading(section.name));
 
                     resumeData.education.forEach((edu: any) => {
+                        // Degree + Date (right-aligned via tab stop)
                         sectionChildren.push(new Paragraph({
                             children: [
                                 new TextRun({ text: `${edu.degree} ${edu.field}`.trim(), bold: true, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
-                                new TextRun({ text: edu.graduationDate ? `  ${formatMonthYear(edu.graduationDate)}` : '', color: settings.fontColor.contact, size: px(settings.fontSize.body), font: settings.fontFamily }),
+                                new TextRun({ text: '\t' }),
+                                new TextRun({ text: edu.graduationDate ? formatMonthYear(edu.graduationDate) : '', color: settings.fontColor.contact, size: px(settings.fontSize.body), font: settings.fontFamily }),
                             ],
+                            tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
                             spacing: { after: 40 },
                         }));
+                        // School + Location (right-aligned via tab stop)
                         sectionChildren.push(new Paragraph({
                             children: [
                                 new TextRun({ text: edu.school || '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
-                                new TextRun({ text: edu.location ? `  ${edu.location}` : '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
+                                new TextRun({ text: '\t' }),
+                                new TextRun({ text: edu.location || '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
                             ],
+                            tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
                             spacing: { after: 120 },
                         }));
                     });
