@@ -193,14 +193,23 @@ export default function GeneratePage() {
 
         let apiKeyToUse = llmConfig?.apiKey;
         let providerToUse = llmConfig?.provider;
+        let usedGlobalKey = false;
 
         if (!apiKeyToUse) {
             const settings = await getGlobalSettings();
             const globalKey = settings?.ai?.globalKey;
 
             if (globalKey?.enabled && globalKey?.key) {
+                // Check if user has free tries left
+                const globalLimit = await checkUsageLimits(user, 'globalApiUsage');
+                if (!globalLimit.canUse) {
+                    toast.error(`You've used all ${globalLimit.max} free tries. Please add your own API key.`);
+                    setShowApiKeySetup(true);
+                    return;
+                }
                 apiKeyToUse = globalKey.key;
                 providerToUse = globalKey.provider;
+                usedGlobalKey = true;
             } else {
                 setShowApiKeySetup(true);
                 return;
@@ -225,6 +234,22 @@ export default function GeneratePage() {
             } else {
                 toast.success('Job analysis complete!', { id: 'analyze' });
                 await incrementGuestUsage('jdAnalyses');
+
+                // Increment global API usage if we used the global key
+                if (usedGlobalKey) {
+                    await incrementUsage(user, 'globalApiUsage');
+                    // Refresh free tries counter
+                    const settings = await getGlobalSettings();
+                    const globalKey = settings?.ai?.globalKey;
+                    if (globalKey?.enabled) {
+                        const limit = await checkUsageLimits(user, 'globalApiUsage');
+                        setFreeTriesInfo({
+                            used: limit.current || 0,
+                            total: limit.max || 3,
+                            available: limit.canUse
+                        });
+                    }
+                }
             }
 
         } catch (error: any) {
@@ -290,14 +315,23 @@ export default function GeneratePage() {
 
         let apiKeyToUse = llmConfig?.apiKey;
         let providerToUse = llmConfig?.provider;
+        let usedGlobalKey = false;
 
         if (!apiKeyToUse) {
             const settings = await getGlobalSettings();
             const globalKey = settings?.ai?.globalKey;
 
             if (globalKey?.enabled && globalKey?.key) {
+                // Check if user has free tries left
+                const globalLimit = await checkUsageLimits(user, 'globalApiUsage');
+                if (!globalLimit.canUse) {
+                    toast.error(`You've used all ${globalLimit.max} free tries. Please add your own API key.`);
+                    setShowApiKeySetup(true);
+                    return;
+                }
                 apiKeyToUse = globalKey.key;
                 providerToUse = globalKey.provider;
+                usedGlobalKey = true;
             } else {
                 setShowApiKeySetup(true);
                 return;
@@ -356,6 +390,22 @@ export default function GeneratePage() {
 
             toast.success('Resume generated successfully!', { id: 'generate' });
             await incrementGuestUsage('resumeGenerations');
+
+            // Increment global API usage if we used the global key
+            if (usedGlobalKey) {
+                await incrementUsage(user, 'globalApiUsage');
+                // Refresh free tries counter
+                const settings = await getGlobalSettings();
+                const globalKey = settings?.ai?.globalKey;
+                if (globalKey?.enabled) {
+                    const limit = await checkUsageLimits(user, 'globalApiUsage');
+                    setFreeTriesInfo({
+                        used: limit.current || 0,
+                        total: limit.max || 3,
+                        available: limit.canUse
+                    });
+                }
+            }
 
             // Redirect to editor
             router.push(`/editor/${resumeId}`);
