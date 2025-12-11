@@ -79,6 +79,10 @@ export default function EditorPage() {
     const [showAddSectionModal, setShowAddSectionModal] = useState(false);
     const [newSectionName, setNewSectionName] = useState('');
 
+    // Company name modal state (required before save)
+    const [showCompanyModal, setShowCompanyModal] = useState(false);
+    const [pendingSaveCallback, setPendingSaveCallback] = useState<(() => void) | null>(null);
+
     const measurementRef = useRef<HTMLDivElement>(null);
 
     const sortedSections = useMemo(() => [...sections].sort((a, b) => a.order - b.order), [sections]);
@@ -544,6 +548,13 @@ export default function EditorPage() {
                 toast.error(`Edit limit reached (${limit.current}/${limit.max})`);
                 return;
             }
+        }
+
+        // Validate company name is not empty
+        const companyName = jobCompany || jobAnalysis?.company || resumeData.experience[0]?.company;
+        if (!companyName || !companyName.trim()) {
+            setShowCompanyModal(true);
+            return;
         }
 
         setSaving(true);
@@ -1272,7 +1283,7 @@ export default function EditorPage() {
                             <div>
                                 <input
                                     type="text"
-                                    value={jobTitle || jobAnalysis?.title || 'Resume Editor'}
+                                    value={jobTitle || jobAnalysis?.title || resumeData.experience[0]?.title || 'Resume Editor'}
                                     onChange={(e) => setJobTitle(e.target.value)}
                                     onBlur={handleSave}
                                     className="text-sm font-semibold text-slate-900 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block"
@@ -1280,11 +1291,14 @@ export default function EditorPage() {
                                 />
                                 <input
                                     type="text"
-                                    value={jobCompany || jobAnalysis?.company || 'Untitled'}
+                                    value={jobCompany || jobAnalysis?.company || resumeData.experience[0]?.company || ''}
                                     onChange={(e) => setJobCompany(e.target.value)}
                                     onBlur={handleSave}
-                                    className="text-xs text-slate-500 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block"
-                                    placeholder="Company"
+                                    className={`text-xs bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block ${!(jobCompany || jobAnalysis?.company || resumeData.experience[0]?.company)
+                                        ? 'text-red-500 italic'
+                                        : 'text-slate-500'
+                                        }`}
+                                    placeholder="Enter company name (required)"
                                 />
                             </div>
                         </div>
@@ -1870,6 +1884,59 @@ export default function EditorPage() {
                     </div>
                 )
             }
+
+            {/* Mandatory Company Name Modal */}
+            {showCompanyModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="mb-4">
+                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4 text-blue-600">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-slate-900">Company Name Required</h3>
+                            <p className="text-sm text-slate-600 mt-1">
+                                Please enter the company name for this resume to save it. This helps organize your applications.
+                            </p>
+                        </div>
+
+                        <input
+                            type="text"
+                            value={jobCompany}
+                            onChange={(e) => setJobCompany(e.target.value)}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter' && jobCompany.trim()) {
+                                    setShowCompanyModal(false);
+                                    handleSave();
+                                }
+                            }}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-4"
+                            placeholder="e.g. Google, Microsoft, Startup Inc..."
+                            autoFocus
+                        />
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowCompanyModal(false)}
+                                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowCompanyModal(false);
+                                    handleSave();
+                                }}
+                                disabled={!jobCompany.trim()}
+                                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                Save Resume
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }
