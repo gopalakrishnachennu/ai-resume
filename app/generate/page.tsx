@@ -188,14 +188,13 @@ export default function GeneratePage() {
 
         try {
             const result = await JobProcessingService.processJobDescription(
+                `job_${Date.now()}`,
                 user.uid,
-                user,
                 jobDescription,
-                apiKeyToUse,
-                providerToUse
+                { provider: providerToUse, apiKey: apiKeyToUse }
             );
 
-            setAnalysis(result.analysis);
+            setAnalysis(result.jobAnalysis);
 
             if (result.cached) {
                 toast.success('Analysis loaded from cache!', { id: 'analyze' });
@@ -282,11 +281,11 @@ export default function GeneratePage() {
             const { ResumeGenerationService } = await import('@/lib/llm-black-box/services/resumeGeneration');
 
             const result = await ResumeGenerationService.generateResume(
+                resumeId,
                 user.uid,
-                userData,
+                userData as any,
                 analysis,
-                apiKeyToUse,
-                providerToUse
+                { provider: providerToUse, apiKey: apiKeyToUse }
             );
 
             // Save resume to Firestore
@@ -491,8 +490,8 @@ export default function GeneratePage() {
                                                 Job Description
                                             </label>
                                             <span className={`text-xs font-medium px-2 py-1 rounded-full ${jobDescription.length >= 100
-                                                    ? 'bg-emerald-50 text-emerald-700'
-                                                    : 'bg-amber-50 text-amber-700'
+                                                ? 'bg-emerald-50 text-emerald-700'
+                                                : 'bg-amber-50 text-amber-700'
                                                 }`}>
                                                 {jobDescription.length} / 100+ chars
                                             </span>
