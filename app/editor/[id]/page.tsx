@@ -585,8 +585,7 @@ export default function EditorPage() {
         calculateATS();
     }, [resumeData]);
 
-    // Auto-save header fields (title/company) without modal validation
-    // Uses useRef to track pending save and avoid stale closure issues
+    // Auto-save company field (title is derived from experience, not editable)
     const headerSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const autoSaveHeader = () => {
@@ -595,7 +594,7 @@ export default function EditorPage() {
             clearTimeout(headerSaveTimeoutRef.current);
         }
 
-        // Schedule save after 500ms of no changes
+        // Schedule save after 500ms
         headerSaveTimeoutRef.current = setTimeout(async () => {
             if (!user || saving) return;
 
@@ -607,19 +606,22 @@ export default function EditorPage() {
                 const resumeDoc = await getDoc(resumeDocRef);
 
                 if (resumeDoc.exists()) {
-                    // Read current state values at save time (fresh, not stale)
-                    const currentTitle = (document.querySelector('input[placeholder="Job Title"]') as HTMLInputElement)?.value;
-                    const currentCompany = (document.querySelector('input[placeholder="Enter company name (required)"]') as HTMLInputElement)?.value;
+                    // Get company from input (using ID we added)
+                    const companyInput = document.getElementById('company-input') as HTMLInputElement;
+                    const currentCompany = companyInput?.value || '';
+
+                    // Title is derived from experience[0].title or job analysis
+                    const derivedTitle = jobAnalysis?.title || resumeData.experience[0]?.title || 'Untitled';
 
                     await setDoc(resumeDocRef, {
-                        jobTitle: currentTitle || 'Untitled',
-                        jobCompany: currentCompany || '',
+                        jobTitle: derivedTitle,
+                        jobCompany: currentCompany,
                         updatedAt: serverTimestamp(),
                     }, { merge: true });
-                    console.log('[Editor] Header auto-saved: title=', currentTitle, 'company=', currentCompany);
+                    console.log('[Editor] Company saved:', currentCompany, 'Title:', derivedTitle);
                 }
             } catch (error) {
-                console.error('[Editor] Auto-save header failed:', error);
+                console.error('[Editor] Auto-save failed:', error);
             }
         }, 500);
     };
@@ -735,10 +737,13 @@ export default function EditorPage() {
 
             if (resumeDoc.exists()) {
                 // Update existing AI-generated resume in resumes collection
+                // Title is derived from experience[0].title or job analysis
+                const derivedTitle = jobAnalysis?.title || resumeData.experience[0]?.title || 'Untitled';
+
                 await setDoc(resumeDocRef, {
                     ...resumeDoc.data(),
-                    jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
-                    jobCompany: jobCompany || jobAnalysis?.company || '',
+                    jobTitle: derivedTitle,
+                    jobCompany: jobCompany || '',
                     personalInfo: resumeData.personalInfo,
                     summary: resumeData.summary,
                     professionalSummary: resumeData.summary,
@@ -1489,20 +1494,18 @@ export default function EditorPage() {
                                 </svg>
                             </div>
                             <div>
+                                {/* Title - Read-only, derived from job analysis or experience */}
+                                <span className="text-sm font-semibold text-slate-900 block px-1 -ml-1">
+                                    {jobAnalysis?.title || resumeData.experience[0]?.title || 'Resume Editor'}
+                                </span>
+                                {/* Company - Editable */}
                                 <input
                                     type="text"
-                                    value={jobTitle || jobAnalysis?.title || resumeData.experience[0]?.title || 'Resume Editor'}
-                                    onChange={(e) => setJobTitle(e.target.value)}
-                                    onBlur={autoSaveHeader}
-                                    className="text-sm font-semibold text-slate-900 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block"
-                                    placeholder="Job Title"
-                                />
-                                <input
-                                    type="text"
-                                    value={jobCompany || jobAnalysis?.company || ''}
+                                    id="company-input"
+                                    value={jobCompany}
                                     onChange={(e) => setJobCompany(e.target.value)}
                                     onBlur={autoSaveHeader}
-                                    className={`text-xs bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block ${!(jobCompany || jobAnalysis?.company)
+                                    className={`text-xs bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block w-48 ${!jobCompany
                                         ? 'text-red-500 italic'
                                         : 'text-slate-500'
                                         }`}
