@@ -80,6 +80,11 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
             handleConnectUser(message.data, sendResponse);
             return true;
 
+        // Web app syncs user profile (replaces sample data!)
+        case 'SYNC_PROFILE':
+            handleSyncProfile(message.data, sendResponse);
+            return true;
+
         // Web app checks if extension is installed
         case 'PING':
             sendResponse({
@@ -93,6 +98,42 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
             sendResponse({ success: false, error: 'Unknown external message type' });
     }
 });
+
+/**
+ * Sync user profile from web app
+ * This replaces any sample data with the real user's profile
+ */
+async function handleSyncProfile(profileData, sendResponse) {
+    try {
+        console.log('[JobFiller Pro] Syncing user profile from web app:', profileData?.email);
+
+        if (profileData) {
+            // Store as userProfile (overwrites sample data)
+            await chrome.storage.local.set({
+                userProfile: profileData,
+                profileSyncedAt: Date.now(),
+                profileSource: 'web_app'
+            });
+            console.log('[JobFiller Pro] Profile synced successfully!');
+
+            // Notify all tabs to refresh
+            const tabs = await chrome.tabs.query({});
+            tabs.forEach(tab => {
+                chrome.tabs.sendMessage(tab.id, {
+                    type: 'PROFILE_SYNCED',
+                    data: profileData
+                }).catch(() => { });
+            });
+
+            sendResponse({ success: true, message: 'Profile synced' });
+        } else {
+            sendResponse({ success: false, error: 'No profile data provided' });
+        }
+    } catch (error) {
+        console.error('[JobFiller Pro] Profile sync error:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
 
 /**
  * Handle Flash Session from web app

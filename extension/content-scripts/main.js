@@ -1159,15 +1159,33 @@ async function checkWebAppSession() {
             Utils.log('Found userId from data attribute:', dataUserId);
         }
 
-        // INJECT EXTENSION ID for web app to discover
-        // This enables automatic connection without manual configuration
-        window.__JOBFILLER_EXTENSION_ID__ = chrome.runtime.id;
-        Utils.log('Injected extension ID:', chrome.runtime.id);
+        // INJECT EXTENSION ID into PAGE CONTEXT (not just content script)
+        // Content scripts run in isolated world, so we need to inject a script element
+        const extensionId = chrome.runtime.id;
+        Utils.log('Injecting extension ID into page context:', extensionId);
 
-        // Also dispatch an event so web app knows extension is ready
-        window.dispatchEvent(new CustomEvent('jobfiller-extension-ready', {
-            detail: { extensionId: chrome.runtime.id }
-        }));
+        // Method 1: Inject script element that sets window variable
+        const script = document.createElement('script');
+        script.textContent = `
+            window.__JOBFILLER_EXTENSION_ID__ = "${extensionId}";
+            window.dispatchEvent(new CustomEvent('jobfiller-extension-ready', {
+                detail: { extensionId: "${extensionId}" }
+            }));
+            console.log('[JobFiller] Extension ID injected:', "${extensionId}");
+        `;
+        (document.head || document.documentElement).appendChild(script);
+        script.remove(); // Clean up
+
+        // Method 2: Also set data attribute on body for Next.js to read
+        if (document.body) {
+            document.body.setAttribute('data-jobfiller-extension-id', extensionId);
+        }
+
+        // Method 3: Post message for React/Next.js event listeners
+        window.postMessage({
+            type: 'JOBFILLER_EXTENSION_READY',
+            extensionId: extensionId
+        }, '*');
 
     } catch (error) {
         Utils.log('Error checking web app session: ' + error.message, 'warn');

@@ -23,14 +23,25 @@ declare const chrome: {
 } | undefined;
 
 /**
- * Get extension ID - auto-discovers from window if available
- * Extension injects its ID when user visits the web app
+ * Get extension ID - auto-discovers from multiple sources
+ * Extension injects its ID via script element, data attribute, or postMessage
  */
 function getExtensionId(): string | null {
-    // Check for injected extension ID (auto-discovery)
-    if (typeof window !== 'undefined' && window.__JOBFILLER_EXTENSION_ID__) {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+        return null;
+    }
+
+    // Method 1: Check window variable (set by injected script)
+    if (window.__JOBFILLER_EXTENSION_ID__) {
         return window.__JOBFILLER_EXTENSION_ID__;
     }
+
+    // Method 2: Check body data attribute (fallback)
+    const bodyAttr = document.body?.getAttribute('data-jobfiller-extension-id');
+    if (bodyAttr) {
+        return bodyAttr;
+    }
+
     return null;
 }
 
@@ -209,6 +220,52 @@ export function waitForExtension(timeoutMs: number = 3000): Promise<string | nul
  */
 export function isExtensionAvailable(): boolean {
     return !!getExtensionId();
+}
+
+/**
+ * Sync user profile to extension
+ * This replaces sample data with real user profile
+ */
+export async function syncProfileToExtension(profileData: any): Promise<{ success: boolean; error?: string }> {
+    const extensionId = getExtensionId();
+
+    if (!extensionId) {
+        console.log('[ExtensionBridge] Extension not detected for profile sync');
+        return { success: false, error: 'Extension not detected' };
+    }
+
+    return new Promise((resolve) => {
+        if (typeof chrome === 'undefined' || !chrome.runtime) {
+            resolve({ success: false, error: 'Chrome API not available' });
+            return;
+        }
+
+        try {
+            chrome.runtime.sendMessage(
+                extensionId,
+                {
+                    type: 'SYNC_PROFILE',
+                    data: profileData
+                },
+                (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.warn('[ExtensionBridge] Profile sync failed:', chrome.runtime.lastError);
+                        resolve({ success: false, error: chrome.runtime.lastError.message });
+                    } else if (response?.success) {
+                        console.log('[ExtensionBridge] Profile synced to extension!');
+                        resolve({ success: true });
+                    } else {
+                        resolve({ success: false, error: response?.error || 'Unknown error' });
+                    }
+                }
+            );
+
+            // Timeout after 2 seconds
+            setTimeout(() => resolve({ success: false, error: 'Timeout' }), 2000);
+        } catch (error: any) {
+            resolve({ success: false, error: error.message });
+        }
+    });
 }
 
 // Export for direct access
