@@ -140,20 +140,50 @@ const FirebaseSession = {
         const skills = session.skills || {};
         const extensionSettings = session.extensionSettings || {};
 
+        // Handle different name formats
+        // Priority: firstName/lastName > fullName > name
+        let firstName = personalInfo.firstName || '';
+        let lastName = personalInfo.lastName || '';
+
+        if (!firstName && !lastName) {
+            // Try to extract from fullName or name
+            const fullName = personalInfo.fullName || personalInfo.name || '';
+            if (fullName) {
+                const parts = fullName.trim().split(/\s+/);
+                firstName = parts[0] || '';
+                lastName = parts.slice(1).join(' ') || '';
+            }
+        }
+
+        const computedFullName = personalInfo.fullName || personalInfo.name || `${firstName} ${lastName}`.trim();
+
+        // Handle location - can be string or object
+        let city = personalInfo.city || '';
+        let state = personalInfo.state || '';
+        let country = personalInfo.country || 'USA';
+        let locationStr = personalInfo.location || '';
+
+        if (typeof locationStr === 'string' && locationStr.includes(',') && (!city || !state)) {
+            const parts = locationStr.split(',').map(p => p.trim());
+            city = parts[0] || city;
+            state = parts[1] || state;
+            country = parts[2] || country;
+        }
+
         return {
-            // Personal Info
-            firstName: personalInfo.firstName || '',
-            lastName: personalInfo.lastName || '',
-            fullName: personalInfo.fullName || `${personalInfo.firstName} ${personalInfo.lastName}`.trim(),
+            // Personal Info - CRITICAL: firstName and lastName must be set
+            firstName,
+            lastName,
+            fullName: computedFullName,
             email: personalInfo.email || '',
             phone: personalInfo.phone || '',
 
             // Location
-            location: personalInfo.location || '',
-            city: personalInfo.city || '',
-            state: personalInfo.state || '',
-            country: personalInfo.country || 'USA',
-            address: personalInfo.location || '',
+            location: locationStr || `${city}, ${state}`.trim(),
+            city,
+            state,
+            country,
+            address: locationStr,
 
             // Links
             linkedin: personalInfo.linkedin || '',
