@@ -689,22 +689,54 @@ export default function EditorPage() {
             }
 
             // ====== AI-GENERATED RESUME ======
-            // Check if this is an AI-generated resume (from 'resumes' collection)
-            const resumeDocRef = doc(db, 'resumes', resumeId as string);
-            const resumeDoc = await getDoc(resumeDocRef);
+            // Check if this is an AI-generated resume (from 'users/{uid}/resumes' collection)
+            const userResumeDocRef = doc(db, 'users', user.uid, 'resumes', resumeId as string);
+            const userResumeDoc = await getDoc(userResumeDocRef);
 
-            if (resumeDoc.exists()) {
-                // Update existing AI-generated resume with ATS score, settings, and editable fields
-                await setDoc(resumeDocRef, {
-                    ...resumeDoc.data(),
+            if (userResumeDoc.exists()) {
+                // Update existing AI-generated resume in users/{uid}/resumes
+                await setDoc(userResumeDocRef, {
+                    ...userResumeDoc.data(),
                     jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
                     jobCompany: jobCompany || jobAnalysis?.company || '',
+                    personalInfo: resumeData.personalInfo,
+                    summary: resumeData.summary,
+                    professionalSummary: resumeData.summary,
+                    experience: resumeData.experience.map(exp => ({
+                        company: exp.company,
+                        title: exp.title,
+                        position: exp.title,
+                        location: exp.location,
+                        startDate: exp.startDate,
+                        endDate: exp.current ? 'Present' : exp.endDate,
+                        current: exp.current,
+                        bullets: exp.bullets,
+                        responsibilities: exp.bullets,
+                        highlights: exp.bullets,
+                    })),
+                    education: resumeData.education.map(edu => ({
+                        school: edu.school,
+                        institution: edu.school,
+                        degree: edu.degree,
+                        field: edu.field,
+                        location: edu.location,
+                        graduationDate: edu.graduationDate,
+                    })),
+                    skills: { technical: resumeData.skills.technical },
+                    technicalSkills: resumeData.skills.technical.reduce((acc: any, line: string) => {
+                        const match = line.match(/^\*\*(.+?)\*\*:\s*(.+)$/);
+                        if (match) {
+                            acc[match[1]] = match[2].split(',').map(s => s.trim());
+                        }
+                        return acc;
+                    }, {}),
                     atsScore: atsScoreData,
                     settings,  // Save formatting settings
                     sections,  // Save section order
                     updatedAt: serverTimestamp(),
                 }, { merge: true });
 
+                console.log('[Editor] Resume saved to users/{uid}/resumes');
                 toast.success('Resume updated! 🎉');
             } else {
                 // Save to appliedResumes (old format)
