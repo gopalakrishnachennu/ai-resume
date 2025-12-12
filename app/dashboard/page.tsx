@@ -766,6 +766,78 @@ export default function DashboardPage() {
         }
     };
 
+    // Preview PDF download (for testing)
+    const handlePreviewPDF = async () => {
+        if (!flashModal.app) return;
+
+        try {
+            toast.loading('Generating PDF preview...', { id: 'preview' });
+
+            const app = flashModal.app;
+            const resume = (app as any).resume || {};
+            const resumeData = {
+                personalInfo: resume.personalInfo || {},
+                summary: resume.professionalSummary || resume.summary || '',
+                professionalSummary: resume.professionalSummary || resume.summary || '',
+                experience: resume.experience || [],
+                education: resume.education || [],
+                skills: resume.skills || { technical: [] },
+                technicalSkills: resume.technicalSkills || {},
+            };
+
+            const pdfBlob = await ResumeExportService.generatePDFBlob(resumeData);
+
+            // Download the PDF
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${resumeData.personalInfo?.name || resumeData.personalInfo?.fullName || 'Resume'}_Preview.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            toast.success('PDF downloaded!', { id: 'preview' });
+        } catch (error) {
+            console.error('PDF preview error:', error);
+            toast.error('Failed to generate PDF', { id: 'preview' });
+        }
+    };
+
+    // Preview DOCX download (for testing)
+    const handlePreviewDOCX = async () => {
+        if (!flashModal.app) return;
+
+        try {
+            toast.loading('Generating DOCX preview...', { id: 'preview' });
+
+            const app = flashModal.app;
+            const resume = (app as any).resume || {};
+            const resumeData = {
+                personalInfo: resume.personalInfo || {},
+                summary: resume.professionalSummary || resume.summary || '',
+                professionalSummary: resume.professionalSummary || resume.summary || '',
+                experience: resume.experience || [],
+                education: resume.education || [],
+                skills: resume.skills || { technical: [] },
+                technicalSkills: resume.technicalSkills || {},
+            };
+
+            const docxBlob = await ResumeExportService.generateDOCXBlob(resumeData);
+
+            // Download the DOCX
+            const url = URL.createObjectURL(docxBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${resumeData.personalInfo?.name || resumeData.personalInfo?.fullName || 'Resume'}_Preview.docx`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            toast.success('DOCX downloaded!', { id: 'preview' });
+        } catch (error) {
+            console.error('DOCX preview error:', error);
+            toast.error('Failed to generate DOCX', { id: 'preview' });
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-50">
@@ -1471,6 +1543,29 @@ export default function DashboardPage() {
                                 <p className="text-xs text-slate-500 mt-2">
                                     Paste the job portal URL where you want to apply
                                 </p>
+                            </div>
+                            {/* Preview Downloads */}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handlePreviewPDF}
+                                    disabled={flashModal.loading}
+                                    className="flex-1 px-3 py-2 text-sm text-red-600 font-medium bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Preview PDF
+                                </button>
+                                <button
+                                    onClick={handlePreviewDOCX}
+                                    disabled={flashModal.loading}
+                                    className="flex-1 px-3 py-2 text-sm text-blue-600 font-medium bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Preview DOCX
+                                </button>
                             </div>
                             <div className="bg-violet-50 border border-violet-200 rounded-xl p-3">
                                 <p className="text-xs text-violet-700">

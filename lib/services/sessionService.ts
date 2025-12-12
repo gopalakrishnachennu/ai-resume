@@ -102,6 +102,7 @@ export class SessionService {
 
     /**
      * Create or update active session for a user
+     * Handles both generated resumes (from editor) and imported resumes (from import page)
      */
     static async createSession(
         userId: string,
@@ -112,30 +113,90 @@ export class SessionService {
         const resume = (app as any).resume || {};
         const personalInfo = resume.personalInfo || {};
 
-        // Split full name into first/last
-        const fullName = personalInfo.fullName || '';
-        const nameParts = fullName.split(' ');
+        // Handle name - generated uses 'name', imported uses 'fullName'
+        const fullName = personalInfo.name || personalInfo.fullName || '';
+        const nameParts = fullName.trim().split(' ').filter((p: string) => p);
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
 
-        // Parse location
+        // Parse location - handle "City, State, Country" format
         const location = personalInfo.location || '';
         const locationParts = location.split(',').map((p: string) => p.trim());
         const city = locationParts[0] || '';
         const state = locationParts[1] || '';
-        const country = locationParts[2] || 'USA';
+        const country = locationParts[2] || (locationParts.length <= 2 ? 'USA' : '');
 
-        // Transform skills
+        // Transform skills - handle multiple possible structures
+        // Generated: skills.technical[] (array of formatted strings like "Category: skill1, skill2")
+        // Imported: technicalSkills.{category} (object with arrays)
+        const skillsData = resume.skills || {};
         const technicalSkills = resume.technicalSkills || {};
-        const allSkills: string[] = [];
+
+        // Extract individual skill arrays
+        const languages = technicalSkills.languages || technicalSkills.programmingLanguages || [];
+        const frameworks = technicalSkills.frameworks || technicalSkills.librariesFrameworks || [];
+        const tools = technicalSkills.tools || technicalSkills.developerTools || [];
+        const databases = technicalSkills.databases || [];
+        const cloud = technicalSkills.cloud || technicalSkills.cloudPlatforms || [];
+
+        // Build all skills string
+        const allSkillsArray: string[] = [];
+
+        // From technicalSkills object (imported resumes)
         Object.values(technicalSkills).forEach((category: unknown) => {
             if (Array.isArray(category)) {
-                allSkills.push(...category);
+                allSkillsArray.push(...category);
             } else if (typeof category === 'string') {
-                allSkills.push(...category.split(',').map(s => s.trim()));
+                allSkillsArray.push(...category.split(',').map(s => s.trim()).filter(s => s));
             }
         });
 
+        // From skills.technical array (generated resumes) - parse "Category: skill1, skill2" format
+        if (Array.isArray(skillsData.technical)) {
+            skillsData.technical.forEach((line: string) => {
+                // Split by : to get skills part
+                const parts = line.split(':');
+                if (parts.length > 1) {
+                    const skills = parts[1].split(',').map(s => s.trim()).filter(s => s);
+                    allSkillsArray.push(...skills);
+                }
+            });
+        }
+
+        // Get summary - handle both field names
+        const professionalSummary = resume.professionalSummary || resume.summary || '';
+
+        // Transform experience - handle bullets, highlights, responsibilities
+        const experience = (resume.experience || []).map((exp: any) => {
+            // Handle different bullet field names
+            const bullets = exp.bullets || exp.highlights || exp.responsibilities || exp.description || [];
+            const bulletArray = Array.isArray(bullets) ? bullets : (typeof bullets === 'string' ? [bullets] : []);
+
+            // Handle date formats and "current" job detection
+            const endDate = exp.endDate || '';
+            const isCurrent = exp.current || !endDate || endDate.toLowerCase().includes('present');
+
+            return {
+                company: exp.company || '',
+                title: exp.title || exp.position || '',
+                location: exp.location || '',
+                startDate: exp.startDate || '',
+                endDate: isCurrent ? 'Present' : endDate,
+                current: isCurrent,
+                responsibilities: bulletArray.filter((b: string) => b && b.trim()),
+            };
+        });
+
+        // Transform education - handle different field names
+        const education = (resume.education || []).map((edu: any) => ({
+            institution: edu.institution || edu.school || '',
+            degree: edu.degree || '',
+            field: edu.field || edu.major || edu.fieldOfStudy || '',
+            graduationDate: edu.graduationDate || edu.endDate || '',
+            gpa: edu.gpa || '',
+        }));
+
+        // Build session object
         const session: Omit<ActiveSession, 'createdAt' | 'expiresAt'> & { createdAt: ReturnType<typeof serverTimestamp>; expiresAt: Timestamp } = {
             userId,
             applicationId: app.id,
@@ -159,33 +220,17 @@ export class SessionService {
                 otherUrl: extensionSettings.otherUrl || '',
             },
 
-            professionalSummary: resume.professionalSummary || '',
-
-            experience: (resume.experience || []).map((exp: any) => ({
-                company: exp.company || '',
-                title: exp.title || '',
-                location: exp.location || '',
-                startDate: exp.startDate || '',
-                endDate: exp.endDate || 'Present',
-                current: !exp.endDate || exp.endDate.toLowerCase().includes('present'),
-                responsibilities: exp.highlights || exp.responsibilities || [],
-            })),
-
-            education: (resume.education || []).map((edu: any) => ({
-                institution: edu.institution || edu.school || '',
-                degree: edu.degree || '',
-                field: edu.field || edu.major || '',
-                graduationDate: edu.graduationDate || edu.endDate || '',
-                gpa: edu.gpa || '',
-            })),
+            professionalSummary,
+            experience,
+            education,
 
             skills: {
-                languages: technicalSkills.languages || technicalSkills.programmingLanguages || [],
-                frameworks: technicalSkills.frameworks || technicalSkills.librariesFrameworks || [],
-                tools: technicalSkills.tools || technicalSkills.developerTools || [],
-                databases: technicalSkills.databases || [],
-                cloud: technicalSkills.cloud || technicalSkills.cloudPlatforms || [],
-                all: allSkills.join(', '),
+                languages: Array.isArray(languages) ? languages : [],
+                frameworks: Array.isArray(frameworks) ? frameworks : [],
+                tools: Array.isArray(tools) ? tools : [],
+                databases: Array.isArray(databases) ? databases : [],
+                cloud: Array.isArray(cloud) ? cloud : [],
+                all: [...new Set(allSkillsArray)].join(', '), // Remove duplicates
             },
 
             jobTitle: app.jobTitle || '',
@@ -223,7 +268,12 @@ export class SessionService {
         };
 
         await setDoc(doc(db, this.COLLECTION, userId), session);
-        console.log(`[SessionService] Created active session for user: ${userId}`);
+        console.log(`[SessionService] Created active session for user: ${userId}`, {
+            name: fullName,
+            experienceCount: experience.length,
+            educationCount: education.length,
+            skillCount: allSkillsArray.length,
+        });
     }
 
     /**
