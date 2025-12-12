@@ -254,93 +254,114 @@ export default function DashboardPage() {
                 sortBy,
             });
 
-            // If no applications found, load legacy resumes directly
-            if (apps.length === 0) {
-                console.log('[Dashboard] No applications found, loading legacy resumes...');
+            // ====== ALWAYS LOAD LEGACY RESUMES (Flow 1) ======
+            // Load from resumes collection and merge with applications
+            console.log('[Dashboard] Loading resumes from both collections...');
 
-                // Load from resumes collection directly
-                const resumesQuery = query(
-                    collection(db, 'resumes'),
-                    where('userId', '==', user.uid)
-                );
-                const resumesSnapshot = await getDocs(resumesQuery);
+            const resumesQuery = query(
+                collection(db, 'resumes'),
+                where('userId', '==', user.uid)
+            );
+            const resumesSnapshot = await getDocs(resumesQuery);
 
-                const legacyApps: Application[] = resumesSnapshot.docs.map(doc => {
+            const legacyApps: Application[] = resumesSnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    userId: user.uid,
+                    jobTitle: data.jobTitle || 'Untitled',
+                    jobCompany: data.jobCompany || data.company || '',
+                    jobDescription: data.jobDescription || '',
+                    hasResume: true,
+                    resumeId: doc.id,
+                    status: 'generated' as ApplicationStatus,
+                    atsScore: data.atsScore?.total,
+                    version: 1,
+                    createdAt: data.createdAt,
+                    generatedAt: data.createdAt,
+                    updatedAt: data.updatedAt || data.createdAt,
+                };
+            });
+
+            // Also load jobs as draft applications
+            const jobsQuery = query(
+                collection(db, 'jobs'),
+                where('userId', '==', user.uid)
+            );
+            const jobsSnapshot = await getDocs(jobsQuery);
+
+            const jobApps: Application[] = jobsSnapshot.docs
+                .filter(doc => !legacyApps.some(app => app.jobTitle === doc.data().parsedData?.title))
+                .map(doc => {
                     const data = doc.data();
                     return {
                         id: doc.id,
                         userId: user.uid,
-                        jobTitle: data.jobTitle || 'Untitled',
-                        jobCompany: data.jobCompany || data.company || '',
-                        jobDescription: data.jobDescription || '',
-                        hasResume: true,
-                        resumeId: doc.id,
-                        status: 'generated' as ApplicationStatus,
-                        atsScore: data.atsScore?.total,
+                        jobId: doc.id,
+                        jobTitle: data.parsedData?.title || 'Untitled',
+                        jobCompany: data.parsedData?.company || '',
+                        jobDescription: data.originalDescription || '',
+                        hasResume: false,
+                        status: 'draft' as ApplicationStatus,
                         version: 1,
                         createdAt: data.createdAt,
-                        generatedAt: data.createdAt,
-                        updatedAt: data.updatedAt || data.createdAt,
+                        analyzedAt: data.createdAt,
+                        updatedAt: data.createdAt,
                     };
                 });
 
-                // Also load jobs as draft applications
-                const jobsQuery = query(
-                    collection(db, 'jobs'),
-                    where('userId', '==', user.uid)
-                );
-                const jobsSnapshot = await getDocs(jobsQuery);
+            // Merge all sources: applications + resumes + jobs
+            // Avoid duplicates by checking IDs
+            const existingIds = new Set(apps.map(a => a.id));
+            const newLegacyApps = legacyApps.filter(a => !existingIds.has(a.id));
+            const newJobApps = jobApps.filter(a => !existingIds.has(a.id));
 
-                const jobApps: Application[] = jobsSnapshot.docs
-                    .filter(doc => !legacyApps.some(app => app.jobTitle === doc.data().parsedData?.title))
-                    .map(doc => {
-                        const data = doc.data();
-                        return {
-                            id: doc.id,
-                            userId: user.uid,
-                            jobId: doc.id,
-                            jobTitle: data.parsedData?.title || 'Untitled',
-                            jobCompany: data.parsedData?.company || '',
-                            jobDescription: data.originalDescription || '',
-                            hasResume: false,
-                            status: 'draft' as ApplicationStatus,
-                            version: 1,
-                            createdAt: data.createdAt,
-                            analyzedAt: data.createdAt,
-                            updatedAt: data.createdAt,
-                        };
-                    });
+            apps = [...apps, ...newLegacyApps, ...newJobApps];
 
-                apps = [...legacyApps, ...jobApps];
-
-                // Apply status filter to legacy apps
-                if (statusFilter !== 'all') {
-                    apps = apps.filter(app => app.status === statusFilter);
-                }
-
-                // Apply search filter to legacy apps
-                if (searchQuery.trim()) {
-                    const query = searchQuery.toLowerCase();
-                    apps = apps.filter(app => {
-                        if (searchField === 'title' || searchField === 'all') {
-                            if (app.jobTitle?.toLowerCase().includes(query)) return true;
-                        }
-                        if (searchField === 'company' || searchField === 'all') {
-                            if (app.jobCompany?.toLowerCase().includes(query)) return true;
-                        }
-                        return false;
-                    });
-                }
-
-                // Sort
-                apps.sort((a, b) => {
-                    const dateA = a.createdAt?.toMillis?.() || 0;
-                    const dateB = b.createdAt?.toMillis?.() || 0;
-                    return dateB - dateA;
-                });
-
-                console.log(`[Dashboard] Loaded ${legacyApps.length} resumes + ${jobApps.length} jobs (filtered: ${apps.length})`);
+            // Apply status filter
+            if (statusFilter !== 'all') {
+                apps = apps.filter(app => app.status === statusFilter);
             }
+
+            // Apply search filter
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                apps = apps.filter(app => {
+                    if (searchField === 'title' || searchField === 'all') {
+                        if (app.jobTitle?.toLowerCase().includes(q)) return true;
+                    }
+                    if (searchField === 'company' || searchField === 'all') {
+                        if (app.jobCompany?.toLowerCase().includes(q)) return true;
+                    }
+                    if (searchField === 'skills' || searchField === 'all') {
+                        const skills = (app as any).resume?.technicalSkills;
+                        if (skills) {
+                            const skillsText = typeof skills === 'object'
+                                ? Object.values(skills).join(' ').toLowerCase()
+                                : String(skills).toLowerCase();
+                            if (skillsText.includes(q)) return true;
+                        }
+                    }
+                    return false;
+                });
+            }
+
+            // Sort
+            apps.sort((a, b) => {
+                switch (sortBy) {
+                    case 'oldest':
+                        return (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0);
+                    case 'ats-high':
+                        return (b.atsScore || 0) - (a.atsScore || 0);
+                    case 'ats-low':
+                        return (a.atsScore || 0) - (b.atsScore || 0);
+                    case 'newest':
+                    default:
+                        return (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0);
+                }
+            });
+
+            console.log(`[Dashboard] Loaded ${apps.length} total (${legacyApps.length} resumes + ${jobApps.length} jobs + applications)`);
 
             setApplications(apps);
 
