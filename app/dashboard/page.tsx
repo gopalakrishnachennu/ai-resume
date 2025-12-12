@@ -16,6 +16,7 @@ import {
     getStatusConfig,
     SearchOptions,
 } from '@/lib/services/applicationService';
+import { SessionService } from '@/lib/services/sessionService';
 
 // Animated counter component
 function AnimatedCounter({ value, duration = 1000 }: { value: number; duration?: number }) {
@@ -197,6 +198,19 @@ export default function DashboardPage() {
         originalData: '',
         saving: false,
         error: '',
+    });
+
+    // Flash Modal (for job portal auto-fill)
+    const [flashModal, setFlashModal] = useState<{
+        show: boolean;
+        app: Application | null;
+        jobUrl: string;
+        loading: boolean;
+    }>({
+        show: false,
+        app: null,
+        jobUrl: '',
+        loading: false,
     });
 
     useEffect(() => {
@@ -685,6 +699,40 @@ export default function DashboardPage() {
         }
     };
 
+    // Handle Flash button - create session for job portal auto-fill
+    const handleFlash = async () => {
+        if (!flashModal.app || !flashModal.jobUrl.trim() || !user) {
+            toast.error('Please enter a job URL');
+            return;
+        }
+
+        setFlashModal(prev => ({ ...prev, loading: true }));
+
+        try {
+            // Load extension settings
+            const settingsDoc = await getDoc(doc(db, 'users', user.uid, 'settings', 'extension'));
+            const extensionSettings = settingsDoc.exists() ? settingsDoc.data() : {};
+
+            // Create active session
+            await SessionService.createSession(
+                user.uid,
+                flashModal.app,
+                flashModal.jobUrl,
+                extensionSettings as Record<string, string>
+            );
+
+            toast.success('Session ready! Opening job portal...');
+
+            // Close modal and open job link
+            setFlashModal({ show: false, app: null, jobUrl: '', loading: false });
+            window.open(flashModal.jobUrl, '_blank');
+        } catch (error) {
+            console.error('Error creating flash session:', error);
+            toast.error('Failed to create session');
+            setFlashModal(prev => ({ ...prev, loading: false }));
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-50">
@@ -1089,9 +1137,14 @@ export default function DashboardPage() {
                                                     </svg>
                                                 </button>
                                             )}
-                                            <button className="p-2.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors" title="Download">
+                                            {/* ⚡ Flash button for job portal auto-fill */}
+                                            <button
+                                                onClick={() => setFlashModal({ show: true, app, jobUrl: '', loading: false })}
+                                                className="p-2.5 border border-amber-200 rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-100 transition-colors"
+                                                title="⚡ Flash Auto-Fill"
+                                            >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                                 </svg>
                                             </button>
                                         </div>
@@ -1349,6 +1402,78 @@ export default function DashboardPage() {
                             >
                                 Open in Editor
                             </Link>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ⚡ Flash Modal (Job URL input) */}
+            {flashModal.show && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setFlashModal({ show: false, app: null, jobUrl: '', loading: false })}>
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-amber-50 to-orange-50">
+                            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                ⚡ Flash Auto-Fill
+                            </h3>
+                            <p className="text-sm text-slate-500 mt-1">
+                                {flashModal.app?.jobTitle} at {flashModal.app?.jobCompany}
+                            </p>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Job Application URL
+                                </label>
+                                <input
+                                    type="url"
+                                    value={flashModal.jobUrl}
+                                    onChange={(e) => setFlashModal(prev => ({ ...prev, jobUrl: e.target.value }))}
+                                    placeholder="https://careers.company.com/apply/..."
+                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                    autoFocus
+                                />
+                                <p className="text-xs text-slate-500 mt-2">
+                                    Paste the job portal URL where you want to apply
+                                </p>
+                            </div>
+                            <div className="bg-violet-50 border border-violet-200 rounded-xl p-3">
+                                <p className="text-xs text-violet-700">
+                                    <strong>How it works:</strong> Clicking &quot;Go &amp; Fill&quot; will prepare your resume data and open the job portal. The browser extension will detect the session and auto-fill the form.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+                            <button
+                                onClick={() => setFlashModal({ show: false, app: null, jobUrl: '', loading: false })}
+                                className="flex-1 px-4 py-2.5 text-slate-700 font-medium bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleFlash}
+                                disabled={flashModal.loading || !flashModal.jobUrl.trim()}
+                                className="flex-1 px-4 py-2.5 text-white font-medium bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {flashModal.loading ? (
+                                    <>
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                        Preparing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                        Go &amp; Fill ⚡
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
