@@ -292,7 +292,7 @@ export default function DashboardPage() {
             const { isAutoProfileSyncEnabled } = await import('@/lib/services/extensionSettingsService');
             const { syncProfileToExtension, isExtensionAvailable } = await import('@/lib/extensionBridge');
 
-            if (await isAutoProfileSyncEnabled() && isExtensionAvailable()) {
+            if (await isAutoProfileSyncEnabled() && await isExtensionAvailable()) {
                 // Fetch user profile from Firebase
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
                 if (userDoc.exists()) {
@@ -795,7 +795,7 @@ export default function DashboardPage() {
         }
 
         // Check extension availability (non-blocking - Firebase fallback)
-        const extensionAvailable = isExtensionAvailable();
+        const extensionAvailable = await isExtensionAvailable();
         if (!extensionAvailable) {
             console.log('[Flash] Extension not detected - will use Firebase fallback');
             toast('Extension not detected - using cloud sync', { icon: 'ℹ️', duration: 3000 });

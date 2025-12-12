@@ -23,7 +23,7 @@ declare const chrome: {
 } | undefined;
 
 /**
- * Get extension ID - auto-discovers from multiple sources
+ * Get extension ID - auto-discovers from multiple sources (SYNC version)
  * Extension injects its ID via script element, data attribute, or postMessage
  */
 function getExtensionId(): string | null {
@@ -46,19 +46,49 @@ function getExtensionId(): string | null {
 }
 
 /**
+ * Get extension ID with Firebase admin fallback (ASYNC version)
+ * This is the preferred method - uses admin-configured ID when auto-discovery fails
+ */
+async function getExtensionIdWithFallback(): Promise<string | null> {
+    // First try auto-discovery
+    const autoId = getExtensionId();
+    if (autoId) {
+        console.log('[ExtensionBridge] Using auto-discovered ID:', autoId);
+        return autoId;
+    }
+
+    // Fallback: Read from admin settings in Firebase
+    try {
+        const { getActiveExtensionId } = await import('@/lib/services/extensionSettingsService');
+        const adminId = await getActiveExtensionId();
+        if (adminId) {
+            console.log('[ExtensionBridge] Using admin-configured ID:', adminId);
+            return adminId;
+        }
+    } catch (error) {
+        console.log('[ExtensionBridge] Could not fetch admin settings:', error);
+    }
+
+    console.log('[ExtensionBridge] No extension ID found (neither auto nor admin)');
+    return null;
+}
+
+/**
  * Check if extension is installed and responsive
+ * Uses admin-configured ID as fallback when auto-discovery fails
  */
 export async function pingExtension(): Promise<{ installed: boolean; version?: string; extensionId?: string }> {
-    const extensionId = getExtensionId();
+    const extensionId = await getExtensionIdWithFallback();
 
-    // If no extension ID found, extension is not installed or hasn't loaded yet
+    // If no extension ID found via any method
     if (!extensionId) {
-        console.log('[ExtensionBridge] Extension not detected (no ID injected)');
+        console.log('[ExtensionBridge] Extension not detected (no auto ID and no admin ID)');
         return { installed: false };
     }
 
     return new Promise((resolve) => {
         if (typeof chrome === 'undefined' || !chrome.runtime) {
+            console.log('[ExtensionBridge] Chrome runtime not available');
             resolve({ installed: false });
             return;
         }
@@ -69,8 +99,10 @@ export async function pingExtension(): Promise<{ installed: boolean; version?: s
                 { type: 'PING' },
                 (response) => {
                     if (chrome.runtime.lastError || !response?.success) {
+                        console.log('[ExtensionBridge] Ping failed:', chrome.runtime.lastError?.message);
                         resolve({ installed: false });
                     } else {
+                        console.log('[ExtensionBridge] Extension connected!', response.version);
                         resolve({
                             installed: true,
                             version: response.version,
@@ -80,9 +112,10 @@ export async function pingExtension(): Promise<{ installed: boolean; version?: s
                 }
             );
 
-            // Timeout after 1 second
-            setTimeout(() => resolve({ installed: false }), 1000);
-        } catch {
+            // Timeout after 2 seconds
+            setTimeout(() => resolve({ installed: false }), 2000);
+        } catch (error) {
+            console.log('[ExtensionBridge] Ping error:', error);
             resolve({ installed: false });
         }
     });
@@ -91,16 +124,17 @@ export async function pingExtension(): Promise<{ installed: boolean; version?: s
 /**
  * Push Flash session data directly to extension
  * This bypasses Firebase read on the extension side
+ * Uses admin-configured ID as fallback when auto-discovery fails
  */
 export async function pushFlashSession(
     userId: string,
     projectId: string,
     sessionData: any
 ): Promise<{ success: boolean; error?: string }> {
-    const extensionId = getExtensionId();
+    const extensionId = await getExtensionIdWithFallback();
 
     if (!extensionId) {
-        console.warn('[ExtensionBridge] No extension ID - using postMessage fallback');
+        console.warn('[ExtensionBridge] No extension ID available - using postMessage fallback');
         // Try postMessage fallback for when extension hasn't injected ID yet
         if (typeof window !== 'undefined') {
             window.postMessage({
@@ -216,23 +250,27 @@ export function waitForExtension(timeoutMs: number = 3000): Promise<string | nul
 }
 
 /**
- * Check if extension is available (synchronous check)
+ * Check if extension is available (async - includes admin ID check)
  */
-export function isExtensionAvailable(): boolean {
-    return !!getExtensionId();
+export async function isExtensionAvailable(): Promise<boolean> {
+    const id = await getExtensionIdWithFallback();
+    return !!id;
 }
 
 /**
  * Sync user profile to extension
  * This replaces sample data with real user profile
+ * Uses admin-configured ID as fallback when auto-discovery fails
  */
 export async function syncProfileToExtension(profileData: any): Promise<{ success: boolean; error?: string }> {
-    const extensionId = getExtensionId();
+    const extensionId = await getExtensionIdWithFallback();
 
     if (!extensionId) {
-        console.log('[ExtensionBridge] Extension not detected for profile sync');
-        return { success: false, error: 'Extension not detected' };
+        console.log('[ExtensionBridge] Extension not detected for profile sync (no auto ID and no admin ID)');
+        return { success: false, error: 'Extension not detected - check admin settings' };
     }
+
+    console.log('[ExtensionBridge] Syncing profile to extension:', extensionId);
 
     return new Promise((resolve) => {
         if (typeof chrome === 'undefined' || !chrome.runtime) {
