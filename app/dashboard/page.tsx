@@ -727,17 +727,11 @@ export default function DashboardPage() {
             return;
         }
 
-        // CHECK IF EXTENSION IS INSTALLED
-        // Corporate approach: Must have extension to use Flash
-        if (!isExtensionAvailable()) {
-            console.log('[Flash] Extension not detected - showing install prompt');
-            setExtensionInstallModal({
-                show: true,
-                pendingApp: flashModal.app,
-                pendingJobUrl: flashModal.jobUrl,
-            });
-            setFlashModal(prev => ({ ...prev, show: false }));
-            return;
+        // Check extension availability (non-blocking - Firebase fallback)
+        const extensionAvailable = isExtensionAvailable();
+        if (!extensionAvailable) {
+            console.log('[Flash] Extension not detected - will use Firebase fallback');
+            toast('Extension not detected - using cloud sync', { icon: 'ℹ️', duration: 3000 });
         }
 
         setFlashModal(prev => ({ ...prev, loading: true }));
@@ -790,9 +784,8 @@ export default function DashboardPage() {
             );
             console.log('[Flash] Session created successfully');
 
-            // FORCEFULLY PUSH session to extension (corporate-style)
-            // Extension doesn't need to read from Firebase - we push directly!
-            if (isExtensionAvailable()) {
+            // PUSH session to extension if available (otherwise Firebase fallback is ready)
+            if (extensionAvailable) {
                 const sessionForExtension = {
                     userId: user.uid,
                     jobTitle: app.jobTitle,
