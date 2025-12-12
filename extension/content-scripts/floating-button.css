@@ -1,0 +1,293 @@
+/* JobFiller Pro - Floating Action UI */
+/* Slim, draggable pill that stays pinned to the right edge */
+
+.jobfiller-fab-container {
+    position: fixed;
+    top: 120px;
+    right: 0;
+    z-index: 2147483647;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    touch-action: none;
+    pointer-events: auto;
+    cursor: grab;
+}
+
+.jobfiller-fab-container.jobfiller-dragging {
+    cursor: grabbing;
+}
+
+.jobfiller-fab-shell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.jobfiller-fab-main {
+    height: 52px;
+    padding: 0 18px 0 14px;
+    border-radius: 18px 0 0 18px;
+    border: none;
+    background: linear-gradient(135deg, #1fb6ff 0%, #0099c5 100%);
+    color: #eaf9ff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 8px 22px rgba(0, 153, 197, 0.34);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.jobfiller-fab-main:hover {
+    background: linear-gradient(135deg, #1aa7ec 0%, #008ab3 100%);
+    padding-right: 22px;
+}
+
+.jobfiller-fab-main:active {
+    transform: scale(0.98);
+}
+
+.jobfiller-fab-main.jobfiller-fab-active {
+    box-shadow: 0 10px 26px rgba(0, 153, 197, 0.42);
+}
+
+.jobfiller-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.jobfiller-fab-label {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.jobfiller-badge {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #0fba81;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.jobfiller-fab-handle {
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    background: #0a8cad;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 16px rgba(0, 153, 197, 0.28);
+    color: #eaf9ff;
+    font-size: 16px;
+    pointer-events: none;
+}
+
+.jobfiller-fab-menu {
+    position: absolute;
+    bottom: 60px;
+    right: 0;
+    width: 260px;
+    background: white;
+    border-radius: 14px 0 0 14px;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(10px);
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.jobfiller-fab-menu.jobfiller-menu-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+}
+
+.jobfiller-menu-header {
+    background: #0f172a;
+    color: white;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.jobfiller-logo {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.jobfiller-close-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.jobfiller-close-btn:hover {
+    opacity: 1;
+}
+
+.jobfiller-menu-content {
+    padding: 12px;
+    background: #f9fafb;
+}
+
+.jobfiller-profile-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #ffffff;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.jobfiller-profile-icon {
+    width: 32px;
+    height: 32px;
+    background: #e5e7eb;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.jobfiller-profile-icon.jobfiller-profile-loaded {
+    background: #0fba81;
+    color: white;
+}
+
+.jobfiller-profile-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.jobfiller-profile-name {
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 13px;
+}
+
+.jobfiller-profile-hint {
+    font-size: 11px;
+    color: #6b7280;
+}
+
+.jobfiller-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.jobfiller-action-btn {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.jobfiller-action-fill-all {
+    background: linear-gradient(135deg, #1fb6ff 0%, #0099c5 100%);
+    color: #eaf9ff;
+    box-shadow: 0 8px 16px rgba(0, 153, 197, 0.28);
+}
+
+.jobfiller-action-detect {
+    background: #e5e7eb;
+    color: #0f172a;
+}
+
+.jobfiller-action-btn:hover {
+    transform: translateY(-1px);
+}
+
+.jobfiller-stats {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.jobfiller-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: center;
+    flex: 1;
+}
+
+.jobfiller-stat-value {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.jobfiller-stat-label {
+    font-size: 11px;
+    color: #6b7280;
+}
+
+.jobfiller-message {
+    display: none;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.jobfiller-message-info {
+    background: #e0f2fe;
+    color: #075985;
+}
+
+.jobfiller-message-success {
+    background: #dcfce7;
+    color: #065f46;
+}
+
+.jobfiller-message-error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.jobfiller-message-warning {
+    background: #fef3c7;
+    color: #92400e;
+}

@@ -760,6 +760,12 @@ export default function DashboardPage() {
                                         </svg>
                                         Prompt Settings
                                     </Link>
+                                    <Link href="/settings/extension" className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+                                        <svg className="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                        Extension Settings
+                                    </Link>
                                     <div className="border-t border-slate-100 mt-2 pt-2">
                                         <button onClick={handleSignOut} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

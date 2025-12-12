@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobFiller Pro - Settings & Profile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="options.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg width="40" height="40" viewBox="0 0 32 32" fill="none">
+                        <defs>
+                            <linearGradient id="logoGradient" x1="0" y1="0" x2="32" y2="32">
+                                <stop offset="0%" stop-color="#667eea" />
+                                <stop offset="100%" stop-color="#764ba2" />
+                            </linearGradient>
+                        </defs>
+                        <rect width="32" height="32" rx="8" fill="url(#logoGradient)" />
+                        <path d="M16 8L22 12V20L16 24L10 20V12L16 8Z" fill="white" />
+                    </svg>
+                    <div>
+                        <h1>JobFiller Pro</h1>
+                        <span class="version">Version 2.0.0</span>
+                    </div>
+                </div>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item active" data-tab="profile">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Profile
+                </li>
+                <li class="nav-item" data-tab="settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                    Settings
+                </li>
+                <li class="nav-item" data-tab="history">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    History
+                </li>
+                <li class="nav-item" data-tab="help">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    Help
+                </li>
+                <li class="nav-item" data-tab="smart-features">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        <path d="M12 2v4"></path>
+                        <path d="M12 18v4"></path>
+                        <path d="M4.93 4.93l2.83 2.83"></path>
+                        <path d="M16.24 16.24l2.83 2.83"></path>
+                        <path d="M2 12h4"></path>
+                        <path d="M18 12h4"></path>
+                        <path d="M4.93 19.07l2.83-2.83"></path>
+                        <path d="M16.24 7.76l2.83-2.83"></path>
+                    </svg>
+                    Smart Features
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <button class="btn btn-danger" id="clearData">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    Clear All Data
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Profile Tab -->
+            <section class="tab-content active" id="tab-profile">
+                <header class="content-header">
+                    <h2>Your Profile</h2>
+                    <p>Manage your profile data used for auto-filling job applications</p>
+                </header>
+
+                <div class="profile-actions-bar">
+                    <button class="btn btn-primary" id="importProfile">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        Import JSON
+                    </button>
+                    <button class="btn btn-secondary" id="exportProfile">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Export JSON
+                    </button>
+                    <button class="btn btn-secondary" id="loadSample">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        Load Sample
+                    </button>
+                </div>
+
+                <div class="profile-status" id="profileStatus">
+                    <div class="status-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                    </div>
+                    <div class="status-text">
+                        <h3>No Profile Loaded</h3>
+                        <p>Import a JSON file or load the sample profile to get started</p>
+                    </div>
+                </div>
+
+                <div class="profile-editor" id="profileEditor" style="display: none;">
+                    <!-- Personal Info -->
+                    <div class="editor-section">
+                        <h3>Personal Information</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" id="firstName" placeholder="John">
+                            </div>
+                            <div class="form-group">
+                                <label>Last Name</label>
+                                <input type="text" id="lastName" placeholder="Doe">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="email" placeholder="john@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="tel" id="phone" placeholder="+1-555-555-5555">
+                            </div>
+                            <div class="form-group">
+                                <label>City</label>
+                                <input type="text" id="city" placeholder="San Francisco">
+                            </div>
+                            <div class="form-group">
+                                <label>State</label>
+                                <input type="text" id="state" placeholder="CA">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>LinkedIn URL</label>
+                                <input type="url" id="linkedin" placeholder="https://linkedin.com/in/username">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>GitHub URL</label>
+                                <input type="url" id="github" placeholder="https://github.com/username">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Professional Summary -->
+                    <div class="editor-section">
+                        <h3>Professional Summary</h3>
+                        <div class="form-group full-width">
+                            <textarea id="summary" rows="4"
+                                placeholder="Write a brief professional summary..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Raw JSON Editor -->
+                    <div class="editor-section">
+                        <h3>Full Profile (JSON)</h3>
+                        <p class="section-hint">Edit your complete profile data in JSON format</p>
+                        <div class="form-group full-width">
+                            <textarea id="jsonEditor" rows="15" class="json-editor"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="editor-actions">
+                        <button class="btn btn-primary btn-large" id="saveProfile">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            </svg>
+                            Save Profile
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Tab -->
+            <section class="tab-content" id="tab-settings">
+                <header class="content-header">
+                    <h2>Settings</h2>
+                    <p>Configure your JobFiller Pro preferences</p>
+                </header>
+
+                <div class="settings-group">
+                    <h3>General</h3>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Show Floating Button</h4>
+                            <p>Display the floating action button on job application pages</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="showFloatingButton" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Auto-Detect Forms</h4>
+                            <p>Automatically detect job application forms when visiting supported sites</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="autoDetect" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>API Integration (Optional)</h3>
+                    <p class="group-hint">Connect to your AI resume generator for enhanced auto-filling</p>
+                    <div class="form-group">
+                        <label>API Endpoint</label>
+                        <input type="url" id="apiEndpoint" placeholder="https://your-api.com/api">
+                    </div>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="password" id="apiKey" placeholder="Enter your API key">
+                    </div>
+                </div>
+
+                <div class="setting-actions">
+                    <button class="btn btn-primary" id="saveSettings">Save Settings</button>
+                </div>
+            </section>
+
+            <!-- History Tab -->
+            <section class="tab-content" id="tab-history">
+                <header class="content-header">
+                    <h2>Application History</h2>
+                    <p>Track your job applications filled with JobFiller Pro</p>
+                </header>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-value" id="totalApplications">0</span>
+                        <span class="stat-label">Applications Filled</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="totalFields">0</span>
+                        <span class="stat-label">Fields Filled</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="timeSaved">0</span>
+                        <span class="stat-label">Minutes Saved</span>
+                    </div>
+                </div>
+
+                <div class="history-list" id="historyList">
+                    <p class="empty-state">No applications tracked yet</p>
+                </div>
+
+                <button class="btn btn-secondary" id="clearHistory">Clear History</button>
+            </section>
+
+            <!-- Smart Features Tab -->
+            <section class="tab-content" id="tab-smart-features">
+                <header class="content-header">
+                    <h2>Smart Features (Free AI)</h2>
+                    <p>Unlock intelligent features using your browser's built-in AI</p>
+                </header>
+
+                <div class="settings-group">
+                    <h3>Chrome Built-in AI (Gemini Nano)</h3>
+                    <p class="group-hint">Run AI locally in your browser. Private, free, and no GPU required.</p>
+
+                    <div class="ai-status-card" id="chromeAiStatusCard">
+                        <div class="status-indicator checking">
+                            <span class="dot"></span>
+                            <span class="status-label">Checking compatibility...</span>
+                        </div>
+                        <div class="status-details">
+                            <p id="chromeAiMessage">Detecting browser capabilities...</p>
+                            <button class="btn btn-primary btn-small" id="checkChromeAi">Check Again</button>
+                        </div>
+                    </div>
+
+                    <div class="setup-guide" id="chromeAiGuide" style="display:none;">
+                        <h4>How to Enable (One-time Setup)</h4>
+                        <ol class="setup-steps">
+                            <li>
+                                <span>1</span>
+                                <div>
+                                    <strong>Update Chrome</strong>
+                                    <p>Ensure you are on Chrome version 127 or higher.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span>2</span>
+                                <div>
+                                    <strong>Enable Prompt API</strong>
+                                    <p>Go to <a href="#" class="copy-link"
+                                            data-link="chrome://flags/#prompt-api-for-gemini-nano">chrome://flags/#prompt-api-for-gemini-nano</a>
+                                        and set it to <strong>"Enabled"</strong>.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span>3</span>
+                                <div>
+                                    <strong>Enable Optimization Guide</strong>
+                                    <p>Go to <a href="#" class="copy-link"
+                                            data-link="chrome://flags/#optimization-guide-on-device-model">chrome://flags/#optimization-guide-on-device-model</a>
+                                        and select <strong>"Enabled BypassPerfRequirement"</strong>.</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span>4</span>
+                                <div>
+                                    <strong>Restart Chrome</strong>
+                                    <p>Relaunch your browser for changes to take effect.</p>
+                                </div>
+                            </li>
+                        </ol>
+                        <div class="download-note">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            <span>Note: After restarting, Chrome will download the model (approx 1-3GB) in the
+                                background. keep browser open for few minutes. This may take a few minutes.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>Logic Engine (Fallback)</h3>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Smart Context Injection</h4>
+                            <p>Inject job-specific details (Skills, Company Name) into answers even without AI.</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="smartContext" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Help Tab -->
+            <section class="tab-content" id="tab-help">
+                <header class="content-header">
+                    <h2>Help & Documentation</h2>
+                    <p>Learn how to use JobFiller Pro effectively</p>
+                </header>
+
+                <div class="help-section">
+                    <h3>🚀 Getting Started</h3>
+                    <ol>
+                        <li>Import your profile JSON file or create one using the profile editor</li>
+                        <li>Navigate to any supported job portal</li>
+                        <li>Click the floating button or use the popup to auto-fill</li>
+                        <li>Review the filled fields before submitting</li>
+                    </ol>
+                </div>
+
+                <div class="help-section">
+                    <h3>📋 Supported Portals</h3>
+                    <div class="portal-grid">
+                        <span class="portal-chip">LinkedIn</span>
+                        <span class="portal-chip">Indeed</span>
+                        <span class="portal-chip">Glassdoor</span>
+                        <span class="portal-chip">Workday</span>
+                        <span class="portal-chip">Greenhouse</span>
+                        <span class="portal-chip">Lever</span>
+                        <span class="portal-chip">SmartRecruiters</span>
+                        <span class="portal-chip">iCIMS</span>
+                        <span class="portal-chip">Taleo</span>
+                        <span class="portal-chip">And 30+ more!</span>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h3>❓ FAQ</h3>
+                    <div class="faq-item">
+                        <h4>Is my data safe?</h4>
+                        <p>Yes! All your data is stored locally in your browser. We never send your information to any
+                            external servers.</p>
+                    </div>
+                    <div class="faq-item">
+                        <h4>Why isn't the extension working on some sites?</h4>
+                        <p>Some sites use complex forms or iframes that may require manual filling. We're constantly
+                            improving our detection.</p>
+                    </div>
+                    <div class="faq-item">
+                        <h4>How do I update my profile?</h4>
+                        <p>Go to the Profile tab, make your changes, and click Save Profile. Your changes will be
+                            applied immediately.</p>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h3>📧 Contact & Support</h3>
+                    <p>Found a bug or have a feature request? Visit our GitHub repository or send us feedback!</p>
+                    <button class="btn btn-secondary" id="openGithub">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                        </svg>
+                        View on GitHub
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
+    <script src="options.js"></script>
+</body>
+
+</html>

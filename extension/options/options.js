@@ -1,0 +1,514 @@
+// Options Page Controller
+// Handles profile management, settings, and history
+
+class OptionsController {
+    constructor() {
+        this.profile = null;
+        this.settings = {
+            showFloatingButton: true,
+            autoDetect: true,
+            apiEndpoint: '',
+            apiKey: ''
+        };
+
+        this.init();
+    }
+
+    async init() {
+        await this.loadData();
+        this.setupEventListeners();
+        this.setupTabNavigation();
+    }
+
+    async loadData() {
+        try {
+            const result = await chrome.storage.local.get(['userProfile', 'settings', 'applicationHistory', 'stats']);
+
+            this.profile = result.userProfile;
+            if (result.settings) {
+                this.settings = { ...this.settings, ...result.settings };
+            }
+
+            this.displaySettings();
+            this.displayProfile();
+            this.displayHistory(result.applicationHistory || []);
+            this.displayStats(result.stats || {}, result.applicationHistory || []);
+
+            // Smart Features Init
+            this.checkChromeAi();
+            if (result.settings?.smartContext !== undefined) {
+                const smartContextToggle = document.getElementById('smartContext');
+                if (smartContextToggle) smartContextToggle.checked = result.settings.smartContext;
+            }
+        } catch (error) {
+            console.error('Error loading data:', error);
+        }
+    }
+
+    setupTabNavigation() {
+        const navItems = document.querySelectorAll('.nav-item');
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // Remove active from all
+                navItems.forEach(nav => nav.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+
+                // Add active to clicked
+                item.classList.add('active');
+                const tabId = item.dataset.tab;
+                document.getElementById(`tab-${tabId}`).classList.add('active');
+            });
+        });
+    }
+
+    setupEventListeners() {
+        // Import profile
+        document.getElementById('importProfile').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            this.importProfile(e);
+        });
+
+        // Export profile
+        document.getElementById('exportProfile').addEventListener('click', () => {
+            this.exportProfile();
+        });
+
+        // Load sample
+        document.getElementById('loadSample').addEventListener('click', () => {
+            this.loadSampleProfile();
+        });
+
+        // Save profile
+        document.getElementById('saveProfile').addEventListener('click', () => {
+            this.saveProfile();
+        });
+
+        // Save settings
+        document.getElementById('saveSettings').addEventListener('click', () => {
+            this.saveSettings();
+        });
+
+        // Clear data
+        document.getElementById('clearData').addEventListener('click', () => {
+            this.clearAllData();
+        });
+
+        // Clear history
+        document.getElementById('clearHistory').addEventListener('click', () => {
+            this.clearHistory();
+        });
+
+        // Open GitHub
+        document.getElementById('openGithub').addEventListener('click', () => {
+            window.open('https://github.com/yourusername/jobfiller-pro', '_blank');
+        });
+
+        // JSON editor change
+        document.getElementById('jsonEditor').addEventListener('input', () => {
+            this.updateFormFromJson();
+        });
+
+        // Form field changes
+        const formFields = ['firstName', 'lastName', 'email', 'phone', 'city', 'state', 'linkedin', 'github', 'summary'];
+        formFields.forEach(field => {
+            const element = document.getElementById(field);
+            if (element) {
+                element.addEventListener('input', () => {
+                    this.updateJsonFromForm();
+                });
+            }
+        });
+
+        // Smart Features - Check Chrome AI
+        document.getElementById('checkChromeAi').addEventListener('click', () => {
+            this.checkChromeAi();
+        });
+
+        // Smart Context Toggle
+        document.getElementById('smartContext').addEventListener('change', (e) => {
+            this.saveSmartFeaturesSettings(e.target.checked);
+        });
+
+        // Flag Links
+        document.querySelectorAll('.copy-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigator.clipboard.writeText(e.target.dataset.link);
+                this.showToast('Copied to clipboard! Paste in address bar.', 'success');
+            });
+        });
+    }
+
+    displaySettings() {
+        document.getElementById('showFloatingButton').checked = this.settings.showFloatingButton;
+        document.getElementById('autoDetect').checked = this.settings.autoDetect;
+        document.getElementById('apiEndpoint').value = this.settings.apiEndpoint || '';
+        document.getElementById('apiKey').value = this.settings.apiKey || '';
+    }
+
+    displayProfile() {
+        const profileStatus = document.getElementById('profileStatus');
+        const profileEditor = document.getElementById('profileEditor');
+
+        if (this.profile) {
+            profileStatus.classList.add('loaded');
+            profileStatus.querySelector('.status-icon').innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            `;
+            profileStatus.querySelector('h3').textContent = 'Profile Loaded';
+            profileStatus.querySelector('p').textContent =
+                `${this.profile.personalInfo?.firstName} ${this.profile.personalInfo?.lastName} - ${this.profile.personalInfo?.email}`;
+
+            profileEditor.style.display = 'block';
+
+            // Fill form fields
+            this.fillFormFromProfile();
+
+            // Fill JSON editor
+            document.getElementById('jsonEditor').value = JSON.stringify(this.profile, null, 2);
+        }
+    }
+
+    fillFormFromProfile() {
+        const p = this.profile;
+        if (!p) return;
+
+        const fields = {
+            firstName: p.personalInfo?.firstName,
+            lastName: p.personalInfo?.lastName,
+            email: p.personalInfo?.email,
+            phone: p.personalInfo?.phone,
+            city: p.personalInfo?.location?.city,
+            state: p.personalInfo?.location?.state,
+            linkedin: p.personalInfo?.linkedin,
+            github: p.personalInfo?.github,
+            summary: p.professionalSummary?.default
+        };
+
+        for (const [id, value] of Object.entries(fields)) {
+            const element = document.getElementById(id);
+            if (element && value) {
+                element.value = value;
+            }
+        }
+    }
+
+    updateJsonFromForm() {
+        if (!this.profile) {
+            this.profile = this.createEmptyProfile();
+        }
+
+        // Update profile from form fields
+        this.profile.personalInfo = this.profile.personalInfo || {};
+        this.profile.personalInfo.firstName = document.getElementById('firstName').value;
+        this.profile.personalInfo.lastName = document.getElementById('lastName').value;
+        this.profile.personalInfo.email = document.getElementById('email').value;
+        this.profile.personalInfo.phone = document.getElementById('phone').value;
+
+        this.profile.personalInfo.location = this.profile.personalInfo.location || {};
+        this.profile.personalInfo.location.city = document.getElementById('city').value;
+        this.profile.personalInfo.location.state = document.getElementById('state').value;
+
+        this.profile.personalInfo.linkedin = document.getElementById('linkedin').value;
+        this.profile.personalInfo.github = document.getElementById('github').value;
+
+        this.profile.professionalSummary = this.profile.professionalSummary || {};
+        this.profile.professionalSummary.default = document.getElementById('summary').value;
+
+        // Update JSON editor
+        document.getElementById('jsonEditor').value = JSON.stringify(this.profile, null, 2);
+    }
+
+    updateFormFromJson() {
+        try {
+            const json = document.getElementById('jsonEditor').value;
+            this.profile = JSON.parse(json);
+            this.fillFormFromProfile();
+        } catch (error) {
+            // Invalid JSON, don't update form
+        }
+    }
+
+    createEmptyProfile() {
+        return {
+            version: "2.0",
+            lastUpdated: new Date().toISOString(),
+            personalInfo: {
+                firstName: "",
+                lastName: "",
+                email: "",
+                phone: "",
+                location: {
+                    address: "",
+                    city: "",
+                    state: "",
+                    country: "USA",
+                    zipCode: ""
+                },
+                linkedin: "",
+                github: "",
+                portfolio: ""
+            },
+            professionalSummary: {
+                default: "",
+                short: ""
+            },
+            experience: [],
+            education: [],
+            skills: {
+                technical: {
+                    programming: [],
+                    frameworks: [],
+                    tools: []
+                },
+                soft: []
+            },
+            preferences: {
+                jobTypes: ["Full-time"],
+                workArrangement: ["Remote"],
+                sponsorshipRequired: false,
+                willingToRelocate: true
+            }
+        };
+    }
+
+    async importProfile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const profile = JSON.parse(text);
+
+            if (!profile.personalInfo) {
+                throw new Error('Invalid profile: missing personalInfo');
+            }
+
+            await chrome.storage.local.set({ userProfile: profile });
+            this.profile = profile;
+
+            this.displayProfile();
+            this.showToast('Profile imported successfully!', 'success');
+        } catch (error) {
+            console.error('Error importing profile:', error);
+            this.showToast('Failed to import profile: ' + error.message, 'error');
+        }
+
+        // Reset file input
+        event.target.value = '';
+    }
+
+    async exportProfile() {
+        if (!this.profile) {
+            this.showToast('No profile to export', 'error');
+            return;
+        }
+
+        const dataStr = JSON.stringify(this.profile, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `jobfiller-profile-${Date.now()}.json`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+        this.showToast('Profile exported!', 'success');
+    }
+
+    async loadSampleProfile() {
+        // Sample profile data
+        const sampleProfile = {
+            version: "2.0",
+            lastUpdated: new Date().toISOString(),
+            personalInfo: {
+                firstName: "John",
+                lastName: "Doe",
+                email: "john.doe@email.com",
+                phone: "+1-555-555-5555",
+                location: {
+                    address: "123 Main Street",
+                    city: "San Francisco",
+                    state: "CA",
+                    country: "USA",
+                    zipCode: "94102"
+                },
+                linkedin: "https://linkedin.com/in/johndoe",
+                github: "https://github.com/johndoe",
+                portfolio: "https://johndoe.dev"
+            },
+            professionalSummary: {
+                default: "Experienced software engineer with 5+ years of expertise in full-stack development, specializing in React, Node.js, and cloud technologies.",
+                short: "Full-stack developer with 5+ years experience"
+            },
+            experience: [
+                {
+                    company: "Tech Corp",
+                    position: "Senior Software Engineer",
+                    startDate: "2020-01",
+                    endDate: "2024-12",
+                    current: false,
+                    responsibilities: [
+                        "Led team of 5 engineers",
+                        "Improved performance by 40%"
+                    ]
+                }
+            ],
+            education: [
+                {
+                    institution: "Stanford University",
+                    degree: "Bachelor of Science",
+                    field: "Computer Science",
+                    gpa: "3.8"
+                }
+            ],
+            skills: {
+                technical: {
+                    programming: ["JavaScript", "Python", "Java"],
+                    frameworks: ["React", "Node.js", "Django"],
+                    tools: ["Git", "Docker", "AWS"]
+                },
+                soft: ["Leadership", "Communication"]
+            },
+            preferences: {
+                jobTypes: ["Full-time"],
+                workArrangement: ["Remote", "Hybrid"],
+                salaryExpectation: { min: 120000, max: 180000, currency: "USD" },
+                noticePeriod: "2 weeks",
+                sponsorshipRequired: false,
+                willingToRelocate: true
+            }
+        };
+
+        await chrome.storage.local.set({ userProfile: sampleProfile });
+        this.profile = sampleProfile;
+        this.displayProfile();
+        this.showToast('Sample profile loaded!', 'success');
+    }
+
+    async saveProfile() {
+        try {
+            // Get JSON from editor
+            const json = document.getElementById('jsonEditor').value;
+            const profile = JSON.parse(json);
+
+            profile.lastUpdated = new Date().toISOString();
+
+            await chrome.storage.local.set({ userProfile: profile });
+            this.profile = profile;
+
+            this.showToast('Profile saved successfully!', 'success');
+        } catch (error) {
+            console.error('Error saving profile:', error);
+            this.showToast('Invalid JSON format', 'error');
+        }
+    }
+
+    async saveSettings() {
+        try {
+            this.settings = {
+                showFloatingButton: document.getElementById('showFloatingButton').checked,
+                autoDetect: document.getElementById('autoDetect').checked,
+                apiEndpoint: document.getElementById('apiEndpoint').value,
+                apiKey: document.getElementById('apiKey').value
+            };
+
+            await chrome.storage.local.set({ settings: this.settings });
+            this.showToast('Settings saved!', 'success');
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            this.showToast('Failed to save settings', 'error');
+        }
+    }
+
+    displayHistory(history) {
+        const historyList = document.getElementById('historyList');
+
+        if (!history || history.length === 0) {
+            historyList.innerHTML = '<p class="empty-state">No applications tracked yet</p>';
+            return;
+        }
+
+        const platformIcons = {
+            'LinkedIn': '💼',
+            'Indeed': '🔍',
+            'Glassdoor': '🏢',
+            'Workday': '📋',
+            'Greenhouse': '🌱',
+            'Lever': '⚡',
+            'Unknown': '🌐'
+        };
+
+        historyList.innerHTML = history.map(app => `
+            <div class="history-item">
+                <div class="history-icon">${platformIcons[app.platform] || '🌐'}</div>
+                <div class="history-info">
+                    <p class="history-title">${app.title || 'Job Application'}</p>
+                    <p class="history-meta">${app.platform || 'Unknown'} • ${this.formatDate(app.appliedAt)} • ${app.fieldsFilled || 0} fields</p>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    displayStats(stats, history) {
+        document.getElementById('totalApplications').textContent = history.length;
+        document.getElementById('totalFields').textContent = stats.fieldsFilled || (history.length * 8);
+        document.getElementById('timeSaved').textContent = Math.round(history.length * 3);
+    }
+
+    async clearHistory() {
+        if (!confirm('Are you sure you want to clear application history?')) {
+            return;
+        }
+
+        await chrome.storage.local.set({ applicationHistory: [], stats: { fieldsFilled: 0 } });
+        this.displayHistory([]);
+        this.displayStats({}, []);
+        this.showToast('History cleared', 'success');
+    }
+
+    async clearAllData() {
+        if (!confirm('Are you sure you want to clear ALL data including your profile? This cannot be undone.')) {
+            return;
+        }
+
+        await chrome.storage.local.clear();
+        this.profile = null;
+        this.settings = {
+            showFloatingButton: true,
+            autoDetect: true,
+            apiEndpoint: '',
+            apiKey: ''
+        };
+
+        location.reload();
+    }
+
+    formatDate(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast show ${type}`;
+
+        setTimeout(() => {
+            toast.className = 'toast';
+        }, 3000);
+    }
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    new OptionsController();
+});

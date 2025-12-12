@@ -1,0 +1,493 @@
+/* JobFiller Pro - Notification Banner Styles */
+
+/* Banner Container */
+.jf-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2147483647;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    transform: translateY(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    color: white;
+}
+
+.jf-banner-visible {
+    transform: translateY(0);
+    animation: jf-slideIn 0.3s ease-out;
+}
+
+.jf-banner-hidden {
+    transform: translateY(-100%);
+}
+
+/* Banner Content - Flexbox layout */
+.jf-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+    max-width: 100%;
+}
+
+/* Left: Guard Section */
+.jf-guard-section {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    background: rgba(16, 185, 129, 0.15);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.jf-guard-section.guard-yellow {
+    background: rgba(245, 158, 11, 0.15);
+}
+
+.jf-guard-section.guard-red {
+    background: rgba(239, 68, 68, 0.15);
+}
+
+.jf-guard-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.jf-guard-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #10b981;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.guard-yellow .jf-guard-icon {
+    background: #f59e0b;
+}
+
+.guard-red .jf-guard-icon {
+    background: #ef4444;
+}
+
+.jf-guard-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.jf-guard-status {
+    font-weight: 600;
+    font-size: 13px;
+    color: #10b981;
+}
+
+.guard-yellow .jf-guard-status {
+    color: #f59e0b;
+}
+
+.guard-red .jf-guard-status {
+    color: #ef4444;
+}
+
+.jf-guard-detail {
+    font-size: 11px;
+    opacity: 0.7;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Divider */
+.jf-banner-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
+}
+
+/* Center: Main Section */
+.jf-banner-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+}
+
+/* Banner Icon */
+.jf-banner-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.jf-banner-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Banner Message */
+.jf-banner-message {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.jf-banner-title {
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jf-banner-subtitle {
+    font-size: 13px;
+    opacity: 0.9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Banner Actions */
+.jf-banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Banner Buttons */
+.jf-banner-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.jf-banner-btn:hover {
+    transform: translateY(-1px);
+}
+
+.jf-banner-btn:active {
+    transform: scale(0.98);
+}
+
+.jf-banner-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.jf-banner-btn-primary {
+    background: rgba(255, 255, 255, 0.95);
+    color: #1f2937;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.jf-banner-btn-primary:hover {
+    background: #ffffff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.jf-banner-btn-secondary {
+    background: rgba(255, 255, 255, 0.2);
+    color: inherit;
+}
+
+.jf-banner-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.jf-banner-btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    border-radius: 6px;
+}
+
+.jf-banner-btn-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Progress Bar */
+.jf-banner-progress {
+    display: none;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+
+.jf-banner-progress-bar {
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* Banner Variants */
+.jf-banner-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.jf-banner-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.jf-banner-error {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.jf-banner-info {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+/* Spin Animation */
+@keyframes jf-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.jf-spin {
+    animation: jf-spin 1s linear infinite;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .jf-banner-content {
+        padding: 10px 16px;
+        gap: 12px;
+    }
+
+    .jf-banner-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .jf-banner-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .jf-banner-title {
+        font-size: 14px;
+    }
+
+    .jf-banner-subtitle {
+        font-size: 12px;
+    }
+
+    .jf-banner-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .jf-banner-btn-secondary {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .jf-banner-subtitle {
+        display: none;
+    }
+}
+
+/* Prediction Summary */
+.jf-banner-prediction {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 12px;
+    opacity: 0.95;
+}
+
+.jf-checklist-pill {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.18);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #c7fff2;
+    margin-left: 8px;
+}
+
+.jf-checklist-score {
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.jf-checklist-label {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.jf-prediction-high {
+    background: rgba(255, 255, 255, 0.25);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.jf-prediction-sep {
+    opacity: 0.5;
+}
+
+.jf-prediction-medium {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.jf-prediction-confidence {
+    opacity: 0.7;
+    font-size: 11px;
+}
+
+/* Pulse Animation for proactive detection */
+@keyframes jf-pulse {
+    0% {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    50% {
+        box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    100% {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+}
+
+.jf-banner-pulse {
+    animation: jf-pulse 1.5s ease-in-out 3;
+}
+
+/* Slide-in Animation */
+@keyframes jf-slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.jf-banner-visible {
+    transform: translateY(0);
+    animation: jf-slideIn 0.3s ease-out;
+}
+
+/* Glow effect for urgent detection */
+.jf-banner-glow {
+    box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+}
+
+/* Work Authorization Guard Badge */
+.jf-banner-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.jf-guard-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.jf-guard-badge .badge-emoji {
+    font-size: 10px;
+}
+
+.jf-guard-badge .badge-text {
+    font-size: 10px;
+}
+
+.jf-guard-green {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.jf-guard-yellow {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.jf-guard-red {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+/* Blocked state */
+.jf-banner-blocked {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+}
+
+.jf-banner-blocked .jf-guard-red {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+/* Pulse animation for blocked */
+@keyframes jf-pulseRed {
+
+    0%,
+    100% {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    50% {
+        box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5);
+    }
+}
+
+.jf-banner-blocked {
+    animation: jf-pulseRed 1.5s ease-in-out 2;
+}
