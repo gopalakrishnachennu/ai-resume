@@ -1086,6 +1086,69 @@ function waitForPageReady() {
     });
 }
 
+/**
+ * Check if on web app and sync userId automatically
+ * This allows seamless linking between web app and extension
+ */
+async function checkWebAppSession() {
+    try {
+        // Check if on the AI Resume Builder app
+        const appDomains = [
+            'ai-resume-git-feature-prompt-gopalakrishnachennu-5461s-projects.vercel.app',
+            'ai-resume-builder.vercel.app',
+            'localhost'
+        ];
+
+        const isAppDomain = appDomains.some(domain =>
+            window.location.hostname.includes(domain) ||
+            window.location.hostname === domain
+        );
+
+        if (!isAppDomain) return;
+
+        Utils.log('Web app domain detected, syncing session...');
+
+        // Try to read userId from page's localStorage (set by Next.js app)
+        // The web app stores Firebase auth state here
+        const firebaseAuthKey = Object.keys(localStorage).find(key =>
+            key.startsWith('firebase:authUser:')
+        );
+
+        if (firebaseAuthKey) {
+            const authData = JSON.parse(localStorage.getItem(firebaseAuthKey) || '{}');
+            if (authData.uid) {
+                Utils.log('Found Firebase userId from web app:', authData.uid);
+
+                // Store in extension storage for cross-domain use
+                if (typeof FirebaseSession !== 'undefined') {
+                    await FirebaseSession.setUserId(authData.uid);
+                }
+
+                // Also get project ID from the auth key if possible
+                // Format: firebase:authUser:<apiKey>:<projectId>
+                const keyParts = firebaseAuthKey.split(':');
+                if (keyParts.length >= 3) {
+                    const projectId = keyParts[3] || null;
+                    if (projectId) {
+                        await chrome.storage.local.set({ firebaseProjectId: projectId });
+                        Utils.log('Stored Firebase projectId:', projectId);
+                    }
+                }
+            }
+        }
+
+        // Also check for custom data attribute on body (alternative method)
+        const dataUserId = document.body?.dataset?.userId;
+        if (dataUserId && typeof FirebaseSession !== 'undefined') {
+            await FirebaseSession.setUserId(dataUserId);
+            Utils.log('Found userId from data attribute:', dataUserId);
+        }
+
+    } catch (error) {
+        Utils.log('Error checking web app session: ' + error.message, 'warn');
+    }
+}
+
 // Initialize on page load
 (async () => {
     await waitForPageReady();
@@ -1093,10 +1156,14 @@ function waitForPageReady() {
 
     // Small delay to ensure all elements are rendered
     setTimeout(async () => {
+        // Check for web app session first
+        await checkWebAppSession();
+
         await initialize();
         watchForUrlChanges();
     }, 300);
 })();
+
 
 // Log that content script is loaded
 Utils.log('JobFiller Pro content script loaded (v2.0 with auto-detection)');
