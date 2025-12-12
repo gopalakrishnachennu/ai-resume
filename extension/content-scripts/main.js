@@ -1159,6 +1159,16 @@ async function checkWebAppSession() {
             Utils.log('Found userId from data attribute:', dataUserId);
         }
 
+        // INJECT EXTENSION ID for web app to discover
+        // This enables automatic connection without manual configuration
+        window.__JOBFILLER_EXTENSION_ID__ = chrome.runtime.id;
+        Utils.log('Injected extension ID:', chrome.runtime.id);
+
+        // Also dispatch an event so web app knows extension is ready
+        window.dispatchEvent(new CustomEvent('jobfiller-extension-ready', {
+            detail: { extensionId: chrome.runtime.id }
+        }));
+
     } catch (error) {
         Utils.log('Error checking web app session: ' + error.message, 'warn');
     }

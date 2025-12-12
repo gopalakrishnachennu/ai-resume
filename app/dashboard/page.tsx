@@ -18,6 +18,7 @@ import {
 } from '@/lib/services/applicationService';
 import { SessionService } from '@/lib/services/sessionService';
 import { ResumeExportService } from '@/lib/services/resumeExportService';
+import { pushFlashSession, isExtensionAvailable } from '@/lib/extensionBridge';
 
 // Animated counter component
 function AnimatedCounter({ value, duration = 1000 }: { value: number; duration?: number }) {
@@ -764,6 +765,35 @@ export default function DashboardPage() {
                 extensionSettings as Record<string, string>
             );
             console.log('[Flash] Session created successfully');
+
+            // FORCEFULLY PUSH session to extension (corporate-style)
+            // Extension doesn't need to read from Firebase - we push directly!
+            if (isExtensionAvailable()) {
+                const sessionForExtension = {
+                    userId: user.uid,
+                    jobTitle: app.jobTitle,
+                    jobCompany: app.jobCompany,
+                    jobUrl,
+                    personalInfo: resumeData.personalInfo || {},
+                    professionalSummary: resumeData.professionalSummary || resumeData.summary || '',
+                    experience: resumeData.experience || [],
+                    education: resumeData.education || [],
+                    skills: {
+                        all: Object.values(resumeData.technicalSkills || {}).flat().join(', '),
+                        ...(resumeData.technicalSkills || {})
+                    },
+                    extensionSettings: extensionSettings || {},
+                };
+
+                const pushResult = await pushFlashSession(
+                    user.uid,
+                    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
+                    sessionForExtension
+                );
+                console.log('[Flash] Session pushed to extension:', pushResult);
+            } else {
+                console.log('[Flash] Extension not available - using Firebase fallback');
+            }
 
             // Try to upload files (optional - don't block if it fails)
             if (pdfBlob && docxBlob) {
