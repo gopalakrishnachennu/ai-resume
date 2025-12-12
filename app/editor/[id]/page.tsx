@@ -462,9 +462,9 @@ export default function EditorPage() {
                 if (resumeDoc.exists()) {
                     const resumeData = resumeDoc.data();
 
-                    // Load job title and company
+                    // Load job title and company (check both field names for compatibility)
                     setJobTitle(resumeData.jobTitle || '');
-                    setJobCompany(resumeData.jobCompany || '');
+                    setJobCompany(resumeData.jobCompany || resumeData.company || '');
 
                     // Check if this is AI-generated resume (new format)
                     if (resumeData.professionalSummary || resumeData.technicalSkills) {
@@ -806,6 +806,7 @@ export default function EditorPage() {
                     ...resumeDoc.data(),
                     jobTitle: derivedTitle,
                     jobCompany: jobCompany || '',
+                    company: jobCompany || '',  // Backward compatibility
                     personalInfo: resumeData.personalInfo,
                     summary: resumeData.summary,
                     professionalSummary: resumeData.summary,
