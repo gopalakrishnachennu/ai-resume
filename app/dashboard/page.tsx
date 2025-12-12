@@ -308,6 +308,14 @@ export default function DashboardPage() {
                     jobDescription: data.jobDescription || '',
                     hasResume: true,
                     resumeId: doc.id,
+                    // Include resume data for Flash/session creation
+                    resume: {
+                        personalInfo: data.personalInfo || {},
+                        professionalSummary: data.professionalSummary || data.summary || '',
+                        technicalSkills: data.technicalSkills || data.skills?.technical || {},
+                        experience: data.experience || [],
+                        education: data.education || [],
+                    },
                     status: 'generated' as ApplicationStatus,
                     atsScore: data.atsScore?.total,
                     version: 1,
