@@ -52,10 +52,10 @@ class FloatingButton {
                     gap: 8px !important;
                     padding: 12px 18px !important;
                     border-radius: 22px !important;
-                    background: linear-gradient(135deg, #111827 0%, #1f2937 100%) !important;
-                    color: #e5e7eb !important;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+                    color: white !important;
                     font-weight: 600 !important;
-                    box-shadow: 0 12px 30px rgba(0,0,0,0.22) !important;
+                    box-shadow: 0 12px 30px rgba(99,102,241,0.35) !important;
                     cursor: pointer !important;
                 }
                 #jf-fab-btn:hover { transform: translateY(-1px) !important; }
@@ -89,7 +89,7 @@ class FloatingButton {
                 }
                 #jf-fab-panel.open { display: block !important; }
                 .jf-header {
-                    background: #0b162a !important;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
                     color: white !important;
                     padding: 14px 16px !important;
                     display: flex !important;
@@ -130,7 +130,7 @@ class FloatingButton {
                     font-weight: 700 !important; cursor: pointer !important; transition: transform 0.15s, box-shadow 0.15s !important;
                     background: white !important; color: #0f172a !important; box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
                 }
-                .jf-btn.primary { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important; color: white !important; }
+                .jf-btn.primary { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important; color: white !important; box-shadow: 0 4px 14px rgba(99,102,241,0.35) !important; }
                 .jf-btn:hover { transform: translateY(-1px) !important; }
                 .jf-msg { display: none !important; margin-top: 10px !important; padding: 10px !important; border-radius: 10px !important; text-align: center !important; font-size: 13px !important; }
                 .jf-msg.show { display: block !important; }
@@ -145,7 +145,7 @@ class FloatingButton {
                 </button>
                 <div id="jf-fab-panel">
                     <div class="jf-header">
-                        <span class="jf-title">JobFiller Pro</span>
+                        <span class="jf-title">AI Resume Builder</span>
                         <button class="jf-close" id="jf-close">×</button>
                     </div>
                     <div class="jf-body">
@@ -158,7 +158,6 @@ class FloatingButton {
                         </div>
                         <div class="jf-actions">
                             <button class="jf-btn primary" id="jf-quickfill">⚡ Quick Fill</button>
-                            <button class="jf-btn" id="jf-detect">🔍 Detect Fields</button>
                         </div>
                         <div class="jf-msg" id="jf-msg"></div>
                     </div>
@@ -322,9 +321,9 @@ class FloatingButton {
     }
 
     // no-op hooks (compat)
-    pulse() {}
-    setBlocked() {}
-    setStatus() {}
+    pulse() { }
+    setBlocked() { }
+    setStatus() { }
 }
 
 if (typeof module !== 'undefined' && module.exports) {

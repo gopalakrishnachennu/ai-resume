@@ -4,427 +4,125 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JobFiller Pro - Auto Application Filler</title>
+  <title>AI Resume Builder - Extension</title>
   <link rel="stylesheet" href="popup.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
   <div class="container">
-    <!-- Header -->
+    <!-- Header - Corporate Style with Gradient -->
     <header class="header">
-      <div class="logo">
+      <div class="header-left">
         <div class="logo-icon">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <defs>
-              <linearGradient id="logoGradient" x1="0" y1="0" x2="32" y2="32">
-                <stop offset="0%" stop-color="#667eea" />
-                <stop offset="100%" stop-color="#764ba2" />
-              </linearGradient>
-            </defs>
-            <rect width="32" height="32" rx="8" fill="url(#logoGradient)" />
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="8" fill="url(#logoGrad)" />
             <path d="M16 8L22 12V20L16 24L10 20V12L16 8Z" fill="white" opacity="0.9" />
             <path d="M16 12L19 14V18L16 20L13 18V14L16 12Z" fill="white" />
+            <defs>
+              <linearGradient id="logoGrad" x1="0" y1="0" x2="32" y2="32">
+                <stop offset="0%" stop-color="#6366f1" />
+                <stop offset="100%" stop-color="#8b5cf6" />
+              </linearGradient>
+            </defs>
           </svg>
         </div>
         <div class="logo-text">
-          <h1>JobFiller Pro</h1>
-          <span class="version">v2.0.0</span>
+          <h1>AI Resume Builder</h1>
+          <span class="version">Extension v2.0</span>
         </div>
       </div>
-      <div class="status" id="status">
-        <span class="status-dot"></span>
-        <span class="status-text">Ready</span>
+      <div class="header-right">
+        <button class="btn-sync" id="syncProfile" title="Sync Profile from Webapp">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
+            <path d="M21 3v5h-5"></path>
+          </svg>
+          Sync
+        </button>
+        <button class="btn-icon" id="openSettings" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0-.33-1.82V15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82-.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0 .33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+            </path>
+          </svg>
+        </button>
       </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="main">
-      <!-- Quick Stats -->
-      <div class="quick-stats">
-        <div class="stat-item">
-          <span class="stat-value" id="statApplications">0</span>
-          <span class="stat-label">Applications</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value" id="statFilled">0</span>
-          <span class="stat-label">Fields Filled</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value" id="statSaved">0</span>
-          <span class="stat-label">Time Saved (min)</span>
-        </div>
+    <!-- Connection Status -->
+    <div class="connection-status" id="connectionStatus">
+      <span class="status-dot connected"></span>
+      <span class="status-text">Connected</span>
+      <span class="profile-name" id="profileName">Not synced</span>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <span class="stat-value" id="statApplications">0</span>
+        <span class="stat-label">Apps</span>
       </div>
-
-      <!-- Profile Card -->
-      <div class="card profile-card" id="profileCard">
-        <div class="card-header">
-          <h2>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            Your Profile
-          </h2>
-          <button class="btn-icon" id="refreshProfile" title="Refresh Profile">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 3V1L5 4l3 3V5c2.2 0 4 1.8 4 4s-1.8 4-4 4-4-1.8-4-4H2c0 3.3 2.7 6 6 6s6-2.7 6-6-2.7-6-6-6z" />
-            </svg>
-          </button>
-        </div>
-        <div class="profile-info" id="profileInfo">
-          <div class="profile-avatar">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </div>
-          <div class="profile-details">
-            <p class="profile-name">No profile loaded</p>
-            <p class="profile-email">Import or create your profile</p>
-          </div>
-        </div>
-        <div class="profile-actions">
-          <button class="btn btn-primary" id="importProfile">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Import Profile
-          </button>
-          <button class="btn btn-secondary" id="editProfile">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            Edit
-          </button>
-        </div>
+      <div class="stat-card">
+        <span class="stat-value" id="statFilled">0</span>
+        <span class="stat-label">Fields</span>
       </div>
-
-      <!-- Resume Upload Card -->
-      <div class="card resume-card" id="resumeCard">
-        <div class="card-header">
-          <h2>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-            </svg>
-            Resume
-          </h2>
-          <span class="resume-status" id="resumeStatus">Not uploaded</span>
-        </div>
-        <div class="resume-upload-area" id="resumeUploadArea">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-          </svg>
-          <p class="upload-text">Click or drag to upload resume</p>
-          <p class="upload-hint">PDF or DOCX (max 5MB)</p>
-        </div>
-        <div class="resume-info" id="resumeInfo" style="display: none;">
-          <div class="resume-file">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-            </svg>
-            <span class="resume-filename" id="resumeFilename">resume.pdf</span>
-          </div>
-          <button class="btn btn-small btn-secondary" id="removeResume">Remove</button>
-        </div>
+      <div class="stat-card">
+        <span class="stat-value" id="statSaved">0</span>
+        <span class="stat-label">Min Saved</span>
       </div>
-      <input type="file" id="resumeInput" accept=".pdf,.doc,.docx" style="display: none;">
+    </div>
 
-      <!-- Current Page Detection -->
-      <div class="card detection-card" id="detectionCard">
-        <div class="card-header">
-          <h2>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            Current Page
-          </h2>
-          <div class="platform-badge" id="platformBadge">
-            <span class="platform-icon">🌐</span>
-            <span class="platform-name">Unknown</span>
-          </div>
-        </div>
-        <div class="page-info" id="pageInfo">
-          <p class="page-title" id="pageTitle">Loading...</p>
-          <p class="page-url" id="pageUrl"></p>
-        </div>
-        <div class="detection-actions">
-          <button class="btn btn-primary btn-large" id="quickFill">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-            </svg>
-            Quick Fill
-          </button>
-          <div class="secondary-actions">
-            <button class="btn btn-secondary" id="detectForm">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              Detect
-            </button>
-            <button class="btn btn-secondary" id="fillForm" disabled>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 11 12 14 22 4"></polyline>
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-              </svg>
-              Fill Form
-            </button>
-            <button class="btn btn-secondary" id="validateForm">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 11l3 3L22 4"></path>
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-              </svg>
-              Validate
-            </button>
-          </div>
-        </div>
-        <div class="validation-summary" id="validationSummary" style="display:none;">
-          <div class="checklist-header">
-            <span class="validation-title">Pre-submit Checklist</span>
-            <span class="checklist-score" id="checklistScore">0%</span>
-          </div>
-
-          <!-- Step Progress (for multi-step forms) -->
-          <div class="step-progress" id="stepProgress" style="display:none;">
-            <div class="step-info">
-              <span class="step-label">Step</span>
-              <span class="step-value" id="stepValue">1 / 1</span>
-            </div>
-            <div class="step-bar-container">
-              <div class="step-bar" id="stepBar" style="width: 0%"></div>
-            </div>
-          </div>
-
-          <!-- Checklist Items -->
-          <ul class="checklist-items" id="checklistItems"></ul>
-
-          <!-- Legacy issues list for compatibility -->
-          <ul id="validationIssues" style="display:none;"></ul>
-
-          <!-- Quick Actions -->
-          <div class="checklist-actions" id="checklistActions" style="display:none;">
-            <button class="btn btn-small btn-secondary" id="advanceStep">
-              Next Step →
-            </button>
-          </div>
-        </div>
+    <!-- Current Job -->
+    <div class="job-card" id="jobCard">
+      <div class="job-platform">
+        <span class="platform-icon" id="platformIcon">🌐</span>
+        <span class="platform-name" id="platformName">Unknown</span>
       </div>
-
-      <!-- JD Match Score Card -->
-      <div class="card match-card" id="matchCard" style="display: none;">
-        <div class="card-header">
-          <h2>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            Match Score
-          </h2>
-          <button class="btn-icon" id="refreshMatch" title="Refresh Score">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 3V1L5 4l3 3V5c2.2 0 4 1.8 4 4s-1.8 4-4 4-4-1.8-4-4H2c0 3.3 2.7 6 6 6s6-2.7 6-6-2.7-6-6-6z" />
-            </svg>
-          </button>
+      <p class="job-title" id="jobTitle">No job detected</p>
+      <div class="match-score" id="matchScoreContainer" style="display: none;">
+        <div class="match-bar">
+          <div class="match-fill" id="matchFill" style="width: 0%"></div>
         </div>
-        <div class="match-content" id="matchContent">
-          <div class="match-score-container">
-            <div class="match-score-circle" id="matchScoreCircle">
-              <svg class="match-progress" width="100" height="100" viewBox="0 0 100 100">
-                <circle class="match-bg" cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" stroke-width="8" />
-                <circle class="match-progress-bar" id="matchProgressBar" cx="50" cy="50" r="45" fill="none"
-                  stroke="#10b981" stroke-width="8" stroke-linecap="round" stroke-dasharray="283"
-                  stroke-dashoffset="283" transform="rotate(-90 50 50)" />
-              </svg>
-              <div class="match-score-text">
-                <span class="match-percent" id="matchPercent">--</span>
-                <span class="match-label" id="matchLabel">Loading...</span>
-              </div>
-            </div>
-          </div>
-          <div class="match-breakdown" id="matchBreakdown">
-            <div class="breakdown-item">
-              <span class="breakdown-label">Skills</span>
-              <div class="breakdown-bar">
-                <div class="breakdown-fill" id="skillsBar" style="width: 0%"></div>
-              </div>
-              <span class="breakdown-value" id="skillsValue">0%</span>
-            </div>
-            <div class="breakdown-item">
-              <span class="breakdown-label">Experience</span>
-              <div class="breakdown-bar">
-                <div class="breakdown-fill" id="experienceBar" style="width: 0%"></div>
-              </div>
-              <span class="breakdown-value" id="experienceValue">0%</span>
-            </div>
-            <div class="breakdown-item">
-              <span class="breakdown-label">Education</span>
-              <div class="breakdown-bar">
-                <div class="breakdown-fill" id="educationBar" style="width: 0%"></div>
-              </div>
-              <span class="breakdown-value" id="educationValue">0%</span>
-            </div>
-          </div>
-          <div class="match-skills" id="matchSkills">
-            <div class="skills-section matched-skills">
-              <span class="skills-title">✓ Matched Skills</span>
-              <div class="skills-tags" id="matchedSkillsTags"></div>
-            </div>
-            <div class="skills-section missing-skills">
-              <span class="skills-title">⚠ Consider Adding</span>
-              <div class="skills-tags" id="missingSkillsTags"></div>
-            </div>
-          </div>
-        </div>
+        <span class="match-percent" id="matchPercent">0%</span>
       </div>
+    </div>
 
-      <!-- Answer Assistant -->
-      <div class="card answer-card" id="answerCard">
-        <div class="card-header">
-          <h2>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Answer Assistant
-          </h2>
-        </div>
-        <div class="answer-body">
-          <label class="input-label" for="answerQuestion">Question or prompt</label>
-          <textarea id="answerQuestion" class="input textarea"
-            placeholder="Paste the question from the form (e.g. Why are you a fit?)"></textarea>
-          <div class="answer-controls">
-            <div class="control">
-              <span class="control-label">Tone</span>
-              <select id="answerTone" class="input select">
-                <option value="concise">Concise</option>
-                <option value="enthusiastic">Enthusiastic</option>
-                <option value="formal">Formal</option>
-              </select>
-            </div>
-            <div class="control">
-              <span class="control-label">Length</span>
-              <select id="answerLength" class="input select">
-                <option value="concise">Short</option>
-                <option value="standard" selected>Medium</option>
-                <option value="detailed">Detailed</option>
-              </select>
-            </div>
-          </div>
-          <div class="answer-actions">
-            <button class="btn btn-primary" id="generateAnswer">Generate</button>
-            <button class="btn btn-secondary" id="insertAnswer" disabled>Insert</button>
-            <button class="btn btn-secondary" id="saveAnswer" disabled>Save</button>
-          </div>
-          <div class="answer-output" id="answerOutput">AI answer will appear here.</div>
-          <div class="answer-library">
-            <div class="library-header">
-              <span>Saved answers</span>
-              <button class="btn-text" id="refreshLibrary">Refresh</button>
-            </div>
-            <div class="library-list" id="answerLibrary">
-              <p class="empty-state">No saved answers yet.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Detected Fields Summary -->
-      <div class="card fields-card" id="fieldsCard" style="display: none;">
-        <div class="card-header">
-          <h2>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-            </svg>
-            Detected Fields
-          </h2>
-        </div>
-        <div class="fields-summary" id="fieldsSummary">
-          <div class="field-category">
-            <span class="category-count" id="countPersonal">0</span>
-            <span class="category-label">Personal</span>
-          </div>
-          <div class="field-category">
-            <span class="category-count" id="countExperience">0</span>
-            <span class="category-label">Experience</span>
-          </div>
-          <div class="field-category">
-            <span class="category-count" id="countEducation">0</span>
-            <span class="category-label">Education</span>
-          </div>
-          <div class="field-category">
-            <span class="category-count" id="countOther">0</span>
-            <span class="category-label">Other</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Recent Applications -->
-      <div class="card history-card">
-        <div class="card-header">
-          <h2>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            Recent Activity
-          </h2>
-          <button class="btn-text" id="viewAllHistory">View All</button>
-        </div>
-        <div class="history-list" id="historyList">
-          <p class="empty-state">No applications yet. Start applying!</p>
-        </div>
-      </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-      <button class="btn-text" id="openSettings">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path
-            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-          </path>
+    <!-- Action Buttons -->
+    <div class="actions">
+      <button class="btn-primary btn-large" id="quickFill">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
         </svg>
-        Settings
+        Quick Fill
       </button>
-      <button class="btn-text" id="openHelp">
+      <button class="btn-secondary" id="fillForm">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          <polyline points="9 11 12 14 22 4"></polyline>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
         </svg>
-        Help
+        Fill Form
       </button>
-      <button class="btn-text" id="openDonate">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path
-            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
-          </path>
-        </svg>
-        Support
-      </button>
-    </footer>
+    </div>
+
+    <!-- Skill Match Preview (collapsed by default) -->
+    <details class="match-details" id="matchDetails">
+      <summary>View Skill Match</summary>
+      <div class="skills-grid">
+        <div class="skills-matched">
+          <span class="skills-label">✓ Matched</span>
+          <div class="skills-tags" id="matchedSkills"></div>
+        </div>
+        <div class="skills-missing">
+          <span class="skills-label">⚠ Consider</span>
+          <div class="skills-tags" id="missingSkills"></div>
+        </div>
+      </div>
+    </details>
   </div>
 
-  <!-- Hidden file input for profile import -->
-  <input type="file" id="fileInput" accept=".json" style="display: none;">
-
-  <!-- Toast notification -->
+  <!-- Toast -->
   <div class="toast" id="toast"></div>
 
   <script src="../lib/storage-manager.js"></script>
