@@ -586,27 +586,42 @@ export default function EditorPage() {
     }, [resumeData]);
 
     // Auto-save header fields (title/company) without modal validation
-    const autoSaveHeader = async () => {
-        if (!user || saving) return;
+    // Uses useRef to track pending save and avoid stale closure issues
+    const headerSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-        const resumeId = params.id as string;
-        if (resumeId === 'new' || resumeId.startsWith('app_import_')) return;
-
-        try {
-            const resumeDocRef = doc(db, 'resumes', resumeId);
-            const resumeDoc = await getDoc(resumeDocRef);
-
-            if (resumeDoc.exists()) {
-                await setDoc(resumeDocRef, {
-                    jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
-                    jobCompany: jobCompany || jobAnalysis?.company || '',
-                    updatedAt: serverTimestamp(),
-                }, { merge: true });
-                console.log('[Editor] Header auto-saved: title=', jobTitle, 'company=', jobCompany);
-            }
-        } catch (error) {
-            console.error('[Editor] Auto-save header failed:', error);
+    const autoSaveHeader = () => {
+        // Debounce: clear any pending save
+        if (headerSaveTimeoutRef.current) {
+            clearTimeout(headerSaveTimeoutRef.current);
         }
+
+        // Schedule save after 500ms of no changes
+        headerSaveTimeoutRef.current = setTimeout(async () => {
+            if (!user || saving) return;
+
+            const resumeId = params.id as string;
+            if (resumeId === 'new' || resumeId.startsWith('app_import_')) return;
+
+            try {
+                const resumeDocRef = doc(db, 'resumes', resumeId);
+                const resumeDoc = await getDoc(resumeDocRef);
+
+                if (resumeDoc.exists()) {
+                    // Read current state values at save time (fresh, not stale)
+                    const currentTitle = (document.querySelector('input[placeholder="Job Title"]') as HTMLInputElement)?.value;
+                    const currentCompany = (document.querySelector('input[placeholder="Enter company name (required)"]') as HTMLInputElement)?.value;
+
+                    await setDoc(resumeDocRef, {
+                        jobTitle: currentTitle || 'Untitled',
+                        jobCompany: currentCompany || '',
+                        updatedAt: serverTimestamp(),
+                    }, { merge: true });
+                    console.log('[Editor] Header auto-saved: title=', currentTitle, 'company=', currentCompany);
+                }
+            } catch (error) {
+                console.error('[Editor] Auto-save header failed:', error);
+            }
+        }, 500);
     };
 
     const handleSave = async () => {
