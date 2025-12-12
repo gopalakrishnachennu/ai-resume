@@ -129,20 +129,21 @@ export class SessionService {
         // Transform skills - handle multiple possible structures
         // Generated: skills.technical[] (array of formatted strings like "Category: skill1, skill2")
         // Imported: technicalSkills.{category} (object with arrays)
+        // Or: skills.all (comma-separated string)
         const skillsData = resume.skills || {};
         const technicalSkills = resume.technicalSkills || {};
 
-        // Extract individual skill arrays
-        const languages = technicalSkills.languages || technicalSkills.programmingLanguages || [];
-        const frameworks = technicalSkills.frameworks || technicalSkills.librariesFrameworks || [];
-        const tools = technicalSkills.tools || technicalSkills.developerTools || [];
-        const databases = technicalSkills.databases || [];
-        const cloud = technicalSkills.cloud || technicalSkills.cloudPlatforms || [];
+        // Extract individual skill arrays from technicalSkills
+        let languages: string[] = technicalSkills.languages || technicalSkills.programmingLanguages || [];
+        let frameworks: string[] = technicalSkills.frameworks || technicalSkills.librariesFrameworks || [];
+        let tools: string[] = technicalSkills.tools || technicalSkills.developerTools || [];
+        let databases: string[] = technicalSkills.databases || [];
+        let cloud: string[] = technicalSkills.cloud || technicalSkills.cloudPlatforms || [];
 
-        // Build all skills string
+        // Build all skills array from multiple sources
         const allSkillsArray: string[] = [];
 
-        // From technicalSkills object (imported resumes)
+        // Source 1: From technicalSkills object (imported resumes)
         Object.values(technicalSkills).forEach((category: unknown) => {
             if (Array.isArray(category)) {
                 allSkillsArray.push(...category);
@@ -151,14 +152,49 @@ export class SessionService {
             }
         });
 
-        // From skills.technical array (generated resumes) - parse "Category: skill1, skill2" format
+        // Source 2: From skills.technical array (generated resumes) - parse "Category: skill1, skill2" format
         if (Array.isArray(skillsData.technical)) {
             skillsData.technical.forEach((line: string) => {
-                // Split by : to get skills part
                 const parts = line.split(':');
                 if (parts.length > 1) {
+                    const categoryName = parts[0].toLowerCase().trim();
                     const skills = parts[1].split(',').map(s => s.trim()).filter(s => s);
                     allSkillsArray.push(...skills);
+
+                    // Auto-categorize based on category name
+                    if (categoryName.includes('language') || categoryName.includes('programming')) {
+                        languages.push(...skills);
+                    } else if (categoryName.includes('framework') || categoryName.includes('librar')) {
+                        frameworks.push(...skills);
+                    } else if (categoryName.includes('tool') || categoryName.includes('developer')) {
+                        tools.push(...skills);
+                    } else if (categoryName.includes('database') || categoryName.includes('data')) {
+                        databases.push(...skills);
+                    } else if (categoryName.includes('cloud') || categoryName.includes('platform')) {
+                        cloud.push(...skills);
+                    }
+                }
+            });
+        }
+
+        // Source 3: From skills.all string (if exists)
+        if (typeof skillsData.all === 'string' && skillsData.all) {
+            const skillsFromAll = skillsData.all.split(',').map((s: string) => s.trim()).filter((s: string) => s);
+            allSkillsArray.push(...skillsFromAll);
+
+            // Auto-categorize known skills
+            skillsFromAll.forEach((skill: string) => {
+                const s = skill.toLowerCase();
+                if (['python', 'javascript', 'typescript', 'java', 'go', 'rust', 'c++', 'c#', 'ruby', 'php', 'bash'].some(l => s.includes(l))) {
+                    languages.push(skill);
+                } else if (['react', 'angular', 'vue', 'django', 'flask', 'spring', 'node', 'express', 'fastapi'].some(f => s.includes(f))) {
+                    frameworks.push(skill);
+                } else if (['aws', 'azure', 'gcp', 'cloud', 'kubernetes', 'docker', 'eks', 'ecs'].some(c => s.includes(c))) {
+                    cloud.push(skill);
+                } else if (['postgres', 'mysql', 'mongo', 'redis', 'sql', 'database', 'dynamodb'].some(d => s.includes(d))) {
+                    databases.push(skill);
+                } else if (['terraform', 'helm', 'jenkins', 'gitlab', 'github', 'git', 'ci/cd', 'ansible', 'prometheus', 'grafana', 'loki'].some(t => s.includes(t))) {
+                    tools.push(skill);
                 }
             });
         }
