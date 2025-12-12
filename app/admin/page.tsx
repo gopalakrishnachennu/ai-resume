@@ -113,6 +113,13 @@ export default function AdminDashboard() {
             href: '/admin/prompts',
             color: 'from-purple-500 to-indigo-600',
         },
+        {
+            title: 'Extension Settings',
+            description: 'Manage JobFiller Pro extension',
+            icon: '🔌',
+            href: '/admin/extension',
+            color: 'from-amber-500 to-orange-600',
+        },
     ];
 
     const statCards = [
