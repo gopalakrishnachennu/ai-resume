@@ -429,8 +429,8 @@ function handleWorkAuthStatusChange(status) {
         WorkAuthGuard.logSkippedJob(status.reason);
     }
 
-    // Update floating button visual
-    if (floatingButton) {
+    // Update floating button visual (with safe method check)
+    if (floatingButton && typeof floatingButton.setBlocked === 'function') {
         if (status.status === 'red') {
             floatingButton.setBlocked(true);
         } else {

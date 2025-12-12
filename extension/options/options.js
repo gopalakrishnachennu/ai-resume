@@ -506,6 +506,39 @@ class OptionsController {
             toast.className = 'toast';
         }, 3000);
     }
+
+    // Check Chrome AI availability (experimental feature)
+    async checkChromeAi() {
+        const statusEl = document.getElementById('chromeAiStatus');
+        if (!statusEl) return;
+
+        try {
+            // Check if Chrome AI (window.ai) is available
+            if (typeof window !== 'undefined' && window.ai) {
+                statusEl.innerHTML = '<span class="status-dot green"></span> Available';
+                statusEl.classList.add('available');
+            } else {
+                statusEl.innerHTML = '<span class="status-dot gray"></span> Not Available';
+                statusEl.classList.remove('available');
+            }
+        } catch (error) {
+            statusEl.innerHTML = '<span class="status-dot gray"></span> Not Available';
+            statusEl.classList.remove('available');
+        }
+    }
+
+    // Save smart features settings
+    async saveSmartFeaturesSettings(smartContext) {
+        try {
+            const currentSettings = { ...this.settings, smartContext };
+            await chrome.storage.local.set({ settings: currentSettings });
+            this.settings = currentSettings;
+            this.showToast('Smart features updated!', 'success');
+        } catch (error) {
+            console.error('Error saving smart features:', error);
+            this.showToast('Failed to save settings', 'error');
+        }
+    }
 }
 
 // Initialize when DOM is ready
