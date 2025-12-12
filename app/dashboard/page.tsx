@@ -17,6 +17,7 @@ import {
     SearchOptions,
 } from '@/lib/services/applicationService';
 import { SessionService } from '@/lib/services/sessionService';
+import { ResumeExportService } from '@/lib/services/resumeExportService';
 
 // Animated counter component
 function AnimatedCounter({ value, duration = 1000 }: { value: number; duration?: number }) {
@@ -709,26 +710,58 @@ export default function DashboardPage() {
         setFlashModal(prev => ({ ...prev, loading: true }));
 
         try {
+            const app = flashModal.app;
+            const jobUrl = flashModal.jobUrl;
+
             // Load extension settings
             const settingsDoc = await getDoc(doc(db, 'users', user.uid, 'settings', 'extension'));
             const extensionSettings = settingsDoc.exists() ? settingsDoc.data() : {};
 
-            // Create active session
+            // Prepare resume data for export
+            const resume = (app as any).resume || {};
+            const resumeData = {
+                personalInfo: resume.personalInfo || {},
+                summary: resume.professionalSummary || resume.summary || '',
+                professionalSummary: resume.professionalSummary || resume.summary || '',
+                experience: resume.experience || [],
+                education: resume.education || [],
+                skills: resume.skills || { technical: [] },
+                technicalSkills: resume.technicalSkills || {},
+            };
+
+            // Generate PDF and DOCX in parallel
+            toast.loading('Generating resume files...', { id: 'flash-gen' });
+
+            const [pdfBlob, docxBlob] = await Promise.all([
+                ResumeExportService.generatePDFBlob(resumeData),
+                ResumeExportService.generateDOCXBlob(resumeData),
+            ]);
+
+            toast.loading('Uploading to cloud...', { id: 'flash-gen' });
+
+            // Create session first (so we have the session doc)
             await SessionService.createSession(
                 user.uid,
-                flashModal.app,
-                flashModal.jobUrl,
+                app,
+                jobUrl,
                 extensionSettings as Record<string, string>
             );
 
-            toast.success('Session ready! Opening job portal...');
+            // Upload files to Firebase Storage
+            const filename = resumeData.personalInfo?.name || resumeData.personalInfo?.fullName || 'Resume';
+            await Promise.all([
+                SessionService.uploadPDF(user.uid, pdfBlob, filename),
+                SessionService.uploadDOCX(user.uid, docxBlob, filename),
+            ]);
+
+            toast.success('Session ready! Opening job portal...', { id: 'flash-gen' });
 
             // Close modal and open job link
             setFlashModal({ show: false, app: null, jobUrl: '', loading: false });
-            window.open(flashModal.jobUrl, '_blank');
+            window.open(jobUrl, '_blank');
         } catch (error) {
             console.error('Error creating flash session:', error);
-            toast.error('Failed to create session');
+            toast.error('Failed to create session', { id: 'flash-gen' });
             setFlashModal(prev => ({ ...prev, loading: false }));
         }
     };
