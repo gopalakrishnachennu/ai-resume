@@ -520,6 +520,54 @@ export default function EditorPage() {
                     setLoading(false);
                     return;
                 }
+
+                // ====== APPLICATION EMBED (when opening editor via application id) ======
+                const appDoc = await getDoc(doc(db, 'applications', params.id as string));
+                if (appDoc.exists()) {
+                    const appData = appDoc.data() as any;
+                    setJobTitle(appData.jobTitle || '');
+                    setJobCompany(appData.jobCompany || '');
+
+                    if (appData.resume) {
+                        const resume = appData.resume;
+                        setResumeData({
+                            personalInfo: {
+                                name: resume.personalInfo?.fullName || resume.personalInfo?.name || '',
+                                email: resume.personalInfo?.email || '',
+                                phone: resume.personalInfo?.phone || '',
+                                location: resume.personalInfo?.location || '',
+                                linkedin: resume.personalInfo?.linkedin || '',
+                                github: resume.personalInfo?.portfolio || resume.personalInfo?.github || '',
+                            },
+                            summary: resume.professionalSummary || '',
+                            experience: (resume.experience || []).map((exp: any) => ({
+                                company: exp.company || '',
+                                title: exp.title || '',
+                                location: exp.location || '',
+                                startDate: exp.startDate || '',
+                                endDate: exp.current ? 'Present' : exp.endDate || '',
+                                current: exp.endDate === 'Present' || exp.current || false,
+                                bullets: exp.highlights || exp.bullets || (exp.description ? [exp.description] : []),
+                            })),
+                            education: (resume.education || []).map((edu: any) => ({
+                                school: edu.institution || edu.school || '',
+                                degree: edu.degree || '',
+                                field: edu.field || '',
+                                location: edu.location || '',
+                                graduationDate: edu.graduationDate || '',
+                            })),
+                            skills: {
+                                technical: resume.technicalSkills
+                                    ? Object.entries(resume.technicalSkills)
+                                        .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
+                                    : [],
+                            },
+                        });
+                        setLoading(false);
+                        toast.success('Application resume loaded!');
+                        return;
+                    }
+                }
             }
 
             // Otherwise, load from user profile (new resume)
@@ -599,26 +647,40 @@ export default function EditorPage() {
             if (!user || saving) return;
 
             const resumeId = params.id as string;
-            if (resumeId === 'new' || resumeId.startsWith('app_import_')) return;
+            if (resumeId === 'new') return;
 
             try {
+                const companyInput = document.getElementById('company-input') as HTMLInputElement;
+                const currentCompany = companyInput?.value || '';
+                const derivedTitle = jobAnalysis?.title || resumeData.experience[0]?.title || 'Untitled';
+
+                // Try saving to resumes collection first
                 const resumeDocRef = doc(db, 'resumes', resumeId);
                 const resumeDoc = await getDoc(resumeDocRef);
 
                 if (resumeDoc.exists()) {
-                    // Get company from input (using ID we added)
-                    const companyInput = document.getElementById('company-input') as HTMLInputElement;
-                    const currentCompany = companyInput?.value || '';
-
-                    // Title is derived from experience[0].title or job analysis
-                    const derivedTitle = jobAnalysis?.title || resumeData.experience[0]?.title || 'Untitled';
-
                     await setDoc(resumeDocRef, {
                         jobTitle: derivedTitle,
                         jobCompany: currentCompany,
                         updatedAt: serverTimestamp(),
                     }, { merge: true });
-                    console.log('[Editor] Company saved:', currentCompany, 'Title:', derivedTitle);
+                    console.log('[Editor] Company saved to resumes:', currentCompany, 'Title:', derivedTitle);
+                    return;
+                }
+
+                // Fallback: save into applications collection (imported/AI app flows)
+                const appDocRef = doc(db, 'applications', resumeId);
+                const appDoc = await getDoc(appDocRef);
+
+                if (appDoc.exists()) {
+                    await setDoc(appDocRef, {
+                        jobTitle: derivedTitle,
+                        jobCompany: currentCompany,
+                        updatedAt: serverTimestamp(),
+                    }, { merge: true });
+                    console.log('[Editor] Company saved to applications:', currentCompany, 'Title:', derivedTitle);
+                } else {
+                    console.warn('[Editor] Auto-save skipped, no doc found for', resumeId);
                 }
             } catch (error) {
                 console.error('[Editor] Auto-save failed:', error);
@@ -784,22 +846,81 @@ export default function EditorPage() {
                 console.log('[Editor] Resume saved to resumes collection (top-level)');
                 toast.success('Resume updated! 🎉');
             } else {
-                // Save to appliedResumes (old format)
-                await setDoc(doc(db, 'appliedResumes', resumeId as string), {
-                    userId: user.uid,
-                    jobTitle: jobAnalysis?.title || 'Untitled',
-                    company: jobAnalysis?.company || '',
-                    jobDescription: localStorage.getItem('jobDescription') || '',
-                    resumeData,
-                    sections,
-                    settings,
-                    atsScore: atsScoreData,
-                    status: 'draft',
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                });
+                // ====== APPLICATIONS COLLECTION (user's new flow) ======
+                const appDocRef = doc(db, 'applications', resumeId as string);
+                const appDoc = await getDoc(appDocRef);
 
-                toast.success('Resume saved! 🎉');
+                if (appDoc.exists()) {
+                    const derivedTitle = jobAnalysis?.title || resumeData.experience[0]?.title || 'Untitled';
+
+                    // Convert editor format back to storage format
+                    const updatedResume = {
+                        personalInfo: {
+                            fullName: resumeData.personalInfo.name,
+                            email: resumeData.personalInfo.email,
+                            phone: resumeData.personalInfo.phone,
+                            location: resumeData.personalInfo.location,
+                            linkedin: resumeData.personalInfo.linkedin,
+                            portfolio: resumeData.personalInfo.github,
+                        },
+                        professionalSummary: resumeData.summary,
+                        experience: resumeData.experience.map(exp => ({
+                            company: exp.company,
+                            title: exp.title,
+                            location: exp.location,
+                            startDate: exp.startDate,
+                            endDate: exp.current ? 'Present' : exp.endDate,
+                            highlights: exp.bullets,
+                        })),
+                        education: resumeData.education.map(edu => ({
+                            institution: edu.school,
+                            degree: edu.degree,
+                            field: edu.field,
+                            location: edu.location,
+                            graduationDate: edu.graduationDate,
+                        })),
+                        technicalSkills: resumeData.skills.technical.reduce((acc: any, line: string) => {
+                            const match = line.match(/^\*\*(.+?)\*\*:\s*(.+)$/);
+                            if (match) {
+                                acc[match[1]] = match[2].split(',').map(s => s.trim());
+                            } else {
+                                acc['Skills'] = acc['Skills'] || [];
+                                acc['Skills'].push(line);
+                            }
+                            return acc;
+                        }, {}),
+                    };
+
+                    await setDoc(appDocRef, {
+                        jobTitle: derivedTitle,
+                        jobCompany: jobCompany || '',
+                        resume: updatedResume,
+                        atsScore: atsScoreData.total,
+                        settings,
+                        sections,
+                        updatedAt: serverTimestamp(),
+                    }, { merge: true });
+
+                    console.log('[Editor] Resume saved to applications collection');
+                    toast.success('Resume updated! 🎉');
+                } else {
+                    // Final fallback: Save to appliedResumes (old format)
+                    await setDoc(doc(db, 'appliedResumes', resumeId as string), {
+                        userId: user.uid,
+                        jobTitle: jobAnalysis?.title || 'Untitled',
+                        company: jobAnalysis?.company || '',
+                        jobDescription: localStorage.getItem('jobDescription') || '',
+                        resumeData,
+                        sections,
+                        settings,
+                        atsScore: atsScoreData,
+                        status: 'draft',
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp(),
+                    });
+
+                    toast.success('Resume saved! 🎉');
+                }
             }
 
             router.push('/dashboard');
