@@ -3,6 +3,26 @@
 
 console.log('[JobFiller Pro] Background service worker loaded');
 
+// On install or update - clear sample data to force fresh sync from webapp
+chrome.runtime.onInstalled.addListener(async (details) => {
+    console.log('[JobFiller Pro] Extension installed/updated:', details.reason);
+
+    // Check if we have sample data and clear it
+    const result = await chrome.storage.local.get(['userProfile']);
+    if (result.userProfile?.personalInfo?.email === 'john.doe@email.com') {
+        console.log('[JobFiller Pro] Clearing sample John Doe data - please sync from webapp');
+        await chrome.storage.local.remove(['userProfile']);
+
+        // Show notification to user
+        chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'assets/icons/icon128.png',
+            title: 'JobFiller Pro',
+            message: 'Sample data cleared! Please login to webapp and sync your real profile.'
+        });
+    }
+});
+
 // Job sites for detection
 const JOB_SITE_PATTERNS = [
     'linkedin.com/jobs',
