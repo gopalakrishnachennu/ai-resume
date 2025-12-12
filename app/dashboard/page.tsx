@@ -285,6 +285,73 @@ export default function DashboardPage() {
         }
 
         await loadApplications();
+
+        // AUTO SYNC PROFILE TO EXTENSION (Corporate style)
+        // This replaces any sample data with the real user's profile
+        try {
+            const { isAutoProfileSyncEnabled } = await import('@/lib/services/extensionSettingsService');
+            const { syncProfileToExtension, isExtensionAvailable } = await import('@/lib/extensionBridge');
+
+            if (await isAutoProfileSyncEnabled() && isExtensionAvailable()) {
+                // Fetch user profile from Firebase
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+
+                    // Build profile object for extension
+                    const profileForExtension = {
+                        version: '2.0',
+                        lastUpdated: new Date().toISOString(),
+                        personalInfo: {
+                            firstName: userData.displayName?.split(' ')[0] || '',
+                            lastName: userData.displayName?.split(' ').slice(1).join(' ') || '',
+                            email: user.email || '',
+                            phone: userData.profile?.phone || '',
+                            location: {
+                                city: userData.profile?.location?.city || '',
+                                state: userData.profile?.location?.state || '',
+                                country: userData.profile?.location?.country || 'USA',
+                            },
+                            linkedin: userData.profile?.linkedin || '',
+                            github: userData.profile?.github || '',
+                            portfolio: userData.profile?.portfolio || '',
+                        },
+                        professionalSummary: {
+                            default: userData.baseSummary || '',
+                        },
+                        experience: (userData.baseExperience || []).map((exp: any) => ({
+                            company: exp.company || '',
+                            position: exp.title || '',
+                            startDate: exp.startDate || '',
+                            endDate: exp.endDate || '',
+                            current: exp.current || false,
+                            responsibilities: exp.achievements || [],
+                        })),
+                        education: (userData.baseEducation || []).map((edu: any) => ({
+                            institution: edu.school || '',
+                            degree: edu.degree || '',
+                            field: edu.field || '',
+                            graduationDate: edu.graduationYear || '',
+                            gpa: edu.gpa || '',
+                        })),
+                        skills: {
+                            technical: {
+                                programming: userData.skills?.programmingLanguages || [],
+                                frameworks: userData.skills?.frameworks || [],
+                                tools: userData.skills?.tools || [],
+                            },
+                            soft: userData.skills?.softSkills || [],
+                        },
+                    };
+
+                    const syncResult = await syncProfileToExtension(profileForExtension);
+                    console.log('[Dashboard] Profile sync to extension:', syncResult);
+                }
+            }
+        } catch (error) {
+            console.log('[Dashboard] Profile sync skipped:', error);
+        }
+
         setLoading(false);
     };
 

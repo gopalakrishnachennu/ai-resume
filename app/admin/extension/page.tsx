@@ -14,9 +14,14 @@ interface ExtensionSettings {
     autoFillEnabled: boolean;
     pushToExtensionEnabled: boolean;
     firebaseFallbackEnabled: boolean;
+    autoProfileSync: boolean; // Auto sync user profile on dashboard load
 
     // Install Method
     installMethod: 'developer' | 'store' | 'enterprise';
+
+    // Extension IDs (for messaging)
+    extensionId: string; // Manual ID for dev mode
+    storeExtensionId: string; // Chrome Web Store ID when approved
 
     // Extension Download/Install Links
     chromeWebStoreUrl: string;
@@ -40,8 +45,12 @@ const defaultSettings: ExtensionSettings = {
     autoFillEnabled: true,
     pushToExtensionEnabled: true,
     firebaseFallbackEnabled: true,
+    autoProfileSync: true, // Enabled by default
 
     installMethod: 'developer',
+
+    extensionId: '', // Set after loading in dev mode
+    storeExtensionId: '', // Set after Chrome Web Store approval
 
     chromeWebStoreUrl: '',
     developerModeInstructions: '1. Open chrome://extensions\n2. Enable Developer Mode\n3. Click "Load unpacked"\n4. Select the extension folder',
@@ -187,6 +196,56 @@ export default function ExtensionSettingsPage() {
                                     enabled={settings.showExtensionPrompt}
                                     onChange={(v) => updateSetting('showExtensionPrompt', v)}
                                 />
+                                <ToggleRow
+                                    label="Auto Profile Sync"
+                                    description="Automatically sync user profile to extension on dashboard load"
+                                    enabled={settings.autoProfileSync}
+                                    onChange={(v) => updateSetting('autoProfileSync', v)}
+                                />
+                            </div>
+                        </section>
+
+                        {/* Extension IDs - CORPORATE CONTROL */}
+                        <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-red-50 to-orange-50">
+                                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    🔑 Extension IDs
+                                </h2>
+                                <p className="text-sm text-gray-600">Configure extension ID for messaging (web app → extension)</p>
+                            </div>
+                            <div className="p-6 space-y-6">
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                    <p className="text-sm text-amber-800">
+                                        <strong>How to find your Extension ID:</strong> Go to <code className="bg-amber-100 px-1 rounded">chrome://extensions</code>,
+                                        enable Developer Mode, and look for the ID under your extension name.
+                                    </p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Developer Mode Extension ID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={settings.extensionId}
+                                        onChange={(e) => updateSetting('extensionId', e.target.value)}
+                                        placeholder="e.g., abcdefghijklmnopqrstuvwxyzabcdef"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Used when Install Method is &quot;Developer Mode&quot;</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Chrome Web Store Extension ID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={settings.storeExtensionId}
+                                        onChange={(e) => updateSetting('storeExtensionId', e.target.value)}
+                                        placeholder="Enter after Chrome Web Store approval"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Used when Install Method is &quot;Chrome Web Store&quot;</p>
+                                </div>
                             </div>
                         </section>
 
@@ -375,8 +434,8 @@ function InstallMethodCard({
         <button
             onClick={onClick}
             className={`p-4 rounded-xl border-2 text-left transition-all ${selected
-                    ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200'
+                : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
         >
             <div className="text-2xl mb-2">{icon}</div>
