@@ -689,14 +689,15 @@ export default function EditorPage() {
             }
 
             // ====== AI-GENERATED RESUME ======
-            // Check if this is an AI-generated resume (from 'users/{uid}/resumes' collection)
-            const userResumeDocRef = doc(db, 'users', user.uid, 'resumes', resumeId as string);
-            const userResumeDoc = await getDoc(userResumeDocRef);
+            // Check if this is an AI-generated resume (from 'resumes' collection - top-level)
+            // NOTE: generate/page.tsx saves to: doc(db, 'resumes', resumeId)
+            const resumeDocRef = doc(db, 'resumes', resumeId as string);
+            const resumeDoc = await getDoc(resumeDocRef);
 
-            if (userResumeDoc.exists()) {
-                // Update existing AI-generated resume in users/{uid}/resumes
-                await setDoc(userResumeDocRef, {
-                    ...userResumeDoc.data(),
+            if (resumeDoc.exists()) {
+                // Update existing AI-generated resume in resumes collection
+                await setDoc(resumeDocRef, {
+                    ...resumeDoc.data(),
                     jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
                     jobCompany: jobCompany || jobAnalysis?.company || '',
                     personalInfo: resumeData.personalInfo,
@@ -736,7 +737,7 @@ export default function EditorPage() {
                     updatedAt: serverTimestamp(),
                 }, { merge: true });
 
-                console.log('[Editor] Resume saved to users/{uid}/resumes');
+                console.log('[Editor] Resume saved to resumes collection (top-level)');
                 toast.success('Resume updated! 🎉');
             } else {
                 // Save to appliedResumes (old format)
