@@ -806,40 +806,40 @@ export default function EditorPage() {
                     ...resumeDoc.data(),
                     jobTitle: derivedTitle,
                     jobCompany: jobCompany || '',
-                    personalInfo: resumeData.personalInfo || {},
-                    summary: resumeData.summary || '',
-                    professionalSummary: resumeData.summary || '',
-                    experience: (resumeData.experience || []).map(exp => ({
-                        company: exp.company || '',
-                        title: exp.title || '',
-                        position: exp.title || '',
-                        location: exp.location || '',
-                        startDate: exp.startDate || '',
-                        endDate: exp.current ? 'Present' : (exp.endDate || ''),
-                        current: exp.current || false,
-                        bullets: exp.bullets || [],
-                        responsibilities: exp.bullets || [],
-                        highlights: exp.bullets || [],
+                    personalInfo: resumeData.personalInfo,
+                    summary: resumeData.summary,
+                    professionalSummary: resumeData.summary,
+                    experience: resumeData.experience.map(exp => ({
+                        company: exp.company,
+                        title: exp.title,
+                        position: exp.title,
+                        location: exp.location,
+                        startDate: exp.startDate,
+                        endDate: exp.current ? 'Present' : exp.endDate,
+                        current: exp.current,
+                        bullets: exp.bullets,
+                        responsibilities: exp.bullets,
+                        highlights: exp.bullets,
                     })),
-                    education: (resumeData.education || []).map(edu => ({
-                        school: edu.school || '',
-                        institution: edu.school || '',
-                        degree: edu.degree || '',
-                        field: edu.field || '',
-                        location: edu.location || '',
-                        graduationDate: edu.graduationDate || '',
+                    education: resumeData.education.map(edu => ({
+                        school: edu.school,
+                        institution: edu.school,
+                        degree: edu.degree,
+                        field: edu.field,
+                        location: edu.location,
+                        graduationDate: edu.graduationDate,
                     })),
-                    skills: { technical: resumeData.skills?.technical || [] },
-                    technicalSkills: (resumeData.skills?.technical || []).reduce((acc: any, line: string) => {
+                    skills: { technical: resumeData.skills.technical },
+                    technicalSkills: resumeData.skills.technical.reduce((acc: any, line: string) => {
                         const match = line.match(/^\*\*(.+?)\*\*:\s*(.+)$/);
                         if (match) {
                             acc[match[1]] = match[2].split(',').map(s => s.trim());
                         }
                         return acc;
                     }, {}),
-                    atsScore: atsScoreData || {},
-                    settings: settings || {},
-                    sections: sections || [],
+                    atsScore: atsScoreData,
+                    settings,  // Save formatting settings
+                    sections,  // Save section order
                     updatedAt: serverTimestamp(),
                 }, { merge: true });
 
