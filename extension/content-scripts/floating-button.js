@@ -35,14 +35,17 @@ class FloatingButton {
         root.innerHTML = `
             <style>
                 #jf-fab-shell {
+                    all: initial !important;
                     position: fixed !important;
                     top: ${this.currentTop}px !important;
                     right: 16px !important;
                     z-index: 2147483647 !important;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-                    color: #0f172a !important;
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+                    color: #1e293b !important;
                     touch-action: none !important;
                     user-select: none !important;
+                    font-size: 14px !important;
+                    line-height: 1.5 !important;
                 }
                 #jf-fab-btn {
                     all: unset !important;
@@ -68,7 +71,7 @@ class FloatingButton {
                     height: 18px !important;
                     padding: 0 6px !important;
                     border-radius: 9px !important;
-                    background: #22c55e !important;
+                    background: #6366f1 !important;
                     color: white !important;
                     font-size: 10px !important;
                     font-weight: 700 !important;
@@ -116,7 +119,7 @@ class FloatingButton {
                 }
                 .jf-avatar {
                     width: 36px !important; height: 36px !important; border-radius: 50% !important;
-                    background: #22c55e !important; color: white !important;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important; color: white !important;
                     display: flex !important; align-items: center !important; justify-content: center !important;
                     font-weight: 700 !important;
                 }
