@@ -257,7 +257,7 @@ async function handleQuickFillFromBanner() {
         fillTracker.updateProgress(fillResult.filledCount, fillResult.totalFields);
 
         // Learn from filled values for future predictions
-        if (predictionEngine) {
+        if (predictionEngine && Array.isArray(fields)) {
             fields.forEach(field => {
                 const el = field.element;
                 if (el && el.value) {

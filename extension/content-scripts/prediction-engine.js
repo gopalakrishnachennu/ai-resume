@@ -125,6 +125,11 @@ const PredictionEngine = {
     predict(fields, profile, context = {}) {
         this.predictions = [];
 
+        if (!Array.isArray(fields)) {
+            console.warn('[PredictionEngine] fields is not an array:', typeof fields);
+            return this.predictions;
+        }
+
         fields.forEach(field => {
             const prediction = this.predictField(field, profile, context);
             if (prediction) {
