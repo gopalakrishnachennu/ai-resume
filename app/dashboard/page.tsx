@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
-import { collection, query, where, getDocs, orderBy, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, deleteDoc, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { authService } from '@/lib/services/auth';
 import { toast } from 'react-hot-toast';
@@ -180,6 +180,23 @@ export default function DashboardPage() {
         jobCompany: '',
         jobDescription: '',
         saving: false,
+    });
+
+    // JSON View/Edit Modal (for imported resumes)
+    const [jsonModal, setJsonModal] = useState<{
+        show: boolean;
+        appId: string;
+        jsonData: string;
+        originalData: string;
+        saving: boolean;
+        error: string;
+    }>({
+        show: false,
+        appId: '',
+        jsonData: '',
+        originalData: '',
+        saving: false,
+        error: '',
     });
 
     useEffect(() => {
@@ -603,6 +620,71 @@ export default function DashboardPage() {
         }
     };
 
+    // Load JSON data for imported resume
+    const loadJsonData = async (app: Application) => {
+        if (!app.id.startsWith('app_import_')) {
+            toast.error('JSON view is only available for imported resumes');
+            return;
+        }
+
+        try {
+            // Get the full application with resume data
+            const appDoc = await getDoc(doc(db, 'applications', app.id));
+
+            if (appDoc.exists()) {
+                const appData = appDoc.data();
+                const resumeData = appData.resume || {};
+
+                // Format JSON nicely
+                const jsonStr = JSON.stringify(resumeData, null, 2);
+
+                setJsonModal({
+                    show: true,
+                    appId: app.id,
+                    jsonData: jsonStr,
+                    originalData: jsonStr,
+                    saving: false,
+                    error: '',
+                });
+            } else {
+                toast.error('Application not found');
+            }
+        } catch (error) {
+            console.error('Error loading JSON:', error);
+            toast.error('Failed to load resume data');
+        }
+    };
+
+    // Save JSON data for imported resume
+    const handleSaveJson = async () => {
+        // Validate JSON
+        let parsedData;
+        try {
+            parsedData = JSON.parse(jsonModal.jsonData);
+        } catch (e) {
+            setJsonModal(prev => ({ ...prev, error: 'Invalid JSON format. Please fix the syntax errors.' }));
+            return;
+        }
+
+        setJsonModal(prev => ({ ...prev, saving: true, error: '' }));
+
+        try {
+            // Update the application with new resume data
+            await setDoc(doc(db, 'applications', jsonModal.appId), {
+                resume: parsedData,
+                updatedAt: serverTimestamp(),
+            }, { merge: true });
+
+            toast.success('Resume JSON updated!');
+            setJsonModal({ show: false, appId: '', jsonData: '', originalData: '', saving: false, error: '' });
+            loadApplications();
+        } catch (error) {
+            console.error('Error saving JSON:', error);
+            toast.error('Failed to save changes');
+            setJsonModal(prev => ({ ...prev, saving: false }));
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-50">
@@ -989,22 +1071,15 @@ export default function DashboardPage() {
                                                     </svg>
                                                 </button>
                                             )}
-                                            {/* Add JD button for imported resumes without JD */}
-                                            {app.id.startsWith('app_import_') && !app.jobDescription && (
+                                            {/* JSON View/Edit button for imported resumes */}
+                                            {app.id.startsWith('app_import_') && (
                                                 <button
-                                                    onClick={() => setAddJdModal({
-                                                        show: true,
-                                                        appId: app.id,
-                                                        jobTitle: app.jobTitle === 'Imported Resume' ? '' : app.jobTitle,
-                                                        jobCompany: app.jobCompany === 'Quick Format' ? '' : app.jobCompany,
-                                                        jobDescription: '',
-                                                        saving: false,
-                                                    })}
-                                                    className="p-2.5 border border-amber-200 rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-100 transition-colors"
-                                                    title="Add Job Description"
+                                                    onClick={() => loadJsonData(app)}
+                                                    className="p-2.5 border border-violet-200 rounded-lg text-violet-600 bg-violet-50 hover:bg-violet-100 transition-colors"
+                                                    title="View/Edit JSON"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                                                     </svg>
                                                 </button>
                                             )}
@@ -1327,6 +1402,96 @@ export default function DashboardPage() {
                                 className="flex-1 py-2.5 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {addJdModal.saving ? 'Saving...' : 'Save Job Info'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* JSON View/Edit Modal (for imported resumes) */}
+            {jsonModal.show && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setJsonModal({ show: false, appId: '', jsonData: '', originalData: '', saving: false, error: '' })}>
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between bg-gradient-to-r from-violet-50 to-purple-50">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-xs font-medium rounded-full flex items-center gap-1">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                        </svg>
+                                        JSON Editor
+                                    </span>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900">Resume Data</h3>
+                                <p className="text-sm text-slate-500">View and edit the raw JSON data for this imported resume</p>
+                            </div>
+                            <button
+                                onClick={() => setJsonModal({ show: false, appId: '', jsonData: '', originalData: '', saving: false, error: '' })}
+                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/80 rounded-lg transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="px-6 py-4 overflow-y-auto flex-1">
+                            {jsonModal.error && (
+                                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2">
+                                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    {jsonModal.error}
+                                </div>
+                            )}
+                            <textarea
+                                value={jsonModal.jsonData}
+                                onChange={(e) => setJsonModal(prev => ({ ...prev, jsonData: e.target.value, error: '' }))}
+                                className="w-full h-[50vh] font-mono text-sm bg-slate-900 text-green-400 p-4 rounded-xl border-0 focus:ring-2 focus:ring-violet-500 resize-none"
+                                spellCheck={false}
+                                placeholder="Loading JSON data..."
+                            />
+                        </div>
+                        <div className="px-6 py-4 border-t border-slate-100 flex gap-3 items-center">
+                            <div className="flex-1 text-sm text-slate-500">
+                                {jsonModal.jsonData !== jsonModal.originalData && (
+                                    <span className="text-amber-600 font-medium">• Unsaved changes</span>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => setJsonModal(prev => ({ ...prev, jsonData: prev.originalData, error: '' }))}
+                                className="px-4 py-2.5 border border-slate-200 text-slate-600 font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                                disabled={jsonModal.saving || jsonModal.jsonData === jsonModal.originalData}
+                            >
+                                Reset
+                            </button>
+                            <button
+                                onClick={() => setJsonModal({ show: false, appId: '', jsonData: '', originalData: '', saving: false, error: '' })}
+                                className="px-4 py-2.5 border border-slate-200 text-slate-600 font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                                disabled={jsonModal.saving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveJson}
+                                disabled={jsonModal.saving || jsonModal.jsonData === jsonModal.originalData}
+                                className="px-6 py-2.5 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {jsonModal.saving ? (
+                                    <>
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Save Changes
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
