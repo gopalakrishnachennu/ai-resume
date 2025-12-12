@@ -61,6 +61,104 @@ chrome.runtime.onInstalled.addListener((details) => {
     }
 });
 
+/**
+ * EXTERNAL MESSAGE HANDLER
+ * Receives messages from the web app (AI Resume Builder)
+ * This is the forceful corporate-style connection
+ */
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+    console.log('[JobFiller Pro] External message from:', sender.origin, message.type);
+
+    switch (message.type) {
+        // Web app pushes session with all user data
+        case 'FLASH_SESSION':
+            handleFlashSession(message.data, sender, sendResponse);
+            return true;
+
+        // Web app registers user connection
+        case 'CONNECT_USER':
+            handleConnectUser(message.data, sendResponse);
+            return true;
+
+        // Web app checks if extension is installed
+        case 'PING':
+            sendResponse({
+                success: true,
+                version: chrome.runtime.getManifest().version,
+                name: 'JobFiller Pro'
+            });
+            return true;
+
+        default:
+            sendResponse({ success: false, error: 'Unknown external message type' });
+    }
+});
+
+/**
+ * Handle Flash Session from web app
+ * Web app pushes complete session data for immediate use
+ */
+async function handleFlashSession(sessionData, sender, sendResponse) {
+    try {
+        console.log('[JobFiller Pro] Flash session received:', sessionData);
+
+        // Store userId for future Firebase reads
+        if (sessionData.userId) {
+            await chrome.storage.local.set({ firebaseUserId: sessionData.userId });
+        }
+
+        // Store projectId
+        if (sessionData.projectId) {
+            await chrome.storage.local.set({ firebaseProjectId: sessionData.projectId });
+        }
+
+        // Store the complete session data locally for immediate use
+        // This bypasses Firebase read and uses pushed data directly
+        if (sessionData.session) {
+            await chrome.storage.local.set({
+                flashSession: sessionData.session,
+                flashSessionTimestamp: Date.now()
+            });
+            console.log('[JobFiller Pro] Flash session stored locally');
+        }
+
+        // Notify all tabs about the new session
+        const tabs = await chrome.tabs.query({});
+        tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {
+                type: 'FLASH_SESSION_READY',
+                data: sessionData.session
+            }).catch(() => { }); // Ignore tabs without content script
+        });
+
+        sendResponse({ success: true, message: 'Session synced' });
+    } catch (error) {
+        console.error('[JobFiller Pro] Flash session error:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+/**
+ * Handle user connection from web app
+ * Stores credentials for cross-domain Firebase access
+ */
+async function handleConnectUser(userData, sendResponse) {
+    try {
+        console.log('[JobFiller Pro] User connection:', userData);
+
+        await chrome.storage.local.set({
+            firebaseUserId: userData.userId,
+            firebaseProjectId: userData.projectId || 'ai-resume-builder-app',
+            userConnectedAt: Date.now()
+        });
+
+        sendResponse({ success: true, message: 'User connected' });
+    } catch (error) {
+        console.error('[JobFiller Pro] Connection error:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
 // Listen for messages from popup or content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[JobFiller Pro] Background received message:', message.type);
@@ -91,10 +189,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             injectScript(sender.tab?.id, message.script, sendResponse);
             return true;
 
+        // Get flash session that was pushed from web app
+        case 'GET_FLASH_SESSION':
+            getFlashSession(sendResponse);
+            return true;
+
         default:
             sendResponse({ success: false, error: 'Unknown message type' });
     }
 });
+
+/**
+ * Get flash session from local storage
+ */
+async function getFlashSession(sendResponse) {
+    try {
+        const result = await chrome.storage.local.get(['flashSession', 'flashSessionTimestamp']);
+
+        // Session expires after 1 hour
+        const isValid = result.flashSessionTimestamp &&
+            (Date.now() - result.flashSessionTimestamp) < 3600000;
+
+        if (isValid && result.flashSession) {
+            sendResponse({ success: true, session: result.flashSession });
+        } else {
+            sendResponse({ success: false, error: 'No active flash session' });
+        }
+    } catch (error) {
+        sendResponse({ success: false, error: error.message });
+    }
+}
 
 /**
  * Inject a script into a tab (for lazy-loading)

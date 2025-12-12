@@ -202,27 +202,42 @@ async function ensureInitialized(force = false) {
 
 /**
  * Handle Quick Fill from the notification banner
- * Priority: Flash session > Local profile
+ * Priority: Pushed Flash session > Firebase session > Local profile
  */
 async function handleQuickFillFromBanner() {
     try {
         let profile = null;
         let isFromFlash = false;
 
-        // Check for active Flash session first
-        if (typeof FirebaseSession !== 'undefined') {
+        // 1. Check for PUSHED flash session (directly from web app - most forceful)
+        try {
+            const flashResult = await chrome.runtime.sendMessage({ type: 'GET_FLASH_SESSION' });
+            if (flashResult?.success && flashResult.session) {
+                if (typeof FirebaseSession !== 'undefined') {
+                    profile = FirebaseSession.sessionToProfile(flashResult.session);
+                    isFromFlash = true;
+                    Utils.log('Using PUSHED Flash session for auto-fill (direct from web app)');
+                }
+            }
+        } catch (e) {
+            Utils.log('No pushed flash session available');
+        }
+
+        // 2. Fall back to Firebase session read
+        if (!profile && typeof FirebaseSession !== 'undefined') {
             const session = await FirebaseSession.checkActiveSession();
             if (session) {
                 profile = FirebaseSession.sessionToProfile(session);
                 isFromFlash = true;
-                Utils.log('Using Flash session for auto-fill');
+                Utils.log('Using Firebase session for auto-fill');
             }
         }
 
-        // Fall back to local profile if no session
+        // 3. Fall back to local profile
         if (!profile) {
             const result = await chrome.storage.local.get('userProfile');
             profile = result.userProfile;
+            Utils.log('Using local profile for auto-fill');
         }
 
         if (!profile) {
