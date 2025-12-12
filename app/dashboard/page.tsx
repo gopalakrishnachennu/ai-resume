@@ -215,6 +215,17 @@ export default function DashboardPage() {
         loading: false,
     });
 
+    // Extension Install Modal
+    const [extensionInstallModal, setExtensionInstallModal] = useState<{
+        show: boolean;
+        pendingApp: Application | null;
+        pendingJobUrl: string;
+    }>({
+        show: false,
+        pendingApp: null,
+        pendingJobUrl: '',
+    });
+
     useEffect(() => {
         useAuthStore.getState().initialize();
     }, []);
@@ -713,6 +724,19 @@ export default function DashboardPage() {
     const handleFlash = async () => {
         if (!flashModal.app || !flashModal.jobUrl.trim() || !user) {
             toast.error('Please enter a job URL');
+            return;
+        }
+
+        // CHECK IF EXTENSION IS INSTALLED
+        // Corporate approach: Must have extension to use Flash
+        if (!isExtensionAvailable()) {
+            console.log('[Flash] Extension not detected - showing install prompt');
+            setExtensionInstallModal({
+                show: true,
+                pendingApp: flashModal.app,
+                pendingJobUrl: flashModal.jobUrl,
+            });
+            setFlashModal(prev => ({ ...prev, show: false }));
             return;
         }
 
@@ -1572,6 +1596,106 @@ export default function DashboardPage() {
                             >
                                 Open in Editor
                             </Link>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 🔌 Extension Install Modal */}
+            {extensionInstallModal.show && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+                        <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+                            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Install JobFiller Pro Extension
+                            </h3>
+                            <p className="text-sm text-slate-500 mt-1">Required for auto-filling job applications</p>
+                        </div>
+
+                        <div className="px-6 py-6">
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                                <div className="flex items-start gap-3">
+                                    <svg className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    <div>
+                                        <h4 className="font-semibold text-amber-900">Extension Not Detected</h4>
+                                        <p className="text-sm text-amber-700 mt-1">
+                                            Flash auto-fill requires the JobFiller Pro browser extension to be installed and enabled.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                        <span className="text-blue-600 font-bold text-sm">1</span>
+                                    </div>
+                                    <div>
+                                        <h5 className="font-medium text-slate-900">Install the Extension</h5>
+                                        <p className="text-sm text-slate-500 mt-0.5">
+                                            Click the button below to install from Chrome Web Store
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                        <span className="text-blue-600 font-bold text-sm">2</span>
+                                    </div>
+                                    <div>
+                                        <h5 className="font-medium text-slate-900">Return to this page</h5>
+                                        <p className="text-sm text-slate-500 mt-0.5">
+                                            After installing, refresh this page
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                        <span className="text-blue-600 font-bold text-sm">3</span>
+                                    </div>
+                                    <div>
+                                        <h5 className="font-medium text-slate-900">Click Flash again</h5>
+                                        <p className="text-sm text-slate-500 mt-0.5">
+                                            The extension will auto-connect and you&apos;re ready to go!
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
+                            <button
+                                onClick={() => {
+                                    // For now, open a modal explaining they need to load the extension locally
+                                    // TODO: Replace with Chrome Web Store URL when published
+                                    window.open('chrome://extensions', '_blank');
+                                    toast.success('Load the extension folder in Developer Mode', { duration: 5000 });
+                                }}
+                                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Install Extension
+                            </button>
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="px-4 py-3 bg-white border border-slate-300 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-all"
+                            >
+                                Refresh Page
+                            </button>
+                            <button
+                                onClick={() => setExtensionInstallModal({ show: false, pendingApp: null, pendingJobUrl: '' })}
+                                className="px-4 py-3 text-slate-500 hover:text-slate-700 transition-all"
+                            >
+                                Cancel
+                            </button>
                         </div>
                     </div>
                 </div>
