@@ -163,6 +163,23 @@ export default function DashboardPage() {
         data: null,
     });
 
+    // Add JD Modal (for imported resumes)
+    const [addJdModal, setAddJdModal] = useState<{
+        show: boolean;
+        appId: string;
+        jobTitle: string;
+        jobCompany: string;
+        jobDescription: string;
+        saving: boolean;
+    }>({
+        show: false,
+        appId: '',
+        jobTitle: '',
+        jobCompany: '',
+        jobDescription: '',
+        saving: false,
+    });
+
     useEffect(() => {
         useAuthStore.getState().initialize();
     }, []);
@@ -527,6 +544,32 @@ export default function DashboardPage() {
         }
     };
 
+    // Handle Add JD for imported resumes
+    const handleAddJD = async () => {
+        if (!addJdModal.jobTitle.trim() || !addJdModal.jobCompany.trim()) {
+            toast.error('Please enter job title and company');
+            return;
+        }
+
+        setAddJdModal(prev => ({ ...prev, saving: true }));
+
+        try {
+            await ApplicationService.addJobDescription(
+                addJdModal.appId,
+                addJdModal.jobTitle,
+                addJdModal.jobCompany,
+                addJdModal.jobDescription
+            );
+            toast.success('Job description added!');
+            setAddJdModal({ show: false, appId: '', jobTitle: '', jobCompany: '', jobDescription: '', saving: false });
+            loadApplications();
+        } catch (error) {
+            console.error('Error adding JD:', error);
+            toast.error('Failed to add job description');
+            setAddJdModal(prev => ({ ...prev, saving: false }));
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-50">
@@ -848,12 +891,20 @@ export default function DashboardPage() {
                                         </div>
 
                                         {/* Status Badge (clickable) */}
-                                        <button
-                                            onClick={() => setStatusModal({ show: true, appId: app.id, currentStatus: app.status })}
-                                            className="mb-3 hover:opacity-80 transition-opacity"
-                                        >
-                                            <StatusBadge status={app.status} />
-                                        </button>
+                                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                                            <button
+                                                onClick={() => setStatusModal({ show: true, appId: app.id, currentStatus: app.status })}
+                                                className="hover:opacity-80 transition-opacity"
+                                            >
+                                                <StatusBadge status={app.status} />
+                                            </button>
+                                            {/* Imported Badge */}
+                                            {app.id.startsWith('app_import_') && (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
+                                                    📥 Imported
+                                                </span>
+                                            )}
+                                        </div>
 
                                         {/* Time */}
                                         <p className="text-xs text-slate-400 mb-4">
@@ -902,6 +953,25 @@ export default function DashboardPage() {
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                            {/* Add JD button for imported resumes without JD */}
+                                            {app.id.startsWith('app_import_') && !app.jobDescription && (
+                                                <button
+                                                    onClick={() => setAddJdModal({
+                                                        show: true,
+                                                        appId: app.id,
+                                                        jobTitle: app.jobTitle === 'Imported Resume' ? '' : app.jobTitle,
+                                                        jobCompany: app.jobCompany === 'Quick Format' ? '' : app.jobCompany,
+                                                        jobDescription: '',
+                                                        saving: false,
+                                                    })}
+                                                    className="p-2.5 border border-amber-200 rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-100 transition-colors"
+                                                    title="Add Job Description"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                     </svg>
                                                 </button>
                                             )}
@@ -1144,6 +1214,66 @@ export default function DashboardPage() {
                             >
                                 Open in Editor
                             </Link>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add JD Modal (for imported resumes) */}
+            {addJdModal.show && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setAddJdModal({ show: false, appId: '', jobTitle: '', jobCompany: '', jobDescription: '', saving: false })}>
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-6 py-5 border-b border-slate-100">
+                            <h3 className="text-lg font-bold text-slate-900">Add Job Description</h3>
+                            <p className="text-sm text-slate-500 mt-1">Link this imported resume to a job application</p>
+                        </div>
+                        <div className="px-6 py-5 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Job Title *</label>
+                                <input
+                                    type="text"
+                                    value={addJdModal.jobTitle}
+                                    onChange={(e) => setAddJdModal(prev => ({ ...prev, jobTitle: e.target.value }))}
+                                    placeholder="e.g., Senior Software Engineer"
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Company *</label>
+                                <input
+                                    type="text"
+                                    value={addJdModal.jobCompany}
+                                    onChange={(e) => setAddJdModal(prev => ({ ...prev, jobCompany: e.target.value }))}
+                                    placeholder="e.g., Google"
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Job Description (Optional)</label>
+                                <textarea
+                                    value={addJdModal.jobDescription}
+                                    onChange={(e) => setAddJdModal(prev => ({ ...prev, jobDescription: e.target.value }))}
+                                    placeholder="Paste the job description here for tracking..."
+                                    rows={4}
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                />
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+                            <button
+                                onClick={() => setAddJdModal({ show: false, appId: '', jobTitle: '', jobCompany: '', jobDescription: '', saving: false })}
+                                className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                                disabled={addJdModal.saving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAddJD}
+                                disabled={addJdModal.saving || !addJdModal.jobTitle.trim() || !addJdModal.jobCompany.trim()}
+                                className="flex-1 py-2.5 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {addJdModal.saving ? 'Saving...' : 'Save Job Info'}
+                            </button>
                         </div>
                     </div>
                 </div>

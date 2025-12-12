@@ -76,7 +76,7 @@ export default function Home() {
             {" "}in seconds. Get past ATS systems and land more interviews.
           </p>
 
-          <div className={`flex gap-5 justify-center ${mounted ? 'animate-fade-in-up animate-delay-400' : 'opacity-0'}`}>
+          <div className={`flex gap-5 justify-center flex-wrap ${mounted ? 'animate-fade-in-up animate-delay-400' : 'opacity-0'}`}>
             <Link
               href="/generate"
               className="group relative px-10 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-2xl font-bold text-lg transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/30 hover:-translate-y-1 overflow-hidden"
@@ -88,6 +88,18 @@ export default function Home() {
                 Start Building Free
               </span>
               <div className="absolute inset-0 shimmer-btn"></div>
+            </Link>
+
+            <Link
+              href="/import"
+              className="group px-10 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-lg transition-all duration-500 hover:shadow-2xl hover:shadow-emerald-500/30 hover:-translate-y-1 overflow-hidden"
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Quick Format
+              </span>
             </Link>
 
             <Link

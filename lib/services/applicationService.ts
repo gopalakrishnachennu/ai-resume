@@ -332,6 +332,59 @@ export class ApplicationService {
     }
 
     /**
+     * Create application from imported JSON resume (Quick Format flow)
+     */
+    static async createFromImport(
+        userId: string,
+        resumeData: {
+            personalInfo: any;
+            professionalSummary: string;
+            technicalSkills: any;
+            experience: any[];
+            education: any[];
+        },
+        resumeName?: string
+    ): Promise<string> {
+        const appId = `app_import_${Date.now()}_${userId.slice(-6)}`;
+
+        const application: Omit<Application, 'id'> = {
+            userId,
+            jobTitle: resumeName || 'Imported Resume',
+            jobCompany: 'Quick Format',
+            hasResume: true,
+            resume: resumeData,
+            status: 'generated',
+            version: 1,
+            createdAt: Timestamp.now(),
+            generatedAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        };
+
+        await setDoc(doc(db, this.COLLECTION, appId), application);
+        console.log(`[ApplicationService] Created imported application: ${appId}`);
+
+        return appId;
+    }
+
+    /**
+     * Add job description to an existing application (no AI processing)
+     */
+    static async addJobDescription(
+        appId: string,
+        jobTitle: string,
+        jobCompany: string,
+        jobDescription: string
+    ): Promise<void> {
+        await updateDoc(doc(db, this.COLLECTION, appId), {
+            jobTitle,
+            jobCompany,
+            jobDescription,
+            updatedAt: Timestamp.now(),
+        });
+        console.log(`[ApplicationService] Added JD to application: ${appId}`);
+    }
+
+    /**
      * Find application by resume ID
      */
     private static async findByResumeId(userId: string, resumeId: string): Promise<Application | null> {
