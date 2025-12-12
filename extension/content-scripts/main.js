@@ -202,12 +202,28 @@ async function ensureInitialized(force = false) {
 
 /**
  * Handle Quick Fill from the notification banner
+ * Priority: Flash session > Local profile
  */
 async function handleQuickFillFromBanner() {
     try {
-        // Get profile from storage
-        const result = await chrome.storage.local.get('userProfile');
-        const profile = result.userProfile;
+        let profile = null;
+        let isFromFlash = false;
+
+        // Check for active Flash session first
+        if (typeof FirebaseSession !== 'undefined') {
+            const session = await FirebaseSession.checkActiveSession();
+            if (session) {
+                profile = FirebaseSession.sessionToProfile(session);
+                isFromFlash = true;
+                Utils.log('Using Flash session for auto-fill');
+            }
+        }
+
+        // Fall back to local profile if no session
+        if (!profile) {
+            const result = await chrome.storage.local.get('userProfile');
+            profile = result.userProfile;
+        }
 
         if (!profile) {
             return { success: false, error: 'No profile found' };
@@ -244,7 +260,8 @@ async function handleQuickFillFromBanner() {
 
         return {
             success: fillResult.success,
-            filledCount: fillResult.filledCount
+            filledCount: fillResult.filledCount,
+            isFromFlash
         };
     } catch (error) {
         Utils.log('Quick fill error: ' + error.message, 'error');
