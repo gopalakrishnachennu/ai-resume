@@ -3,21 +3,24 @@
  * Extracted from editor for reuse in Flash button flow
  */
 
-// Default settings for PDF/DOCX generation
+// Default settings for PDF/DOCX generation - ALL BLACK TEXT
 export const defaultExportSettings = {
-    fontSize: { name: 18, contact: 10, headers: 12, body: 10 },
+    fontSize: { name: 22, contact: 11, headers: 13, body: 11 },
     fontFamily: 'Calibri',
-    fontColor: { name: '#111827', headers: '#111827', body: '#374151', contact: '#6b7280' },
-    margins: { top: 0.5, bottom: 0.5, left: 0.5, right: 0.5 },
-    lineSpacing: 1.15,
+    fontColor: { name: '#000000', headers: '#000000', body: '#000000', contact: '#000000' },
+    margins: { top: 0.5, bottom: 0.5, left: 0.75, right: 0.75 },
+    lineSpacing: 1.0,
+    paragraphSpacing: 4, // in pt
+    sectionSpacing: 16, // in pt
     sectionDivider: true,
-    dividerColor: '#d1d5db',
-    dividerWeight: 0.5,
+    dividerColor: '#D3D3D3',
+    dividerWeight: 1,
     bulletStyle: '•',
-    headerCase: 'UPPERCASE' as 'UPPERCASE' | 'Title Case',
+    headerCase: 'Title Case' as 'UPPERCASE' | 'Title Case',
     headerStyle: 'bold',
     contactSeparator: '|',
-    alignment: 'left',
+    alignment: 'center',
+    dateFormat: 'MMM yyyy', // "Aug 2021" format
 };
 
 // Default sections order
@@ -122,22 +125,25 @@ export class ResumeExportService {
 
         const content: any[] = [];
 
+        // Calculate page width for divider line (Letter width - margins)
+        const pageWidth = 8.5 * 72 - pt(settings.margins.left) - pt(settings.margins.right);
+
         const addSectionHeader = (sectionName: string) => {
             content.push({
                 text: headerCase(sectionName),
                 style: 'sectionHeader',
-                margin: [0, 12, 0, settings.sectionDivider ? 4 : 8],
+                margin: [0, (settings as any).sectionSpacing || 16, 0, settings.sectionDivider ? 2 : 4],
             });
 
             if (settings.sectionDivider) {
                 content.push({
                     canvas: [{
                         type: 'line',
-                        x1: 0, y1: 0, x2: 515, y2: 0,
+                        x1: 0, y1: 0, x2: pageWidth, y2: 0,
                         lineWidth: settings.dividerWeight,
                         lineColor: settings.dividerColor,
                     }],
-                    margin: [0, 0, 0, 8],
+                    margin: [0, 0, 0, 4],
                 });
             }
         };
@@ -173,21 +179,20 @@ export class ResumeExportService {
         const summary = resumeData.summary || resumeData.professionalSummary;
         if (summary) {
             addSectionHeader('Summary');
-            content.push({ text: formatPdfText(summary), style: 'body', margin: [0, 0, 0, 8] });
+            content.push({ text: formatPdfText(summary), style: 'body', margin: [0, 0, 0, 4] });
         }
 
-        // Experience
         if (resumeData.experience && resumeData.experience.length > 0) {
             addSectionHeader('Experience');
             resumeData.experience.forEach((exp) => {
                 const bullets = exp.bullets || exp.highlights || exp.responsibilities || [];
                 content.push({
-                    margin: [0, 0, 0, 10],
+                    margin: [0, 0, 0, 8],
                     stack: [
                         {
                             columns: [
                                 { text: exp.title || '', style: 'bodyBold', width: '*' },
-                                { text: `${formatMonthYear(exp.startDate || '')} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate || '')}`, style: 'muted', alignment: 'right' },
+                                { text: `${formatMonthYear(exp.startDate || '')} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate || '')}`, style: 'body', alignment: 'right' },
                             ],
                         },
                         {
@@ -195,7 +200,7 @@ export class ResumeExportService {
                                 { text: exp.company || '', style: 'italic' },
                                 { text: exp.location || '', style: 'italic', alignment: 'right' },
                             ],
-                            margin: [0, 2, 0, 4],
+                            margin: [0, 1, 0, 2],
                         },
                         {
                             ul: bullets.filter((b: string) => b.trim()).map((b: string) => formatPdfText(b)),
@@ -217,7 +222,7 @@ export class ResumeExportService {
                         {
                             columns: [
                                 { text: `${edu.degree || ''} ${edu.field || ''}`.trim(), style: 'bodyBold', width: '*' },
-                                { text: formatMonthYear(edu.graduationDate || edu.endDate || ''), style: 'muted', alignment: 'right' },
+                                { text: formatMonthYear(edu.graduationDate || edu.endDate || ''), style: 'body', alignment: 'right' },
                             ],
                         },
                         {
