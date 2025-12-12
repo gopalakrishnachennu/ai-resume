@@ -202,10 +202,12 @@ export class SessionService {
         // Get summary - handle both field names
         const professionalSummary = resume.professionalSummary || resume.summary || '';
 
-        // Transform experience - handle bullets, highlights, responsibilities
+        // Transform experience - handle ALL possible bullet field names
         const experience = (resume.experience || []).map((exp: any) => {
-            // Handle different bullet field names
-            const bullets = exp.bullets || exp.highlights || exp.responsibilities || exp.description || [];
+            // Handle many different bullet field names
+            const bullets = exp.bullets || exp.highlights || exp.responsibilities ||
+                exp.description || exp.achievements || exp.duties ||
+                exp.details || exp.items || exp.points || exp.tasks || [];
             const bulletArray = Array.isArray(bullets) ? bullets : (typeof bullets === 'string' ? [bullets] : []);
 
             // Handle date formats and "current" job detection
