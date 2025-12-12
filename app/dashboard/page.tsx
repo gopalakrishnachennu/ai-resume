@@ -732,27 +732,54 @@ export default function DashboardPage() {
             // Generate PDF and DOCX in parallel
             toast.loading('Generating resume files...', { id: 'flash-gen' });
 
-            const [pdfBlob, docxBlob] = await Promise.all([
-                ResumeExportService.generatePDFBlob(resumeData),
-                ResumeExportService.generateDOCXBlob(resumeData),
-            ]);
+            let pdfBlob: Blob | null = null;
+            let docxBlob: Blob | null = null;
 
-            toast.loading('Uploading to cloud...', { id: 'flash-gen' });
+            try {
+                [pdfBlob, docxBlob] = await Promise.all([
+                    ResumeExportService.generatePDFBlob(resumeData),
+                    ResumeExportService.generateDOCXBlob(resumeData),
+                ]);
+                console.log('[Flash] PDF/DOCX generated successfully');
+            } catch (genError) {
+                console.error('[Flash] File generation failed:', genError);
+                // Continue without files
+            }
 
-            // Create session first (so we have the session doc)
+            toast.loading('Creating session...', { id: 'flash-gen' });
+
+            // Create session (main data - this is what extension needs)
             await SessionService.createSession(
                 user.uid,
                 app,
                 jobUrl,
                 extensionSettings as Record<string, string>
             );
+            console.log('[Flash] Session created successfully');
 
-            // Upload files to Firebase Storage
-            const filename = resumeData.personalInfo?.name || resumeData.personalInfo?.fullName || 'Resume';
-            await Promise.all([
-                SessionService.uploadPDF(user.uid, pdfBlob, filename),
-                SessionService.uploadDOCX(user.uid, docxBlob, filename),
-            ]);
+            // Try to upload files (optional - don't block if it fails)
+            if (pdfBlob && docxBlob) {
+                try {
+                    toast.loading('Uploading files (optional)...', { id: 'flash-gen' });
+                    const filename = resumeData.personalInfo?.name || resumeData.personalInfo?.fullName || 'Resume';
+
+                    // Upload with timeout (10 seconds max)
+                    const uploadPromise = Promise.all([
+                        SessionService.uploadPDF(user.uid, pdfBlob, filename),
+                        SessionService.uploadDOCX(user.uid, docxBlob, filename),
+                    ]);
+
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Upload timeout')), 10000)
+                    );
+
+                    await Promise.race([uploadPromise, timeoutPromise]);
+                    console.log('[Flash] Files uploaded successfully');
+                } catch (uploadError) {
+                    console.warn('[Flash] File upload failed (continuing anyway):', uploadError);
+                    // Don't fail - session data is more important than files
+                }
+            }
 
             toast.success('Session ready! Opening job portal...', { id: 'flash-gen' });
 
