@@ -804,14 +804,24 @@ export default function DashboardPage() {
         setFlashModal(prev => ({ ...prev, loading: true }));
 
         try {
-            const app = flashModal.app;
+            const appId = flashModal.app.id;
             const jobUrl = flashModal.jobUrl;
+
+            // IMPORTANT: Reload fresh app data from Firebase to get latest edits
+            const freshAppDoc = await getDoc(doc(db, 'applications', appId));
+            if (!freshAppDoc.exists()) {
+                toast.error('Application not found');
+                setFlashModal(prev => ({ ...prev, loading: false }));
+                return;
+            }
+            const app = { id: appId, ...freshAppDoc.data() } as Application;
+            console.log('[Flash] Loaded fresh app data from Firebase');
 
             // Load extension settings
             const settingsDoc = await getDoc(doc(db, 'users', user.uid, 'settings', 'extension'));
             const extensionSettings = settingsDoc.exists() ? settingsDoc.data() : {};
 
-            // Prepare resume data for export
+            // Prepare resume data for export (using fresh data)
             const resume = (app as any).resume || {};
             const resumeData = {
                 personalInfo: resume.personalInfo || {},
