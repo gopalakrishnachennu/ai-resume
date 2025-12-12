@@ -804,18 +804,48 @@ export default function DashboardPage() {
         setFlashModal(prev => ({ ...prev, loading: true }));
 
         try {
-            const appId = flashModal.app.id;
+            const cachedApp = flashModal.app;
+            const appId = cachedApp?.id;
             const jobUrl = flashModal.jobUrl;
 
-            // IMPORTANT: Reload fresh app data from Firebase to get latest edits
-            const freshAppDoc = await getDoc(doc(db, 'applications', appId));
-            if (!freshAppDoc.exists()) {
-                toast.error('Application not found');
+            if (!cachedApp || !appId) {
+                toast.error('No application selected');
                 setFlashModal(prev => ({ ...prev, loading: false }));
                 return;
             }
-            const app = { id: appId, ...freshAppDoc.data() } as Application;
-            console.log('[Flash] Loaded fresh app data from Firebase');
+
+            // Try to reload fresh app data from Firebase
+            // The app could be from: applications, users/{uid}/resumes, or jobs collection
+            let app: Application = cachedApp;
+
+            // First try applications collection
+            let freshAppDoc = await getDoc(doc(db, 'applications', appId));
+
+            if (freshAppDoc.exists()) {
+                app = { id: appId, ...freshAppDoc.data() } as Application;
+                console.log('[Flash] Loaded fresh app from applications collection');
+            } else {
+                // Try users/{uid}/resumes collection (legacy)
+                freshAppDoc = await getDoc(doc(db, 'users', user.uid, 'resumes', appId));
+                if (freshAppDoc.exists()) {
+                    const data = freshAppDoc.data();
+                    app = {
+                        ...cachedApp,
+                        id: appId,
+                        resume: {
+                            personalInfo: data.personalInfo || {},
+                            professionalSummary: data.professionalSummary || data.summary || '',
+                            technicalSkills: data.technicalSkills || data.skills?.technical || {},
+                            experience: data.experience || [],
+                            education: data.education || [],
+                        },
+                    };
+                    console.log('[Flash] Loaded fresh app from resumes collection');
+                } else {
+                    // Use cached data as fallback
+                    console.log('[Flash] Using cached app data (no fresh data found)');
+                }
+            }
 
             // Load extension settings
             const settingsDoc = await getDoc(doc(db, 'users', user.uid, 'settings', 'extension'));
