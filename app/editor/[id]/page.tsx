@@ -393,6 +393,64 @@ export default function EditorPage() {
 
             // If editing existing resume, load it
             if (params.id !== 'new') {
+                // ====== IMPORTED RESUME (Quick Format Flow) ======
+                // Check if this is an imported resume from applications collection
+                if ((params.id as string).startsWith('app_import_')) {
+                    const { getDoc, doc } = await import('firebase/firestore');
+                    const appDoc = await getDoc(doc(db, 'applications', params.id as string));
+
+                    if (appDoc.exists()) {
+                        const appData = appDoc.data();
+
+                        // Load job title and company
+                        setJobTitle(appData.jobTitle || 'Imported Resume');
+                        setJobCompany(appData.jobCompany || '');
+
+                        // Load the embedded resume data directly
+                        if (appData.resume) {
+                            const resume = appData.resume;
+                            setResumeData({
+                                personalInfo: {
+                                    name: resume.personalInfo?.fullName || resume.personalInfo?.name || '',
+                                    email: resume.personalInfo?.email || '',
+                                    phone: resume.personalInfo?.phone || '',
+                                    location: resume.personalInfo?.location || '',
+                                    linkedin: resume.personalInfo?.linkedin || '',
+                                    github: resume.personalInfo?.portfolio || resume.personalInfo?.github || '',
+                                },
+                                summary: resume.professionalSummary || '',
+                                experience: (resume.experience || []).map((exp: any) => ({
+                                    company: exp.company || '',
+                                    title: exp.title || '',
+                                    location: exp.location || '',
+                                    startDate: exp.startDate || '',
+                                    endDate: exp.endDate || '',
+                                    current: exp.endDate === 'Present' || exp.current || false,
+                                    bullets: exp.highlights || exp.bullets || (exp.description ? [exp.description] : []),
+                                })),
+                                education: (resume.education || []).map((edu: any) => ({
+                                    school: edu.institution || edu.school || '',
+                                    degree: edu.degree || '',
+                                    field: edu.field || '',
+                                    location: edu.location || '',
+                                    graduationDate: edu.graduationDate || '',
+                                })),
+                                skills: {
+                                    technical: resume.technicalSkills
+                                        ? Object.entries(resume.technicalSkills)
+                                            .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
+                                        : [],
+                                },
+                            });
+
+                            setLoading(false);
+                            toast.success('Imported resume loaded!');
+                            return;
+                        }
+                    }
+                }
+
+                // ====== AI-GENERATED RESUME ======
                 // Try loading from new 'resumes' collection first (AI-generated)
                 let resumeDoc = await getDoc(doc(db, 'resumes', params.id as string));
 
@@ -569,6 +627,68 @@ export default function EditorPage() {
                 keywords: atsScore,
             };
 
+            // ====== IMPORTED RESUME (Quick Format Flow) ======
+            // Save back to applications collection
+            if ((params.id as string).startsWith('app_import_')) {
+                const appDocRef = doc(db, 'applications', params.id as string);
+
+                // Convert editor format back to storage format
+                const updatedResume = {
+                    personalInfo: {
+                        fullName: resumeData.personalInfo.name,
+                        email: resumeData.personalInfo.email,
+                        phone: resumeData.personalInfo.phone,
+                        location: resumeData.personalInfo.location,
+                        linkedin: resumeData.personalInfo.linkedin,
+                        portfolio: resumeData.personalInfo.github,
+                    },
+                    professionalSummary: resumeData.summary,
+                    experience: resumeData.experience.map(exp => ({
+                        company: exp.company,
+                        title: exp.title,
+                        location: exp.location,
+                        startDate: exp.startDate,
+                        endDate: exp.current ? 'Present' : exp.endDate,
+                        highlights: exp.bullets,
+                    })),
+                    education: resumeData.education.map(edu => ({
+                        institution: edu.school,
+                        degree: edu.degree,
+                        field: edu.field,
+                        location: edu.location,
+                        graduationDate: edu.graduationDate,
+                    })),
+                    technicalSkills: resumeData.skills.technical.reduce((acc: any, line: string) => {
+                        const match = line.match(/^\*\*(.+?)\*\*:\s*(.+)$/);
+                        if (match) {
+                            acc[match[1]] = match[2].split(',').map(s => s.trim());
+                        } else {
+                            acc['Skills'] = acc['Skills'] || [];
+                            acc['Skills'].push(line);
+                        }
+                        return acc;
+                    }, {}),
+                };
+
+                await setDoc(appDocRef, {
+                    jobTitle: jobTitle || 'Imported Resume',
+                    jobCompany: jobCompany || 'Quick Format',
+                    resume: updatedResume,
+                    atsScore: atsScoreData.total,
+                    settings,
+                    sections,
+                    updatedAt: serverTimestamp(),
+                }, { merge: true });
+
+                // Clear local draft
+                localStorage.removeItem(`draft_resume_${params.id}`);
+
+                toast.success('Resume saved! 🎉');
+                router.push('/dashboard');
+                return;
+            }
+
+            // ====== AI-GENERATED RESUME ======
             // Check if this is an AI-generated resume (from 'resumes' collection)
             const resumeDocRef = doc(db, 'resumes', resumeId as string);
             const resumeDoc = await getDoc(resumeDocRef);
