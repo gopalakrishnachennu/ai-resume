@@ -585,6 +585,30 @@ export default function EditorPage() {
         calculateATS();
     }, [resumeData]);
 
+    // Auto-save header fields (title/company) without modal validation
+    const autoSaveHeader = async () => {
+        if (!user || saving) return;
+
+        const resumeId = params.id as string;
+        if (resumeId === 'new' || resumeId.startsWith('app_import_')) return;
+
+        try {
+            const resumeDocRef = doc(db, 'resumes', resumeId);
+            const resumeDoc = await getDoc(resumeDocRef);
+
+            if (resumeDoc.exists()) {
+                await setDoc(resumeDocRef, {
+                    jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
+                    jobCompany: jobCompany || jobAnalysis?.company || '',
+                    updatedAt: serverTimestamp(),
+                }, { merge: true });
+                console.log('[Editor] Header auto-saved: title=', jobTitle, 'company=', jobCompany);
+            }
+        } catch (error) {
+            console.error('[Editor] Auto-save header failed:', error);
+        }
+    };
+
     const handleSave = async () => {
         if (!user) {
             toast.error('Please login to save');
@@ -1454,7 +1478,7 @@ export default function EditorPage() {
                                     type="text"
                                     value={jobTitle || jobAnalysis?.title || resumeData.experience[0]?.title || 'Resume Editor'}
                                     onChange={(e) => setJobTitle(e.target.value)}
-                                    onBlur={handleSave}
+                                    onBlur={autoSaveHeader}
                                     className="text-sm font-semibold text-slate-900 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block"
                                     placeholder="Job Title"
                                 />
@@ -1462,7 +1486,7 @@ export default function EditorPage() {
                                     type="text"
                                     value={jobCompany || jobAnalysis?.company || ''}
                                     onChange={(e) => setJobCompany(e.target.value)}
-                                    onBlur={handleSave}
+                                    onBlur={autoSaveHeader}
                                     className={`text-xs bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block ${!(jobCompany || jobAnalysis?.company)
                                         ? 'text-red-500 italic'
                                         : 'text-slate-500'
