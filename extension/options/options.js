@@ -77,9 +77,14 @@ class OptionsController {
             this.exportProfile();
         });
 
-        // Load sample
-        document.getElementById('loadSample').addEventListener('click', () => {
-            this.loadSampleProfile();
+        // Sync from Webapp (replaces Load Sample)
+        document.getElementById('syncFromWebapp')?.addEventListener('click', () => {
+            this.syncFromWebapp();
+        });
+
+        // Connect to Webapp button
+        document.getElementById('connectWebapp')?.addEventListener('click', () => {
+            this.openWebapp();
         });
 
         // Save profile
@@ -391,6 +396,47 @@ class OptionsController {
         this.profile = sampleProfile;
         this.displayProfile();
         this.showToast('Sample profile loaded!', 'success');
+    }
+
+    // Open webapp in new tab
+    openWebapp() {
+        const webappUrl = document.getElementById('webappUrl')?.value || 'https://ai-resume-gopalakrishnachennu-5461s-projects.vercel.app';
+        chrome.tabs.create({ url: webappUrl + '/dashboard' });
+        this.showToast('Opening webapp - please login and return here to sync', 'info');
+    }
+
+    // Sync profile from webapp - receives profile via messaging
+    async syncFromWebapp() {
+        const webappUrl = document.getElementById('webappUrl')?.value || 'https://ai-resume-gopalakrishnachennu-5461s-projects.vercel.app';
+
+        this.showToast('Checking for synced profile...', 'info');
+
+        // Check if we have a synced profile from the webapp
+        const result = await chrome.storage.local.get(['userProfile', 'webappLastSync']);
+
+        if (result.userProfile && result.userProfile.personalInfo?.email &&
+            result.userProfile.personalInfo.email !== 'john.doe@email.com') {
+            // We have a real profile synced from webapp
+            this.profile = result.userProfile;
+            this.displayProfile();
+
+            const syncTime = result.webappLastSync ? new Date(result.webappLastSync).toLocaleString() : 'Unknown';
+            this.showToast(`Profile synced! Last sync: ${syncTime}`, 'success');
+
+            // Update connection status
+            const statusEl = document.getElementById('webappStatus');
+            if (statusEl) {
+                statusEl.innerHTML = `<span class="status-dot green"></span><span>Connected - ${this.profile.personalInfo.firstName} ${this.profile.personalInfo.lastName}</span>`;
+            }
+        } else {
+            // No real profile yet - prompt user to go to webapp
+            this.showToast('No profile synced yet. Please login to the webapp first, then visit the dashboard to sync.', 'error');
+
+            // Ask if they want to open webapp
+            if (confirm('Would you like to open the webapp now to login and sync your profile?')) {
+                chrome.tabs.create({ url: webappUrl + '/dashboard' });
+            }
+        }
     }
 
     async saveProfile() {

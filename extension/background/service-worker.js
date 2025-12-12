@@ -112,6 +112,7 @@ async function handleSyncProfile(profileData, sendResponse) {
             await chrome.storage.local.set({
                 userProfile: profileData,
                 profileSyncedAt: Date.now(),
+                webappLastSync: new Date().toISOString(),
                 profileSource: 'web_app'
             });
             console.log('[JobFiller Pro] Profile synced successfully!');
