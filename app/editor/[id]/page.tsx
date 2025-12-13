@@ -354,10 +354,12 @@ export default function EditorPage() {
                 resumeData,
                 sections,
                 settings,
+                jobTitle,
+                jobCompany,
                 updatedAt: Date.now()
             }));
         }
-    }, [resumeData, sections, settings, params.id, loading]);
+    }, [resumeData, sections, settings, jobTitle, jobCompany, params.id, loading]);
 
     const loadData = async () => {
         try {
@@ -373,6 +375,8 @@ export default function EditorPage() {
                         setResumeData(draft.resumeData);
                         if (draft.sections) setSections(draft.sections);
                         if (draft.settings) setSettings(draft.settings);
+                        if (draft.jobTitle) setJobTitle(draft.jobTitle);
+                        if (draft.jobCompany) setJobCompany(draft.jobCompany);
 
                         const analysisStr = localStorage.getItem('jobAnalysis');
                         if (analysisStr) setJobAnalysis(JSON.parse(analysisStr));
@@ -846,6 +850,7 @@ export default function EditorPage() {
 
                 console.log('[Editor] Resume saved to resumes collection (top-level)');
                 toast.success('Resume updated! 🎉');
+                localStorage.removeItem(`draft_resume_${params.id}`);
             } else {
                 // ====== APPLICATIONS COLLECTION (user's new flow) ======
                 const appDocRef = doc(db, 'applications', resumeId as string);
@@ -904,6 +909,7 @@ export default function EditorPage() {
 
                     console.log('[Editor] Resume saved to applications collection');
                     toast.success('Resume updated! 🎉');
+                    localStorage.removeItem(`draft_resume_${params.id}`);
                 } else {
                     // Final fallback: Save to appliedResumes (old format)
                     await setDoc(doc(db, 'appliedResumes', resumeId as string), {
@@ -921,6 +927,7 @@ export default function EditorPage() {
                     });
 
                     toast.success('Resume saved! 🎉');
+                    localStorage.removeItem(`draft_resume_${params.id}`);
                 }
             }
 
