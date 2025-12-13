@@ -211,43 +211,49 @@ class OptionsController {
             const result = await chrome.storage.local.get(['flashSession', 'flashSessionTimestamp']);
             const sessionSection = document.getElementById('sessionInfoSection');
 
+            console.log('[Options] Flash session:', result.flashSession);
+
             if (result.flashSession && result.flashSessionTimestamp) {
                 const age = Date.now() - result.flashSessionTimestamp;
                 if (age < 3600000) { // 1 hour
                     const session = result.flashSession;
                     const pi = session.personalInfo || {};
-                    const loc = pi.location || {};
 
                     sessionSection.style.display = 'block';
 
-                    // Personal Info
-                    const fullName = `${pi.firstName || ''} ${pi.lastName || ''}`.trim() || '-';
+                    // Personal Info - fullName might exist or compose from firstName/lastName
+                    const fullName = pi.fullName || `${pi.firstName || ''} ${pi.lastName || ''}`.trim() || '-';
                     document.getElementById('sessionFullName').textContent = fullName;
                     document.getElementById('sessionEmail').textContent = pi.email || '-';
                     document.getElementById('sessionPhone').textContent = pi.phone || '-';
 
-                    // Location
-                    const location = [loc.city, loc.state, loc.country].filter(Boolean).join(', ') || '-';
+                    // Location - Firebase stores city/state/country directly on personalInfo, NOT nested!
+                    const city = pi.city || pi.location || '';
+                    const state = pi.state || '';
+                    const country = pi.country || '';
+                    const location = [city, state, country].filter(Boolean).join(', ') || '-';
                     document.getElementById('sessionLocation').textContent = location;
 
                     // Links
                     document.getElementById('sessionLinkedin').textContent = pi.linkedin || '-';
                     document.getElementById('sessionGithub').textContent = pi.github || '-';
-                    document.getElementById('sessionPortfolio').textContent = pi.portfolio || pi.website || '-';
+                    document.getElementById('sessionPortfolio').textContent = pi.portfolio || pi.website || pi.otherUrl || '-';
 
                     // Target Job
-                    document.getElementById('sessionJobTitle').textContent = session.targetJobTitle || session.jobTitle || '-';
-                    document.getElementById('sessionJobCompany').textContent = session.targetCompany || session.jobCompany || '-';
+                    document.getElementById('sessionJobTitle').textContent = session.jobTitle || session.targetJobTitle || '-';
+                    document.getElementById('sessionJobCompany').textContent = session.jobCompany || session.targetCompany || '-';
 
-                    // Current Experience
+                    // Current Experience - get most recent (index 0)
                     const exp = session.experience?.[0] || {};
-                    document.getElementById('sessionCurrentRole').textContent = exp.position || exp.title || '-';
+                    document.getElementById('sessionCurrentRole').textContent = exp.title || exp.position || '-';
                     document.getElementById('sessionCurrentCompany').textContent = exp.company || '-';
 
                     // Skills summary
                     const skills = session.skills?.all ||
                         (typeof session.skills === 'string' ? session.skills : '') || '-';
-                    document.getElementById('sessionSkills').textContent = skills.substring(0, 200) + (skills.length > 200 ? '...' : '');
+                    document.getElementById('sessionSkills').textContent = skills.length > 200
+                        ? skills.substring(0, 200) + '...'
+                        : skills;
                     return;
                 }
             }
