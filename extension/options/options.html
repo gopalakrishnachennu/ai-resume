@@ -151,43 +151,82 @@
                 </div>
 
                 <div class="profile-editor" id="profileEditor" style="display: none;">
-                    <!-- Personal Info - Simplified -->
-                    <div class="editor-section">
-                        <h3>Basic Information</h3>
-                        <p class="section-hint">Your name and email are used for identification. Detailed profile data
-                            comes from the webapp when you use Flash.</p>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>First Name</label>
-                                <input type="text" id="firstName" placeholder="John">
-                            </div>
-                            <div class="form-group">
-                                <label>Last Name</label>
-                                <input type="text" id="lastName" placeholder="Doe">
-                            </div>
-                            <div class="form-group full-width">
-                                <label>Email</label>
-                                <input type="email" id="email" placeholder="john@example.com">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Active Session Info -->
-                    <div class="editor-section" id="sessionInfoSection" style="display: none;">
+                    <!-- Active Session Info - Shows ALL details from webapp Flash -->
+                    <div class="editor-section" id="sessionInfoSection">
                         <h3>⚡ Active Session</h3>
-                        <p class="section-hint">Your current Flash session from the webapp</p>
+                        <p class="section-hint">Profile data synced from the webapp via Flash</p>
                         <div class="session-info-card">
-                            <div class="session-detail">
-                                <span class="session-label">Job:</span>
-                                <span class="session-value" id="sessionJobTitle">-</span>
+                            <!-- Personal Info -->
+                            <div class="session-group">
+                                <h4>👤 Personal</h4>
+                                <div class="session-detail">
+                                    <span class="session-label">Name:</span>
+                                    <span class="session-value" id="sessionFullName">-</span>
+                                </div>
+                                <div class="session-detail">
+                                    <span class="session-label">Email:</span>
+                                    <span class="session-value" id="sessionEmail">-</span>
+                                </div>
+                                <div class="session-detail">
+                                    <span class="session-label">Phone:</span>
+                                    <span class="session-value" id="sessionPhone">-</span>
+                                </div>
+                                <div class="session-detail">
+                                    <span class="session-label">Location:</span>
+                                    <span class="session-value" id="sessionLocation">-</span>
+                                </div>
                             </div>
-                            <div class="session-detail">
-                                <span class="session-label">Company:</span>
-                                <span class="session-value" id="sessionJobCompany">-</span>
+
+                            <!-- Links -->
+                            <div class="session-group">
+                                <h4>🔗 Links</h4>
+                                <div class="session-detail">
+                                    <span class="session-label">LinkedIn:</span>
+                                    <span class="session-value" id="sessionLinkedin">-</span>
+                                </div>
+                                <div class="session-detail">
+                                    <span class="session-label">GitHub:</span>
+                                    <span class="session-value" id="sessionGithub">-</span>
+                                </div>
+                                <div class="session-detail">
+                                    <span class="session-label">Portfolio:</span>
+                                    <span class="session-value" id="sessionPortfolio">-</span>
+                                </div>
                             </div>
-                            <div class="session-detail">
-                                <span class="session-label">Skills:</span>
-                                <span class="session-value" id="sessionSkills">-</span>
+
+                            <!-- Target Job -->
+                            <div class="session-group">
+                                <h4>🎯 Target Job</h4>
+                                <div class="session-detail">
+                                    <span class="session-label">Position:</span>
+                                    <span class="session-value" id="sessionJobTitle">-</span>
+                                </div>
+                                <div class="session-detail">
+                                    <span class="session-label">Company:</span>
+                                    <span class="session-value" id="sessionJobCompany">-</span>
+                                </div>
+                            </div>
+
+                            <!-- Experience -->
+                            <div class="session-group">
+                                <h4>💼 Current Experience</h4>
+                                <div class="session-detail">
+                                    <span class="session-label">Role:</span>
+                                    <span class="session-value" id="sessionCurrentRole">-</span>
+                                </div>
+                                <div class="session-detail">
+                                    <span class="session-label">Company:</span>
+                                    <span class="session-value" id="sessionCurrentCompany">-</span>
+                                </div>
+                            </div>
+
+                            <!-- Skills -->
+                            <div class="session-group">
+                                <h4>🛠 Skills</h4>
+                                <div class="session-detail full-width">
+                                    <span class="session-value" id="sessionSkills"
+                                        style="white-space: pre-wrap;">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>

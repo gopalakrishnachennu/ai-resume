@@ -205,7 +205,7 @@ class OptionsController {
         this.profile.personalInfo.email = document.getElementById('email')?.value || '';
     }
 
-    // Load active session info
+    // Load active session info - Show ALL details
     async loadSessionInfo() {
         try {
             const result = await chrome.storage.local.get(['flashSession', 'flashSessionTimestamp']);
@@ -215,18 +215,44 @@ class OptionsController {
                 const age = Date.now() - result.flashSessionTimestamp;
                 if (age < 3600000) { // 1 hour
                     const session = result.flashSession;
+                    const pi = session.personalInfo || {};
+                    const loc = pi.location || {};
 
                     sessionSection.style.display = 'block';
-                    document.getElementById('sessionJobTitle').textContent = session.jobTitle || '-';
-                    document.getElementById('sessionJobCompany').textContent = session.jobCompany || '-';
+
+                    // Personal Info
+                    const fullName = `${pi.firstName || ''} ${pi.lastName || ''}`.trim() || '-';
+                    document.getElementById('sessionFullName').textContent = fullName;
+                    document.getElementById('sessionEmail').textContent = pi.email || '-';
+                    document.getElementById('sessionPhone').textContent = pi.phone || '-';
+
+                    // Location
+                    const location = [loc.city, loc.state, loc.country].filter(Boolean).join(', ') || '-';
+                    document.getElementById('sessionLocation').textContent = location;
+
+                    // Links
+                    document.getElementById('sessionLinkedin').textContent = pi.linkedin || '-';
+                    document.getElementById('sessionGithub').textContent = pi.github || '-';
+                    document.getElementById('sessionPortfolio').textContent = pi.portfolio || pi.website || '-';
+
+                    // Target Job
+                    document.getElementById('sessionJobTitle').textContent = session.targetJobTitle || session.jobTitle || '-';
+                    document.getElementById('sessionJobCompany').textContent = session.targetCompany || session.jobCompany || '-';
+
+                    // Current Experience
+                    const exp = session.experience?.[0] || {};
+                    document.getElementById('sessionCurrentRole').textContent = exp.position || exp.title || '-';
+                    document.getElementById('sessionCurrentCompany').textContent = exp.company || '-';
 
                     // Skills summary
-                    const skills = session.skills?.all || '';
-                    document.getElementById('sessionSkills').textContent = skills ? skills.substring(0, 100) + '...' : '-';
+                    const skills = session.skills?.all ||
+                        (typeof session.skills === 'string' ? session.skills : '') || '-';
+                    document.getElementById('sessionSkills').textContent = skills.substring(0, 200) + (skills.length > 200 ? '...' : '');
                     return;
                 }
             }
-            sessionSection.style.display = 'none';
+            // No active session - show placeholder
+            sessionSection.style.display = 'block';
         } catch (error) {
             console.log('[Options] No session info:', error);
         }

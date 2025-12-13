@@ -329,6 +329,25 @@ body {
     padding: var(--space-md);
 }
 
+.session-group {
+    margin-bottom: var(--space-md);
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid rgba(147, 51, 234, 0.2);
+}
+
+.session-group:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.session-group h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #7c3aed;
+    margin-bottom: var(--space-sm);
+}
+
 .session-detail {
     display: flex;
     gap: var(--space-sm);
