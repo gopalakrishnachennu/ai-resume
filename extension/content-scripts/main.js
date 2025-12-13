@@ -126,8 +126,8 @@ async function initialize(force = false) {
                 handleChecklistFromBanner
             );
 
-            // Initialize fill tracker
-            fillTracker = new FillTracker();
+            // DISABLED: Fill tracker panel (user requested removal)
+            // fillTracker = new FillTracker();
 
             // Initialize prediction engine
             if (typeof PredictionEngine !== 'undefined') {
