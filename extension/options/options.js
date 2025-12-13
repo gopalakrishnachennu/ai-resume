@@ -254,6 +254,58 @@ class OptionsController {
                     document.getElementById('sessionSkills').textContent = skills.length > 200
                         ? skills.substring(0, 200) + '...'
                         : skills;
+
+                    // Responsibilities from current experience
+                    const responsibilitiesList = document.getElementById('sessionResponsibilities');
+                    const responsibilities = exp.responsibilities || [];
+                    if (responsibilities.length > 0) {
+                        responsibilitiesList.innerHTML = responsibilities
+                            .slice(0, 5)
+                            .map(r => `<li>${r}</li>`)
+                            .join('');
+                        if (responsibilities.length > 5) {
+                            responsibilitiesList.innerHTML += `<li>... and ${responsibilities.length - 5} more</li>`;
+                        }
+                    } else {
+                        responsibilitiesList.innerHTML = '<li>-</li>';
+                    }
+
+                    // Job Description
+                    const jd = session.jobDescription || '';
+                    const jdPreview = document.getElementById('sessionJobDescription');
+                    if (jd) {
+                        jdPreview.textContent = jd.length > 500
+                            ? jd.substring(0, 500) + '...'
+                            : jd;
+                    } else {
+                        jdPreview.textContent = '-';
+                    }
+
+                    // Extension Settings
+                    const es = session.extensionSettings || {};
+                    document.getElementById('sessionWorkAuth').textContent = es.workAuthorization || '-';
+                    document.getElementById('sessionSponsorship').textContent =
+                        es.requireSponsorship === 'yes' ? 'Required' :
+                            es.requireSponsorship === 'no' ? 'Not Required' : '-';
+
+                    // Salary
+                    const salaryMin = es.salaryMin || '';
+                    const salaryMax = es.salaryMax || '';
+                    const currency = es.salaryCurrency || 'USD';
+                    if (salaryMin || salaryMax) {
+                        document.getElementById('sessionSalary').textContent =
+                            `${currency} ${salaryMin} - ${salaryMax}`;
+                    } else {
+                        document.getElementById('sessionSalary').textContent = es.salaryExpectation || '-';
+                    }
+
+                    document.getElementById('sessionExperience').textContent = es.totalExperience || '-';
+                    document.getElementById('sessionWorkType').textContent = es.workType || '-';
+                    document.getElementById('sessionRelocate').textContent =
+                        es.willingToRelocate === 'yes' ? 'Yes' :
+                            es.willingToRelocate === 'no' ? 'No' : '-';
+                    document.getElementById('sessionNoticePeriod').textContent = es.noticePeriod || '-';
+
                     return;
                 }
             }
