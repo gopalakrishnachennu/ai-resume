@@ -51,29 +51,15 @@ export const PROMPT_REGISTRY: PromptRegistry = {
   // ========================================
   phase1: {
     jobParser: {
-      system: 'You are an expert job description analyzer. Extract structured data accurately and concisely. Pay special attention to correctly identifying company names.',
+      system: 'You are an expert job description analyzer. Extract structured data accurately and concisely.',
       user: `Analyze this job description and extract key information.
 
 Job Description:
 {{ job_description }}
 
-COMPANY EXTRACTION RULES (CRITICAL):
-1. Look for company name in these common patterns:
-   - "About [Company]", "at [Company]", "[Company] is hiring"
-   - Company name near "About Us", "Who We Are", "Our Company"
-   - Domain names in email addresses (e.g., jobs@microsoft.com → Microsoft)
-2. AVOID these false positives - these are NOT company names:
-   - Job levels: Senior, Junior, Lead, Principal, Staff
-   - Work modes: Remote, Hybrid, On-site, Full-time, Part-time
-   - Locations: Cities, states, countries
-   - Skills: Any technical skill or tool name
-   - Adjectives: Dutch, Global, International, Dynamic
-3. If company name is unclear or not found, return "NOT_FOUND"
-4. Company names are typically 1-4 words, capitalized, often include Inc, LLC, Corp, etc.
-
 Return ONLY valid JSON with these fields:
-- title: exact job title (required)
-- company: company name or "NOT_FOUND" if unclear
+- title: exact job title
+- company: company name or empty string
 - requiredSkills: array of required skills
 - preferredSkills: array of preferred/nice-to-have skills
 - keywords: array of important keywords for ATS

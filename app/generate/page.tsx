@@ -46,11 +46,6 @@ export default function GeneratePage() {
     // Free tries counter
     const [freeTriesInfo, setFreeTriesInfo] = useState<{ used: number; total: number; available: boolean } | null>(null);
 
-    // Confirmation modal for job details (edited title/company before generating)
-    const [showConfirmation, setShowConfirmation] = useState(false);
-    const [editedTitle, setEditedTitle] = useState('');
-    const [editedCompany, setEditedCompany] = useState('');
-
     const tryUseGlobalApiKey = async () => {
         if (!user) return false;
 
@@ -228,37 +223,7 @@ export default function GeneratePage() {
                 { provider: providerToUse, apiKey: apiKeyToUse }
             );
 
-            // Validate and clean company name
-            const cleanCompanyName = (raw: string | undefined): string => {
-                if (!raw || raw === 'NOT_FOUND' || raw.length < 2) return '';
-
-                // Common false positives to filter out
-                const falsePositives = [
-                    'remote', 'hybrid', 'onsite', 'on-site', 'full-time', 'part-time',
-                    'senior', 'junior', 'lead', 'principal', 'staff', 'intern',
-                    'dutch', 'global', 'international', 'dynamic', 'innovative',
-                    'usa', 'uk', 'india', 'europe', 'asia', 'worldwide',
-                    'urgent', 'immediate', 'asap', 'now hiring'
-                ];
-
-                if (falsePositives.includes(raw.toLowerCase())) return '';
-
-                // If it looks like a single common word (not a company), reject it
-                if (raw.length < 4 && !/[A-Z]/.test(raw)) return '';
-
-                return raw;
-            };
-
-            const cleanedAnalysis = {
-                ...result.jobAnalysis,
-                company: cleanCompanyName(result.jobAnalysis.company)
-            };
-
-            setAnalysis(cleanedAnalysis);
-
-            // Pre-populate confirmation fields
-            setEditedTitle(cleanedAnalysis.title || '');
-            setEditedCompany(cleanedAnalysis.company || '');
+            setAnalysis(result.jobAnalysis);
 
             if (result.cached) {
                 toast.success('Analysis loaded from cache!', { id: 'analyze' });
@@ -285,7 +250,7 @@ export default function GeneratePage() {
 
         setAnalysis({
             title: manualTitle,
-            company: manualCompany || 'Not specified',
+            company: manualCompany.trim() || '',  // Empty string allows proper fallback handling
             keywords: {
                 technical: [],
                 soft: [],
@@ -385,14 +350,10 @@ export default function GeneratePage() {
             );
 
             // Save resume to Firestore
-            // Use edited values from confirmation (or original if not edited)
-            const finalTitle = editedTitle || analysis.title;
-            const finalCompany = editedCompany || analysis.company || 'Not Specified';
-
             const resumeData = {
                 userId: user.uid,
-                jobTitle: finalTitle,
-                jobCompany: finalCompany,
+                jobTitle: analysis.title,
+                jobCompany: analysis.company,
                 jobDescription: jobDescription,
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
@@ -416,6 +377,7 @@ export default function GeneratePage() {
             };
 
             await setDoc(doc(db, 'resumes', resumeId), resumeData);
+            console.log('[Generate] Resume saved to resumes collection:', resumeId, 'userId:', user.uid);
 
             // Clear localStorage
             localStorage.removeItem('draft_jobDescription');
@@ -806,41 +768,12 @@ The more details you include, the better your resume will be tailored. Include:
                             </button>
                         </div>
 
-                        {/* Job Info Card - Editable */}
+                        {/* Job Info Card */}
                         <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex-1">
-                                    {/* Editable Title */}
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <input
-                                            type="text"
-                                            value={editedTitle}
-                                            onChange={(e) => setEditedTitle(e.target.value)}
-                                            className="text-xl font-bold bg-transparent border-b border-white/30 focus:border-white outline-none w-full py-1"
-                                            placeholder="Job Title"
-                                        />
-                                        <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                        </svg>
-                                    </div>
-
-                                    {/* Editable Company */}
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="text"
-                                            value={editedCompany}
-                                            onChange={(e) => setEditedCompany(e.target.value)}
-                                            className={`bg-transparent border-b outline-none w-full py-1 ${editedCompany ? 'text-slate-300 border-white/20 focus:border-white/50' : 'text-amber-400 border-amber-400/50 focus:border-amber-400 placeholder-amber-400/70'
-                                                }`}
-                                            placeholder="Enter company name..."
-                                        />
-                                        {!editedCompany && (
-                                            <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-xs font-medium rounded-full whitespace-nowrap">
-                                                Required
-                                            </span>
-                                        )}
-                                    </div>
-
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <h3 className="text-xl font-bold mb-1">{analysis.title}</h3>
+                                    <p className="text-slate-300">{analysis.company}</p>
                                     {analysis.yearsExperience && (
                                         <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full text-sm">
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -850,24 +783,12 @@ The more details you include, the better your resume will be tailored. Include:
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    {analysis.isManual && (
-                                        <span className="px-2.5 py-1 bg-amber-400/20 text-amber-300 text-xs font-medium rounded-full">
-                                            Manual Entry
-                                        </span>
-                                    )}
-                                    {editedCompany && (
-                                        <span className="px-2.5 py-1 bg-emerald-400/20 text-emerald-300 text-xs font-medium rounded-full">
-                                            ✓ Ready
-                                        </span>
-                                    )}
-                                </div>
+                                {analysis.isManual && (
+                                    <span className="px-2.5 py-1 bg-amber-400/20 text-amber-300 text-xs font-medium rounded-full">
+                                        Manual Entry
+                                    </span>
+                                )}
                             </div>
-
-                            {/* Tip for editing */}
-                            <p className="text-xs text-slate-400 mt-2">
-                                💡 You can edit the job title and company above before generating
-                            </p>
                         </div>
 
                         {/* Skills Grid */}
@@ -968,38 +889,15 @@ The more details you include, the better your resume will be tailored. Include:
 
                         {/* Generate Button */}
                         <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                            {/* Warning if company is empty */}
-                            {!editedCompany && (
-                                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
-                                    <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                    </svg>
-                                    <div>
-                                        <p className="text-sm font-medium text-amber-800">Company name is required</p>
-                                        <p className="text-xs text-amber-600 mt-0.5">Please enter the company name in the card above before generating</p>
-                                    </div>
-                                </div>
-                            )}
-
                             <div className="flex flex-col sm:flex-row items-center gap-4">
                                 <div className="flex-1 text-center sm:text-left">
-                                    <h3 className="font-semibold text-slate-900 mb-1">
-                                        {editedCompany ? 'Ready to generate your resume?' : 'Almost ready!'}
-                                    </h3>
-                                    <p className="text-sm text-slate-500">
-                                        {editedCompany
-                                            ? 'Your resume will be tailored using the extracted keywords and your profile data'
-                                            : 'Enter the company name above to continue'
-                                        }
-                                    </p>
+                                    <h3 className="font-semibold text-slate-900 mb-1">Ready to generate your resume?</h3>
+                                    <p className="text-sm text-slate-500">Your resume will be tailored using the extracted keywords and your profile data</p>
                                 </div>
                                 <button
                                     onClick={handleGenerateResume}
-                                    disabled={generating || !editedCompany || !editedTitle}
-                                    className={`flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold shadow-lg transition-all whitespace-nowrap ${editedCompany && editedTitle
-                                            ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5'
-                                            : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
-                                        } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+                                    disabled={generating}
+                                    className="flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all whitespace-nowrap"
                                 >
                                     {generating ? (
                                         <>
