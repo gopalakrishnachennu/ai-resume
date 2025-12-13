@@ -424,6 +424,55 @@ body {
     margin-top: var(--space-sm);
 }
 
+/* Education Cards */
+.education-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+}
+
+.education-card:last-child {
+    margin-bottom: 0;
+}
+
+.education-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.education-header strong {
+    color: var(--gray-800);
+    font-size: 14px;
+}
+
+.education-field {
+    color: #7c3aed;
+    font-weight: 500;
+}
+
+.education-meta {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 4px;
+}
+
+.institution {
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+/* No data placeholder */
+.no-data {
+    color: var(--gray-400);
+    font-style: italic;
+    font-size: 13px;
+    padding: var(--space-sm) 0;
+}
+
 .session-detail {
     display: flex;
     gap: var(--space-sm);

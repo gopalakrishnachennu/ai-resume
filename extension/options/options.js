@@ -268,16 +268,42 @@ class OptionsController {
                                 </div>
                             `;
                         }).join('');
+                        document.getElementById('sessionExpCount').textContent = allExperiences.length;
                     } else {
-                        expListContainer.innerHTML = '<p>No experience data</p>';
+                        expListContainer.innerHTML = '<p class="no-data">No experience data</p>';
+                        document.getElementById('sessionExpCount').textContent = '0';
                     }
 
-                    // Skills summary
+                    // ALL Education - render each one dynamically
+                    const allEducation = session.education || [];
+                    const eduListContainer = document.getElementById('sessionEducationList');
+
+                    if (allEducation.length > 0) {
+                        eduListContainer.innerHTML = allEducation.map(edu => {
+                            return `
+                                <div class="education-card">
+                                    <div class="education-header">
+                                        <strong>${edu.degree || 'Degree'}</strong>
+                                        ${edu.field ? `<span class="education-field">in ${edu.field}</span>` : ''}
+                                    </div>
+                                    <div class="education-meta">
+                                        <span class="institution">${edu.institution || 'Institution'}</span>
+                                        ${edu.graduationDate ? ` · Graduated ${edu.graduationDate}` : ''}
+                                        ${edu.gpa ? ` · GPA: ${edu.gpa}` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        document.getElementById('sessionEduCount').textContent = allEducation.length;
+                    } else {
+                        eduListContainer.innerHTML = '<p class="no-data">No education data</p>';
+                        document.getElementById('sessionEduCount').textContent = '0';
+                    }
+
+                    // Skills summary - show all, not truncated
                     const skills = session.skills?.all ||
                         (typeof session.skills === 'string' ? session.skills : '') || '-';
-                    document.getElementById('sessionSkills').textContent = skills.length > 200
-                        ? skills.substring(0, 200) + '...'
-                        : skills;
+                    document.getElementById('sessionSkills').textContent = skills;
 
                     // Job Description
                     const jd = session.jobDescription || '';
