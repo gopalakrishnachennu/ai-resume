@@ -354,12 +354,10 @@ export default function EditorPage() {
                 resumeData,
                 sections,
                 settings,
-                jobTitle,
-                jobCompany,
                 updatedAt: Date.now()
             }));
         }
-    }, [resumeData, sections, settings, jobTitle, jobCompany, params.id, loading]);
+    }, [resumeData, sections, settings, params.id, loading]);
 
     const loadData = async () => {
         try {
@@ -375,8 +373,6 @@ export default function EditorPage() {
                         setResumeData(draft.resumeData);
                         if (draft.sections) setSections(draft.sections);
                         if (draft.settings) setSettings(draft.settings);
-                        if (draft.jobTitle) setJobTitle(draft.jobTitle);
-                        if (draft.jobCompany) setJobCompany(draft.jobCompany);
 
                         const analysisStr = localStorage.getItem('jobAnalysis');
                         if (analysisStr) setJobAnalysis(JSON.parse(analysisStr));
@@ -466,9 +462,9 @@ export default function EditorPage() {
                 if (resumeDoc.exists()) {
                     const resumeData = resumeDoc.data();
 
-                    // Load job title and company (check both field names for compatibility)
-                    setJobTitle(resumeData.jobTitle || resumeData.title || '');
-                    setJobCompany(resumeData.jobCompany || resumeData.company || '');
+                    // Load job title and company
+                    setJobTitle(resumeData.jobTitle || '');
+                    setJobCompany(resumeData.jobCompany || '');
 
                     // Check if this is AI-generated resume (new format)
                     if (resumeData.professionalSummary || resumeData.technicalSkills) {
@@ -529,8 +525,8 @@ export default function EditorPage() {
                 const appDoc = await getDoc(doc(db, 'applications', params.id as string));
                 if (appDoc.exists()) {
                     const appData = appDoc.data() as any;
-                    setJobTitle(appData.jobTitle || appData.title || '');
-                    setJobCompany(appData.jobCompany || appData.company || '');
+                    setJobTitle(appData.jobTitle || '');
+                    setJobCompany(appData.jobCompany || '');
 
                     if (appData.resume) {
                         const resume = appData.resume;
@@ -810,7 +806,6 @@ export default function EditorPage() {
                     ...resumeDoc.data(),
                     jobTitle: derivedTitle,
                     jobCompany: jobCompany || '',
-                    company: jobCompany || '',  // Backward compatibility
                     personalInfo: resumeData.personalInfo,
                     summary: resumeData.summary,
                     professionalSummary: resumeData.summary,
@@ -850,7 +845,6 @@ export default function EditorPage() {
 
                 console.log('[Editor] Resume saved to resumes collection (top-level)');
                 toast.success('Resume updated! 🎉');
-                localStorage.removeItem(`draft_resume_${params.id}`);
             } else {
                 // ====== APPLICATIONS COLLECTION (user's new flow) ======
                 const appDocRef = doc(db, 'applications', resumeId as string);
@@ -909,7 +903,6 @@ export default function EditorPage() {
 
                     console.log('[Editor] Resume saved to applications collection');
                     toast.success('Resume updated! 🎉');
-                    localStorage.removeItem(`draft_resume_${params.id}`);
                 } else {
                     // Final fallback: Save to appliedResumes (old format)
                     await setDoc(doc(db, 'appliedResumes', resumeId as string), {
@@ -927,7 +920,6 @@ export default function EditorPage() {
                     });
 
                     toast.success('Resume saved! 🎉');
-                    localStorage.removeItem(`draft_resume_${params.id}`);
                 }
             }
 
