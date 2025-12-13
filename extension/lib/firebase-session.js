@@ -256,6 +256,9 @@ const FirebaseSession = {
             resumePdfUrl: session.pdfUrl || '',
             resumeDocxUrl: session.docxUrl || '',
 
+            // CRITICAL: Include extensionSettings for form filler
+            extensionSettings: extensionSettings,
+
             // Session metadata
             _sessionActive: true,
             _fromFlash: true,
