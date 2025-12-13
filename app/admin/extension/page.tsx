@@ -71,7 +71,7 @@ const defaultSettings: ExtensionSettings = {
 
     // Groq AI Defaults
     groqApiKeys: '',
-    groqModel: 'gemma2-2b-it',
+    groqModel: 'llama-3.1-8b-instant',
     groqEnabled: true,
     groqTemperature: 0.3,
     groqMaxTokensPerField: 150,
@@ -453,10 +453,10 @@ export default function ExtensionSettingsPage() {
                                             onChange={(e) => updateSetting('groqModel', e.target.value)}
                                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                         >
-                                            <option value="gemma2-2b-it">Gemma 2 2B (Fast)</option>
-                                            <option value="llama-3.1-8b-instant">Llama 3.1 8B (Balanced)</option>
+                                            <option value="llama-3.1-8b-instant">Llama 3.1 8B (Fast & Recommended)</option>
+                                            <option value="llama-3.2-3b-preview">Llama 3.2 3B (Fastest)</option>
                                             <option value="llama-3.1-70b-versatile">Llama 3.1 70B (Quality)</option>
-                                            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                                            <option value="mixtral-8x7b-32768">Mixtral 8x7B (Balanced)</option>
                                         </select>
                                     </div>
                                     <div>
