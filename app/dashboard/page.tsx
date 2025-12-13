@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
-import { collection, query, where, getDocs, orderBy, deleteDoc, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, deleteDoc, doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { authService } from '@/lib/services/auth';
 import { toast } from 'react-hot-toast';
@@ -224,6 +224,21 @@ export default function DashboardPage() {
         show: false,
         pendingApp: null,
         pendingJobUrl: '',
+    });
+
+    // Edit Company Modal
+    const [editCompanyModal, setEditCompanyModal] = useState<{
+        show: boolean;
+        appId: string;
+        currentCompany: string;
+        newCompany: string;
+        saving: boolean;
+    }>({
+        show: false,
+        appId: '',
+        currentCompany: '',
+        newCompany: '',
+        saving: false,
     });
 
     useEffect(() => {
@@ -598,6 +613,58 @@ export default function DashboardPage() {
             loadApplications();
         } catch (error) {
             toast.error('Failed to update status');
+        }
+    };
+
+    // Update company name in Firebase
+    const handleUpdateCompany = async () => {
+        if (!editCompanyModal.newCompany.trim()) {
+            toast.error('Please enter a company name');
+            return;
+        }
+
+        setEditCompanyModal(prev => ({ ...prev, saving: true }));
+
+        try {
+            const appId = editCompanyModal.appId;
+            const newCompany = editCompanyModal.newCompany.trim();
+
+            // Determine which collection to update based on ID pattern
+            if (appId.startsWith('resume_')) {
+                // Flow 1: AI-generated resume in 'resumes' collection
+                await updateDoc(doc(db, 'resumes', appId), {
+                    jobCompany: newCompany,
+                    updatedAt: serverTimestamp(),
+                });
+            } else if (appId.startsWith('app_')) {
+                // Flow 2: Imported resume in 'applications' collection
+                await updateDoc(doc(db, 'applications', appId), {
+                    jobCompany: newCompany,
+                    updatedAt: serverTimestamp(),
+                });
+            } else {
+                // Unknown pattern - try resumes first, then applications
+                try {
+                    await updateDoc(doc(db, 'resumes', appId), {
+                        jobCompany: newCompany,
+                        company: newCompany, // backwards compatibility
+                        updatedAt: serverTimestamp(),
+                    });
+                } catch {
+                    await updateDoc(doc(db, 'applications', appId), {
+                        jobCompany: newCompany,
+                        updatedAt: serverTimestamp(),
+                    });
+                }
+            }
+
+            toast.success('Company name updated!');
+            setEditCompanyModal({ show: false, appId: '', currentCompany: '', newCompany: '', saving: false });
+            loadApplications(); // Refresh the list
+        } catch (error) {
+            console.error('Error updating company:', error);
+            toast.error('Failed to update company name');
+            setEditCompanyModal(prev => ({ ...prev, saving: false }));
         }
     };
 
@@ -1381,7 +1448,27 @@ export default function DashboardPage() {
                                         <div className="flex items-start justify-between mb-3 pr-8">
                                             <div className="flex-1 min-w-0">
                                                 <h3 className="font-semibold text-slate-900 truncate mb-1">{app.jobTitle}</h3>
-                                                <p className="text-sm text-slate-500 truncate">{app.jobCompany || 'No company'}</p>
+                                                <div className="flex items-center gap-1.5 group/company">
+                                                    <p className="text-sm text-slate-500 truncate">{app.jobCompany || 'No company'}</p>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditCompanyModal({
+                                                                show: true,
+                                                                appId: app.id,
+                                                                currentCompany: app.jobCompany || '',
+                                                                newCompany: app.jobCompany || '',
+                                                                saving: false,
+                                                            });
+                                                        }}
+                                                        className="p-1 text-slate-400 opacity-0 group-hover/company:opacity-100 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                                                        title="Edit company name"
+                                                    >
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
                                             </div>
                                             {app.atsScore && <ATSScoreRing score={app.atsScore} size={44} />}
                                         </div>
@@ -2072,6 +2159,65 @@ export default function DashboardPage() {
                                         </svg>
                                         Save Changes
                                     </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Company Modal */}
+            {editCompanyModal.show && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setEditCompanyModal({ show: false, appId: '', currentCompany: '', newCompany: '', saving: false })}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+                        <div className="mb-4">
+                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4 text-blue-600">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-slate-900">Edit Company Name</h3>
+                            <p className="text-sm text-slate-500 mt-1">
+                                Update the company name for this resume
+                            </p>
+                        </div>
+
+                        <input
+                            type="text"
+                            value={editCompanyModal.newCompany}
+                            onChange={(e) => setEditCompanyModal(prev => ({ ...prev, newCompany: e.target.value }))}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter' && editCompanyModal.newCompany.trim()) {
+                                    handleUpdateCompany();
+                                }
+                            }}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-4"
+                            placeholder="Enter company name..."
+                            autoFocus
+                        />
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setEditCompanyModal({ show: false, appId: '', currentCompany: '', newCompany: '', saving: false })}
+                                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleUpdateCompany}
+                                disabled={editCompanyModal.saving || !editCompanyModal.newCompany.trim()}
+                                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                            >
+                                {editCompanyModal.saving ? (
+                                    <>
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Saving...
+                                    </>
+                                ) : (
+                                    'Save'
                                 )}
                             </button>
                         </div>

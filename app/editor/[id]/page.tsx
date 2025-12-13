@@ -79,9 +79,6 @@ export default function EditorPage() {
     const [showAddSectionModal, setShowAddSectionModal] = useState(false);
     const [newSectionName, setNewSectionName] = useState('');
 
-    // Company name modal state (required before save)
-    const [showCompanyModal, setShowCompanyModal] = useState(false);
-    const [pendingSaveCallback, setPendingSaveCallback] = useState<(() => void) | null>(null);
 
     const measurementRef = useRef<HTMLDivElement>(null);
 
@@ -520,54 +517,6 @@ export default function EditorPage() {
                     setLoading(false);
                     return;
                 }
-
-                // ====== APPLICATION EMBED (when opening editor via application id) ======
-                const appDoc = await getDoc(doc(db, 'applications', params.id as string));
-                if (appDoc.exists()) {
-                    const appData = appDoc.data() as any;
-                    setJobTitle(appData.jobTitle || '');
-                    setJobCompany(appData.jobCompany || '');
-
-                    if (appData.resume) {
-                        const resume = appData.resume;
-                        setResumeData({
-                            personalInfo: {
-                                name: resume.personalInfo?.fullName || resume.personalInfo?.name || '',
-                                email: resume.personalInfo?.email || '',
-                                phone: resume.personalInfo?.phone || '',
-                                location: resume.personalInfo?.location || '',
-                                linkedin: resume.personalInfo?.linkedin || '',
-                                github: resume.personalInfo?.portfolio || resume.personalInfo?.github || '',
-                            },
-                            summary: resume.professionalSummary || '',
-                            experience: (resume.experience || []).map((exp: any) => ({
-                                company: exp.company || '',
-                                title: exp.title || '',
-                                location: exp.location || '',
-                                startDate: exp.startDate || '',
-                                endDate: exp.current ? 'Present' : exp.endDate || '',
-                                current: exp.endDate === 'Present' || exp.current || false,
-                                bullets: exp.highlights || exp.bullets || (exp.description ? [exp.description] : []),
-                            })),
-                            education: (resume.education || []).map((edu: any) => ({
-                                school: edu.institution || edu.school || '',
-                                degree: edu.degree || '',
-                                field: edu.field || '',
-                                location: edu.location || '',
-                                graduationDate: edu.graduationDate || '',
-                            })),
-                            skills: {
-                                technical: resume.technicalSkills
-                                    ? Object.entries(resume.technicalSkills)
-                                        .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
-                                    : [],
-                            },
-                        });
-                        setLoading(false);
-                        toast.success('Application resume loaded!');
-                        return;
-                    }
-                }
             }
 
             // Otherwise, load from user profile (new resume)
@@ -633,61 +582,6 @@ export default function EditorPage() {
         calculateATS();
     }, [resumeData]);
 
-    // Auto-save company field (title is derived from experience, not editable)
-    const headerSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    const autoSaveHeader = () => {
-        // Debounce: clear any pending save
-        if (headerSaveTimeoutRef.current) {
-            clearTimeout(headerSaveTimeoutRef.current);
-        }
-
-        // Schedule save after 500ms
-        headerSaveTimeoutRef.current = setTimeout(async () => {
-            if (!user || saving) return;
-
-            const resumeId = params.id as string;
-            if (resumeId === 'new') return;
-
-            try {
-                const companyInput = document.getElementById('company-input') as HTMLInputElement;
-                const currentCompany = companyInput?.value || '';
-                const derivedTitle = jobAnalysis?.title || resumeData.experience[0]?.title || 'Untitled';
-
-                // Try saving to resumes collection first
-                const resumeDocRef = doc(db, 'resumes', resumeId);
-                const resumeDoc = await getDoc(resumeDocRef);
-
-                if (resumeDoc.exists()) {
-                    await setDoc(resumeDocRef, {
-                        jobTitle: derivedTitle,
-                        jobCompany: currentCompany,
-                        updatedAt: serverTimestamp(),
-                    }, { merge: true });
-                    console.log('[Editor] Company saved to resumes:', currentCompany, 'Title:', derivedTitle);
-                    return;
-                }
-
-                // Fallback: save into applications collection (imported/AI app flows)
-                const appDocRef = doc(db, 'applications', resumeId);
-                const appDoc = await getDoc(appDocRef);
-
-                if (appDoc.exists()) {
-                    await setDoc(appDocRef, {
-                        jobTitle: derivedTitle,
-                        jobCompany: currentCompany,
-                        updatedAt: serverTimestamp(),
-                    }, { merge: true });
-                    console.log('[Editor] Company saved to applications:', currentCompany, 'Title:', derivedTitle);
-                } else {
-                    console.warn('[Editor] Auto-save skipped, no doc found for', resumeId);
-                }
-            } catch (error) {
-                console.error('[Editor] Auto-save failed:', error);
-            }
-        }, 500);
-    };
-
     const handleSave = async () => {
         if (!user) {
             toast.error('Please login to save');
@@ -711,12 +605,8 @@ export default function EditorPage() {
             }
         }
 
-        // Validate company name is not empty
-        const companyName = jobCompany || jobAnalysis?.company;
-        if (!companyName || !companyName.trim()) {
-            setShowCompanyModal(true);
-            return;
-        }
+        // Company name is now read-only (set during generation/import)
+        // No validation needed here - company comes from original source
 
         setSaving(true);
 
@@ -792,135 +682,41 @@ export default function EditorPage() {
             }
 
             // ====== AI-GENERATED RESUME ======
-            // Check if this is an AI-generated resume (from 'resumes' collection - top-level)
-            // NOTE: generate/page.tsx saves to: doc(db, 'resumes', resumeId)
+            // Check if this is an AI-generated resume (from 'resumes' collection)
             const resumeDocRef = doc(db, 'resumes', resumeId as string);
             const resumeDoc = await getDoc(resumeDocRef);
 
             if (resumeDoc.exists()) {
-                // Update existing AI-generated resume in resumes collection
-                // Title is derived from experience[0].title or job analysis
-                const derivedTitle = jobAnalysis?.title || resumeData.experience[0]?.title || 'Untitled';
-
+                // Update existing AI-generated resume with ATS score, settings, and editable fields
                 await setDoc(resumeDocRef, {
                     ...resumeDoc.data(),
-                    jobTitle: derivedTitle,
-                    jobCompany: jobCompany || '',
-                    personalInfo: resumeData.personalInfo,
-                    summary: resumeData.summary,
-                    professionalSummary: resumeData.summary,
-                    experience: resumeData.experience.map(exp => ({
-                        company: exp.company,
-                        title: exp.title,
-                        position: exp.title,
-                        location: exp.location,
-                        startDate: exp.startDate,
-                        endDate: exp.current ? 'Present' : exp.endDate,
-                        current: exp.current,
-                        bullets: exp.bullets,
-                        responsibilities: exp.bullets,
-                        highlights: exp.bullets,
-                    })),
-                    education: resumeData.education.map(edu => ({
-                        school: edu.school,
-                        institution: edu.school,
-                        degree: edu.degree,
-                        field: edu.field,
-                        location: edu.location,
-                        graduationDate: edu.graduationDate,
-                    })),
-                    skills: { technical: resumeData.skills.technical },
-                    technicalSkills: resumeData.skills.technical.reduce((acc: any, line: string) => {
-                        const match = line.match(/^\*\*(.+?)\*\*:\s*(.+)$/);
-                        if (match) {
-                            acc[match[1]] = match[2].split(',').map(s => s.trim());
-                        }
-                        return acc;
-                    }, {}),
+                    jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
+                    jobCompany: jobCompany || jobAnalysis?.company || '',
                     atsScore: atsScoreData,
                     settings,  // Save formatting settings
                     sections,  // Save section order
                     updatedAt: serverTimestamp(),
                 }, { merge: true });
 
-                console.log('[Editor] Resume saved to resumes collection (top-level)');
                 toast.success('Resume updated! 🎉');
             } else {
-                // ====== APPLICATIONS COLLECTION (user's new flow) ======
-                const appDocRef = doc(db, 'applications', resumeId as string);
-                const appDoc = await getDoc(appDocRef);
+                // Save to appliedResumes (old format)
+                await setDoc(doc(db, 'appliedResumes', resumeId as string), {
+                    userId: user.uid,
+                    jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
+                    jobCompany: jobCompany || jobAnalysis?.company || '',  // Use consistent field name
+                    company: jobCompany || jobAnalysis?.company || '',      // Keep for backwards compatibility
+                    jobDescription: localStorage.getItem('jobDescription') || '',
+                    resumeData,
+                    sections,
+                    settings,
+                    atsScore: atsScoreData,
+                    status: 'draft',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
 
-                if (appDoc.exists()) {
-                    const derivedTitle = jobAnalysis?.title || resumeData.experience[0]?.title || 'Untitled';
-
-                    // Convert editor format back to storage format
-                    const updatedResume = {
-                        personalInfo: {
-                            fullName: resumeData.personalInfo.name,
-                            email: resumeData.personalInfo.email,
-                            phone: resumeData.personalInfo.phone,
-                            location: resumeData.personalInfo.location,
-                            linkedin: resumeData.personalInfo.linkedin,
-                            portfolio: resumeData.personalInfo.github,
-                        },
-                        professionalSummary: resumeData.summary,
-                        experience: resumeData.experience.map(exp => ({
-                            company: exp.company,
-                            title: exp.title,
-                            location: exp.location,
-                            startDate: exp.startDate,
-                            endDate: exp.current ? 'Present' : exp.endDate,
-                            highlights: exp.bullets,
-                        })),
-                        education: resumeData.education.map(edu => ({
-                            institution: edu.school,
-                            degree: edu.degree,
-                            field: edu.field,
-                            location: edu.location,
-                            graduationDate: edu.graduationDate,
-                        })),
-                        technicalSkills: resumeData.skills.technical.reduce((acc: any, line: string) => {
-                            const match = line.match(/^\*\*(.+?)\*\*:\s*(.+)$/);
-                            if (match) {
-                                acc[match[1]] = match[2].split(',').map(s => s.trim());
-                            } else {
-                                acc['Skills'] = acc['Skills'] || [];
-                                acc['Skills'].push(line);
-                            }
-                            return acc;
-                        }, {}),
-                    };
-
-                    await setDoc(appDocRef, {
-                        jobTitle: derivedTitle,
-                        jobCompany: jobCompany || '',
-                        resume: updatedResume,
-                        atsScore: atsScoreData.total,
-                        settings,
-                        sections,
-                        updatedAt: serverTimestamp(),
-                    }, { merge: true });
-
-                    console.log('[Editor] Resume saved to applications collection');
-                    toast.success('Resume updated! 🎉');
-                } else {
-                    // Final fallback: Save to appliedResumes (old format)
-                    await setDoc(doc(db, 'appliedResumes', resumeId as string), {
-                        userId: user.uid,
-                        jobTitle: jobAnalysis?.title || 'Untitled',
-                        company: jobAnalysis?.company || '',
-                        jobDescription: localStorage.getItem('jobDescription') || '',
-                        resumeData,
-                        sections,
-                        settings,
-                        atsScore: atsScoreData,
-                        status: 'draft',
-                        createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp(),
-                    });
-
-                    toast.success('Resume saved! 🎉');
-                }
+                toast.success('Resume saved! 🎉');
             }
 
             router.push('/dashboard');
@@ -1615,23 +1411,18 @@ export default function EditorPage() {
                                 </svg>
                             </div>
                             <div>
-                                {/* Title - Read-only, derived from job analysis or experience */}
-                                <span className="text-sm font-semibold text-slate-900 block px-1 -ml-1">
-                                    {jobAnalysis?.title || resumeData.experience[0]?.title || 'Resume Editor'}
-                                </span>
-                                {/* Company - Editable */}
                                 <input
                                     type="text"
-                                    id="company-input"
-                                    value={jobCompany}
-                                    onChange={(e) => setJobCompany(e.target.value)}
-                                    onBlur={autoSaveHeader}
-                                    className={`text-xs bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block w-48 ${!jobCompany
-                                        ? 'text-red-500 italic'
-                                        : 'text-slate-500'
-                                        }`}
-                                    placeholder="Enter company name (required)"
+                                    value={jobTitle || jobAnalysis?.title || resumeData.experience[0]?.title || 'Resume Editor'}
+                                    onChange={(e) => setJobTitle(e.target.value)}
+                                    onBlur={handleSave}
+                                    className="text-sm font-semibold text-slate-900 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block"
+                                    placeholder="Job Title"
                                 />
+                                {/* Company displayed as read-only text */}
+                                <span className="text-xs text-slate-500">
+                                    {jobCompany || jobAnalysis?.company || 'No company'}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -2217,58 +2008,7 @@ export default function EditorPage() {
                 )
             }
 
-            {/* Mandatory Company Name Modal */}
-            {showCompanyModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="mb-4">
-                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4 text-blue-600">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                            </div>
-                            <h3 className="text-lg font-semibold text-slate-900">Company Name Required</h3>
-                            <p className="text-sm text-slate-600 mt-1">
-                                Please enter the company name for this resume to save it. This helps organize your applications.
-                            </p>
-                        </div>
 
-                        <input
-                            type="text"
-                            value={jobCompany}
-                            onChange={(e) => setJobCompany(e.target.value)}
-                            onKeyPress={(e) => {
-                                if (e.key === 'Enter' && jobCompany.trim()) {
-                                    setShowCompanyModal(false);
-                                    handleSave();
-                                }
-                            }}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-4"
-                            placeholder="e.g. Google, Microsoft, Startup Inc..."
-                            autoFocus
-                        />
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowCompanyModal(false)}
-                                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowCompanyModal(false);
-                                    handleSave();
-                                }}
-                                disabled={!jobCompany.trim()}
-                                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            >
-                                Save Resume
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div >
     );
 }

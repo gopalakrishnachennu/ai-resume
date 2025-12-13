@@ -250,7 +250,7 @@ export default function GeneratePage() {
 
         setAnalysis({
             title: manualTitle,
-            company: manualCompany || 'Not specified',
+            company: manualCompany.trim() || '',  // Empty string allows proper fallback handling
             keywords: {
                 technical: [],
                 soft: [],
