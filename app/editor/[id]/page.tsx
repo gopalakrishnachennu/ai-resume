@@ -822,6 +822,7 @@ export default function EditorPage() {
 
                 const resumePayload = {
                     ...resumeDoc.data(),
+                    userId: user.uid,  // Explicitly preserve userId for dashboard query
                     jobTitle: derivedTitle,
                     jobCompany: jobCompany || '',
                     company: jobCompany || '',  // Backward compatibility
@@ -914,6 +915,7 @@ export default function EditorPage() {
                     };
 
                     await setDoc(appDocRef, sanitize({
+                        userId: user.uid,  // Explicitly preserve userId
                         jobTitle: derivedTitle,
                         jobCompany: jobCompany || '',
                         resume: updatedResume,
