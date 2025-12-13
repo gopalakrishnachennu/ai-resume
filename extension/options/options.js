@@ -316,30 +316,101 @@ class OptionsController {
                         jdPreview.textContent = '-';
                     }
 
-                    // Extension Settings
+                    // Extension Settings - Render ALL fields dynamically
                     const es = session.extensionSettings || {};
-                    document.getElementById('sessionWorkAuth').textContent = es.workAuthorization || '-';
-                    document.getElementById('sessionSponsorship').textContent =
-                        es.requireSponsorship === 'yes' ? 'Required' :
-                            es.requireSponsorship === 'no' ? 'Not Required' : '-';
+                    const extSettingsContainer = document.getElementById('sessionExtSettingsContainer');
 
-                    // Salary
-                    const salaryMin = es.salaryMin || '';
-                    const salaryMax = es.salaryMax || '';
-                    const currency = es.salaryCurrency || 'USD';
-                    if (salaryMin || salaryMax) {
-                        document.getElementById('sessionSalary').textContent =
-                            `${currency} ${salaryMin} - ${salaryMax}`;
-                    } else {
-                        document.getElementById('sessionSalary').textContent = es.salaryExpectation || '-';
+                    // Define all settings groups with labels
+                    const settingsGroups = [
+                        {
+                            title: '🔗 Links',
+                            fields: [
+                                { key: 'linkedin', label: 'LinkedIn' },
+                                { key: 'twitter', label: 'Twitter/X' },
+                                { key: 'github', label: 'GitHub' },
+                                { key: 'portfolio', label: 'Portfolio' },
+                                { key: 'otherUrl', label: 'Other URL' }
+                            ],
+                            source: pi // Use personalInfo for links
+                        },
+                        {
+                            title: '🏛️ Work Authorization',
+                            fields: [
+                                { key: 'workAuthorization', label: 'Work Auth Status' },
+                                { key: 'requireSponsorship', label: 'Sponsorship Required' },
+                                { key: 'authorizedCountries', label: 'Authorized Countries' }
+                            ]
+                        },
+                        {
+                            title: '💰 Salary & Compensation',
+                            fields: [
+                                { key: 'currentSalary', label: 'Current Salary' },
+                                { key: 'salaryExpectation', label: 'Expected Salary' },
+                                { key: 'salaryCurrency', label: 'Currency' },
+                                { key: 'salaryMin', label: 'Minimum' },
+                                { key: 'salaryMax', label: 'Maximum' }
+                            ]
+                        },
+                        {
+                            title: '📊 Experience & Education',
+                            fields: [
+                                { key: 'totalExperience', label: 'Total Experience' },
+                                { key: 'defaultExperience', label: 'Default (for forms)' },
+                                { key: 'highestEducation', label: 'Highest Education' }
+                            ]
+                        },
+                        {
+                            title: '💼 Work Preferences',
+                            fields: [
+                                { key: 'workType', label: 'Work Type' },
+                                { key: 'willingToRelocate', label: 'Willing to Relocate' },
+                                { key: 'relocateLocations', label: 'Preferred Locations' },
+                                { key: 'noticePeriod', label: 'Notice Period' },
+                                { key: 'expectedJoiningDate', label: 'Joining Date' },
+                                { key: 'companiesToExclude', label: 'Companies to Exclude' }
+                            ]
+                        },
+                        {
+                            title: '🔒 Background',
+                            fields: [
+                                { key: 'securityClearance', label: 'Security Clearance' },
+                                { key: 'veteranStatus', label: 'Veteran Status' },
+                                { key: 'drivingLicense', label: 'Driving License' }
+                            ]
+                        },
+                        {
+                            title: '📋 EEO Information',
+                            fields: [
+                                { key: 'gender', label: 'Gender' },
+                                { key: 'ethnicity', label: 'Race/Ethnicity' },
+                                { key: 'disabilityStatus', label: 'Disability Status' }
+                            ]
+                        }
+                    ];
+
+                    // Build HTML for all groups
+                    let settingsHtml = '';
+                    for (const group of settingsGroups) {
+                        const source = group.source || es; // Use personalInfo for links, else extensionSettings
+                        const fieldsHtml = group.fields
+                            .map(f => {
+                                const value = source[f.key] || '-';
+                                return `
+                                    <div class="session-detail">
+                                        <span class="session-label">${f.label}:</span>
+                                        <span class="session-value">${value}</span>
+                                    </div>`;
+                            })
+                            .join('');
+
+                        settingsHtml += `
+                            <div class="settings-subgroup">
+                                <h5>${group.title}</h5>
+                                ${fieldsHtml}
+                            </div>`;
                     }
 
-                    document.getElementById('sessionExperience').textContent = es.totalExperience || '-';
-                    document.getElementById('sessionWorkType').textContent = es.workType || '-';
-                    document.getElementById('sessionRelocate').textContent =
-                        es.willingToRelocate === 'yes' ? 'Yes' :
-                            es.willingToRelocate === 'no' ? 'No' : '-';
-                    document.getElementById('sessionNoticePeriod').textContent = es.noticePeriod || '-';
+                    extSettingsContainer.innerHTML = settingsHtml || '<p class="no-data">No extension settings</p>';
 
                     return;
                 }

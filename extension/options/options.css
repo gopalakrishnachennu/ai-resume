@@ -473,6 +473,28 @@ body {
     padding: var(--space-sm) 0;
 }
 
+/* Settings Subgroups */
+.settings-subgroup {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+}
+
+.settings-subgroup:last-child {
+    margin-bottom: 0;
+}
+
+.settings-subgroup h5 {
+    font-size: 12px;
+    font-weight: 600;
+    color: #7c3aed;
+    margin-bottom: var(--space-xs);
+    padding-bottom: var(--space-xs);
+    border-bottom: 1px solid rgba(147, 51, 234, 0.2);
+}
+
 .session-detail {
     display: flex;
     gap: var(--space-sm);
