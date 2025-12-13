@@ -3,35 +3,47 @@
 
 const FieldResolver = {
     // Tier 1: Direct mappings from session data
+    // Uses extensionSettings for preferences, personalInfo for personal data
     tier1Mappings: {
-        // Personal Info
+        // Personal Info (from personalInfo object)
         firstName: session => session.personalInfo?.firstName,
         lastName: session => session.personalInfo?.lastName,
-        fullName: session => `${session.personalInfo?.firstName || ''} ${session.personalInfo?.lastName || ''}`.trim(),
+        fullName: session => session.personalInfo?.fullName || `${session.personalInfo?.firstName || ''} ${session.personalInfo?.lastName || ''}`.trim(),
         middleName: session => session.personalInfo?.middleName || '',
         email: session => session.personalInfo?.email,
         phone: session => session.personalInfo?.phone,
-        address: session => session.personalInfo?.location?.address,
-        addressLine2: session => session.personalInfo?.location?.address2 || session.personalInfo?.location?.apt || '',
-        city: session => session.personalInfo?.location?.city,
-        state: session => session.personalInfo?.location?.state,
-        zipCode: session => session.personalInfo?.location?.zipCode,
-        country: session => session.personalInfo?.location?.country || 'United States',
+        address: session => session.personalInfo?.address || session.personalInfo?.location?.address,
+        addressLine2: session => session.personalInfo?.addressLine2 || session.personalInfo?.location?.address2 || '',
+        city: session => session.personalInfo?.city || session.personalInfo?.location?.city,
+        state: session => session.personalInfo?.state || session.personalInfo?.location?.state,
+        zipCode: session => session.personalInfo?.zipCode || session.personalInfo?.location?.zipCode,
+        country: session => session.personalInfo?.country || session.personalInfo?.location?.country || 'United States',
+        currentLocation: session => {
+            const pi = session.personalInfo || {};
+            const city = pi.city || pi.location?.city || '';
+            const state = pi.state || pi.location?.state || '';
+            const country = pi.country || pi.location?.country || '';
+            return [city, state, country].filter(Boolean).join(', ');
+        },
+
+        // Social Links (from personalInfo)
         linkedin: session => session.personalInfo?.linkedin,
         github: session => session.personalInfo?.github,
-        website: session => session.personalInfo?.portfolio || session.personalInfo?.website,
         twitter: session => session.personalInfo?.twitter,
-        currentLocation: session => {
-            const loc = session.personalInfo?.location;
-            if (!loc) return '';
-            const parts = [loc.city, loc.state, loc.country].filter(Boolean);
-            return parts.join(', ');
-        },
+        website: session => session.personalInfo?.portfolio || session.personalInfo?.website,
+        portfolio: session => session.personalInfo?.portfolio || session.personalInfo?.website,
+        otherUrl: session => session.personalInfo?.otherUrl,
 
         // Experience
         company: session => session.experience?.[0]?.company,
         position: session => session.experience?.[0]?.position || session.experience?.[0]?.title,
-        yearsOfExp: session => FieldResolver.calculateYears(session.experience).toString(),
+        title: session => session.experience?.[0]?.title || session.experience?.[0]?.position,
+        yearsOfExp: session => {
+            const es = session.extensionSettings;
+            if (es?.defaultExperience) return es.defaultExperience;
+            if (es?.totalExperience) return es.totalExperience.replace(/[^0-9]/g, '');
+            return FieldResolver.calculateYears(session.experience).toString();
+        },
         responsibilities: session => FieldResolver.formatResponsibilities(session.experience?.[0]?.responsibilities),
 
         // Education
@@ -40,38 +52,95 @@ const FieldResolver = {
         fieldOfStudy: session => session.education?.[0]?.field || session.education?.[0]?.major,
         gpa: session => session.education?.[0]?.gpa,
         graduationDate: session => session.education?.[0]?.endDate || session.education?.[0]?.graduationDate,
+        highestEducation: session => session.extensionSettings?.highestEducation || session.education?.[0]?.degree,
 
-        // Skills - flattened for easy access
+        // Skills
         skills: session => FieldResolver.formatSkills(session.skills),
 
-        // Preferences
-        salary: session => session.preferences?.salaryExpectation?.min?.toString() || '',
-        noticePeriod: session => session.preferences?.noticePeriod || 'Immediately',
-        workType: session => session.preferences?.jobTypes?.[0] || 'Full-time',
-        remoteWork: session => session.preferences?.workArrangement?.[0] || 'Remote'
+        // Work Authorization (from extensionSettings)
+        workAuthorization: session => session.extensionSettings?.workAuthorization || 'Authorized',
+        authorizedCountries: session => session.extensionSettings?.authorizedCountries || 'United States',
+
+        // Sponsorship (from extensionSettings)
+        sponsorship: session => {
+            const need = session.extensionSettings?.requireSponsorship;
+            if (need === 'yes') return 'Yes';
+            if (need === 'no') return 'No';
+            return 'No';
+        },
+        requireSponsorship: session => session.extensionSettings?.requireSponsorship === 'yes' ? 'Yes' : 'No',
+
+        // Salary (from extensionSettings)
+        salary: session => session.extensionSettings?.salaryExpectation || session.extensionSettings?.salaryMin || '',
+        salaryExpectation: session => session.extensionSettings?.salaryExpectation || '',
+        currentSalary: session => session.extensionSettings?.currentSalary || '',
+        salaryMin: session => session.extensionSettings?.salaryMin || '',
+        salaryMax: session => session.extensionSettings?.salaryMax || '',
+        salaryCurrency: session => session.extensionSettings?.salaryCurrency || 'USD',
+
+        // Experience & Education (from extensionSettings)
+        totalExperience: session => session.extensionSettings?.totalExperience || '',
+        defaultExperience: session => session.extensionSettings?.defaultExperience || '',
+
+        // Work Preferences (from extensionSettings)
+        workType: session => session.extensionSettings?.workType || 'Full-time',
+        noticePeriod: session => session.extensionSettings?.noticePeriod || 'Immediately',
+        willingToRelocate: session => session.extensionSettings?.willingToRelocate === 'yes' ? 'Yes' : 'No',
+        relocateLocations: session => session.extensionSettings?.relocateLocations || '',
+        expectedJoiningDate: session => session.extensionSettings?.expectedJoiningDate || '',
+        companiesToExclude: session => session.extensionSettings?.companiesToExclude || '',
+
+        // Background (from extensionSettings)
+        securityClearance: session => session.extensionSettings?.securityClearance === 'yes' ? 'Yes' : 'No',
+        veteranStatus: session => session.extensionSettings?.veteranStatus === 'yes' ? 'Yes' : 'No',
+        veteran: session => session.extensionSettings?.veteranStatus === 'yes' ? 'Yes' : 'No',
+        drivingLicense: session => session.extensionSettings?.drivingLicense === 'yes' ? 'Yes' : 'No',
+
+        // EEO Information (from extensionSettings)
+        gender: session => FieldResolver.formatEEO(session.extensionSettings?.gender),
+        ethnicity: session => FieldResolver.formatEEO(session.extensionSettings?.ethnicity),
+        race: session => FieldResolver.formatEEO(session.extensionSettings?.ethnicity),
+        disabilityStatus: session => FieldResolver.formatDisability(session.extensionSettings?.disabilityStatus),
+        disability: session => FieldResolver.formatDisability(session.extensionSettings?.disabilityStatus)
     },
 
     // Tier 2: Yes/No question patterns
+    // Uses extensionSettings for all preference data
     yesNoPatterns: {
-        'authorized to work': session => session.preferences?.workAuthorized !== false,
-        'legally authorized': session => session.preferences?.workAuthorized !== false,
-        'eligible to work': session => session.preferences?.workAuthorized !== false,
-        'work authorization': session => session.preferences?.workAuthorized !== false,
-        'require sponsorship': session => session.preferences?.sponsorshipRequired === true,
-        'need sponsorship': session => session.preferences?.sponsorshipRequired === true,
-        'visa sponsorship': session => session.preferences?.sponsorshipRequired === true,
-        'willing to relocate': session => session.preferences?.willingToRelocate === true,
-        'open to relocation': session => session.preferences?.willingToRelocate === true,
-        'relocate for': session => session.preferences?.willingToRelocate === true,
+        // Work Authorization questions
+        'authorized to work': session => session.extensionSettings?.workAuthorization && session.extensionSettings.workAuthorization !== 'none',
+        'legally authorized': session => session.extensionSettings?.workAuthorization && session.extensionSettings.workAuthorization !== 'none',
+        'eligible to work': session => session.extensionSettings?.workAuthorization && session.extensionSettings.workAuthorization !== 'none',
+        'work authorization': session => session.extensionSettings?.workAuthorization && session.extensionSettings.workAuthorization !== 'none',
+        'authorized in us': session => session.extensionSettings?.authorizedCountries?.toLowerCase().includes('united states'),
+        'authorized in india': session => session.extensionSettings?.authorizedCountries?.toLowerCase().includes('india'),
+
+        // Sponsorship questions
+        'require sponsorship': session => session.extensionSettings?.requireSponsorship === 'yes',
+        'need sponsorship': session => session.extensionSettings?.requireSponsorship === 'yes',
+        'visa sponsorship': session => session.extensionSettings?.requireSponsorship === 'yes',
+        'require visa': session => session.extensionSettings?.requireSponsorship === 'yes',
+        'do not require': session => session.extensionSettings?.requireSponsorship !== 'yes',
+        'not require sponsorship': session => session.extensionSettings?.requireSponsorship !== 'yes',
+
+        // Relocation questions
+        'willing to relocate': session => session.extensionSettings?.willingToRelocate === 'yes',
+        'open to relocation': session => session.extensionSettings?.willingToRelocate === 'yes',
+        'relocate for': session => session.extensionSettings?.willingToRelocate === 'yes',
+        'able to relocate': session => session.extensionSettings?.willingToRelocate === 'yes',
+
+        // Office/Remote questions
         'willing to commute': session => true,
-        'in the office': session => true,
-        'office 3 days': session => true,
-        'office days': session => true,
-        'hybrid role': session => true,
+        'in the office': session => session.extensionSettings?.workType !== 'remote',
+        'office 3 days': session => session.extensionSettings?.workType === 'hybrid' || session.extensionSettings?.workType === 'flexible',
+        'office days': session => session.extensionSettings?.workType !== 'remote',
+        'hybrid role': session => session.extensionSettings?.workType === 'hybrid' || session.extensionSettings?.workType === 'flexible',
         'comfortable with': session => true,
-        'work remotely': session => true,
-        'remote work': session => true,
-        'work from home': session => true,
+        'work remotely': session => session.extensionSettings?.workType === 'remote' || session.extensionSettings?.workType === 'flexible',
+        'remote work': session => session.extensionSettings?.workType === 'remote' || session.extensionSettings?.workType === 'flexible',
+        'work from home': session => session.extensionSettings?.workType === 'remote' || session.extensionSettings?.workType === 'flexible',
+
+        // Standard questions (always true)
         '18 years': session => true,
         'over 18': session => true,
         'legal age': session => true,
@@ -79,6 +148,26 @@ const FieldResolver = {
         'consent to background': session => true,
         'drug test': session => true,
         'drug screening': session => true,
+
+        // Security/Background
+        'security clearance': session => session.extensionSettings?.securityClearance === 'yes',
+        'clearance': session => session.extensionSettings?.securityClearance === 'yes',
+
+        // Veteran status
+        'veteran': session => session.extensionSettings?.veteranStatus === 'yes',
+        'military': session => session.extensionSettings?.veteranStatus === 'yes',
+        'served in': session => session.extensionSettings?.veteranStatus === 'yes',
+
+        // Driving license
+        'driver': session => session.extensionSettings?.drivingLicense === 'yes',
+        'driving license': session => session.extensionSettings?.drivingLicense === 'yes',
+        'valid license': session => session.extensionSettings?.drivingLicense === 'yes',
+
+        // Disability
+        'disability': session => session.extensionSettings?.disabilityStatus === 'yes',
+        'disabled': session => session.extensionSettings?.disabilityStatus === 'yes',
+
+        // Other
         'non-compete': session => false,
         'currently employed': session => session.experience?.[0]?.current === true,
         'presently working': session => session.experience?.[0]?.current === true
@@ -160,6 +249,7 @@ const FieldResolver = {
     },
 
     // Tier 2b: Select/Radio option matching
+    // Uses extensionSettings for all preference dropdowns
     resolveSelect: (field, session) => {
         if (field.tagName !== 'select' && field.type !== 'radio') return null;
 
@@ -169,42 +259,104 @@ const FieldResolver = {
         const options = FieldResolver.getOptions(element);
         if (options.length === 0) return null;
 
-        const questionText = (field.label || '').toLowerCase();
+        const questionText = (field.label || field.placeholder || '').toLowerCase();
+        const es = session.extensionSettings || {};
 
         // Country matching
         if (questionText.includes('country')) {
-            const country = session.personalInfo?.location?.country || 'United States';
+            const country = session.personalInfo?.country || session.personalInfo?.location?.country || 'United States';
             return FieldResolver.fuzzyMatch(options, country);
         }
 
         // State matching
         if (questionText.includes('state') || questionText.includes('province')) {
-            const state = session.personalInfo?.location?.state;
+            const state = session.personalInfo?.state || session.personalInfo?.location?.state;
             if (state) return FieldResolver.fuzzyMatch(options, state);
         }
 
-        // Degree matching
-        if (questionText.includes('degree') || questionText.includes('education level')) {
-            const degree = session.education?.[0]?.degree;
+        // Degree/Education level matching
+        if (questionText.includes('degree') || questionText.includes('education level') || questionText.includes('highest education')) {
+            const degree = es.highestEducation || session.education?.[0]?.degree;
             if (degree) return FieldResolver.fuzzyMatch(options, degree);
         }
 
         // Years of experience
         if (questionText.includes('years') && questionText.includes('experience')) {
-            const years = FieldResolver.calculateYears(session.experience);
+            const years = parseInt(es.defaultExperience) || parseInt(es.totalExperience) || FieldResolver.calculateYears(session.experience);
             return FieldResolver.findClosestNumeric(options, years);
         }
 
-        // Work arrangement
-        if (questionText.includes('work') && (questionText.includes('type') || questionText.includes('arrangement') || questionText.includes('location'))) {
-            const pref = session.preferences?.workArrangement?.[0] || 'Remote';
-            return FieldResolver.fuzzyMatch(options, pref);
+        // Work type/arrangement
+        if (questionText.includes('work') && (questionText.includes('type') || questionText.includes('arrangement') || questionText.includes('location') || questionText.includes('preference'))) {
+            const workType = es.workType || 'flexible';
+            return FieldResolver.fuzzyMatch(options, workType);
         }
 
         // Employment type
         if (questionText.includes('employment') && questionText.includes('type')) {
-            const type = session.preferences?.jobTypes?.[0] || 'Full-time';
-            return FieldResolver.fuzzyMatch(options, type);
+            return FieldResolver.fuzzyMatch(options, 'Full-time');
+        }
+
+        // Sponsorship required dropdown
+        if (questionText.includes('sponsorship') || questionText.includes('visa')) {
+            const needsSponsorship = es.requireSponsorship === 'yes';
+            return FieldResolver.fuzzyMatch(options, needsSponsorship ? 'Yes' : 'No');
+        }
+
+        // Work authorization dropdown
+        if (questionText.includes('authorization') || questionText.includes('work status')) {
+            const auth = es.workAuthorization || 'opt';
+            return FieldResolver.fuzzyMatch(options, auth);
+        }
+
+        // Relocation dropdown
+        if (questionText.includes('relocate') || questionText.includes('relocation')) {
+            const willing = es.willingToRelocate === 'yes';
+            return FieldResolver.fuzzyMatch(options, willing ? 'Yes' : 'No');
+        }
+
+        // Notice period dropdown
+        if (questionText.includes('notice') || questionText.includes('availability') || questionText.includes('start date')) {
+            const notice = es.noticePeriod || 'immediately';
+            return FieldResolver.fuzzyMatch(options, notice);
+        }
+
+        // Gender dropdown
+        if (questionText.includes('gender') || questionText.includes('sex')) {
+            const gender = es.gender || '';
+            if (gender) return FieldResolver.fuzzyMatch(options, gender);
+        }
+
+        // Ethnicity/Race dropdown
+        if (questionText.includes('ethnicity') || questionText.includes('race') || questionText.includes('ethnic')) {
+            const ethnicity = es.ethnicity || '';
+            if (ethnicity) return FieldResolver.fuzzyMatch(options, ethnicity);
+        }
+
+        // Veteran status dropdown
+        if (questionText.includes('veteran') || questionText.includes('military')) {
+            const veteran = es.veteranStatus === 'yes';
+            return FieldResolver.fuzzyMatch(options, veteran ? 'I am a veteran' : 'I am not a veteran');
+        }
+
+        // Disability dropdowns
+        if (questionText.includes('disability') || questionText.includes('disabled')) {
+            const disabled = es.disabilityStatus;
+            if (disabled === 'yes') return FieldResolver.fuzzyMatch(options, 'I have a disability');
+            if (disabled === 'no') return FieldResolver.fuzzyMatch(options, 'I do not have a disability');
+            return FieldResolver.fuzzyMatch(options, 'decline');
+        }
+
+        // Salary expectation dropdown
+        if (questionText.includes('salary') || questionText.includes('compensation')) {
+            const salaryExp = es.salaryExpectation || es.salaryMin || '';
+            if (salaryExp) return FieldResolver.findClosestNumeric(options, parseInt(salaryExp.replace(/[^0-9]/g, '')));
+        }
+
+        // Currency dropdown
+        if (questionText.includes('currency')) {
+            const currency = es.salaryCurrency || 'USD';
+            return FieldResolver.fuzzyMatch(options, currency);
         }
 
         return null;
@@ -357,6 +509,21 @@ const FieldResolver = {
             return responsibilities.map(r => `• ${r}`).join('\n');
         }
         return '';
+    },
+
+    // Format EEO data (capitalize first letter)
+    formatEEO: (value) => {
+        if (!value) return '';
+        // Capitalize first letter of each word
+        return value.replace(/\b\w/g, l => l.toUpperCase());
+    },
+
+    // Format disability status
+    formatDisability: (value) => {
+        if (!value) return '';
+        if (value === 'yes') return 'I have a disability';
+        if (value === 'no') return 'I do not have a disability';
+        return 'I do not wish to disclose';
     }
 };
 
