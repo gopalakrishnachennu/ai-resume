@@ -322,26 +322,33 @@ async function handleQuickFillFromBanner() {
             aiStats: aiResult?.stats
         });
 
-        // Capture and save Q&A for interview prep
-        if (typeof QACapture !== 'undefined') {
+        // Capture Q&A and wait for actual form submission
+        if (typeof QACapture !== 'undefined' && typeof SubmitDetector !== 'undefined') {
             try {
                 const qaList = QACapture.capture(fields);
                 if (qaList.length > 0) {
                     const applicationData = QACapture.buildApplicationSummary(qaList, {
                         platform: currentPlatform?.name,
                         jobTitle: session?.jobTitle || fields.metadata?.jobTitle,
-                        company: session?.jobCompany || fields.metadata?.company
+                        company: session?.jobCompany || fields.metadata?.company,
+                        // Store JD and resume context
+                        jobDescription: session?.jobDescription || '',
+                        resumeId: session?.resumeId || ''
                     });
 
-                    // Save to Firebase (async, don't wait)
-                    QACapture.saveToFirebase(applicationData).then(result => {
-                        if (result.success) {
-                            Utils.log(`[QuickFill] ${qaList.length} Q&A saved for interview prep`);
-                        }
-                    });
+                    // Store as pending - will save when user actually submits the form
+                    SubmitDetector.setPendingQA(applicationData);
 
-                    // Also save locally as backup
-                    QACapture.saveToLocal(applicationData);
+                    // Initialize submit detection if not already
+                    if (!SubmitDetector._initialized) {
+                        SubmitDetector.init();
+                        SubmitDetector._initialized = true;
+                    }
+
+                    Utils.log(`[QuickFill] ${qaList.length} Q&A captured, waiting for form submission...`);
+
+                    // Show "Mark as Applied" button as fallback (Option B)
+                    showMarkAsAppliedButton();
                 }
             } catch (qaError) {
                 Utils.log('Q&A capture error (non-fatal): ' + qaError.message, 'warn');
@@ -360,6 +367,62 @@ async function handleQuickFillFromBanner() {
         Utils.log('Quick fill error: ' + error.message, 'error');
         return { success: false, error: error.message };
     }
+}
+
+/**
+ * Show "Mark as Applied" button as fallback for manual save (Option B)
+ * This appears after form is filled, user clicks it after submitting
+ */
+function showMarkAsAppliedButton() {
+    // Don't show if already exists
+    if (document.getElementById('jf-mark-applied-btn')) return;
+
+    const button = document.createElement('div');
+    button.id = 'jf-mark-applied-btn';
+    button.innerHTML = `
+        <button style="
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            z-index: 999998;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            <span style="font-size: 18px;">✓</span>
+            Mark as Applied
+        </button>
+    `;
+
+    document.body.appendChild(button);
+
+    button.querySelector('button').addEventListener('click', async () => {
+        if (typeof SubmitDetector !== 'undefined' && SubmitDetector.hasPendingQA()) {
+            await SubmitDetector.manualSave();
+            button.remove();
+        } else {
+            // No pending Q&A - show message
+            button.querySelector('button').innerHTML = `
+                <span style="font-size: 18px;">ℹ️</span>
+                No form data to save
+            `;
+            setTimeout(() => button.remove(), 2000);
+        }
+    });
+
+    // Auto-remove after 10 minutes
+    setTimeout(() => button.remove(), 600000);
 }
 
 
