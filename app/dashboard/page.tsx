@@ -433,10 +433,31 @@ export default function DashboardPage() {
                 });
 
             // Merge all sources: applications + resumes + jobs
-            // Avoid duplicates by checking IDs
+            // Avoid duplicates by checking IDs and resumeIds
             const existingIds = new Set(apps.map(a => a.id));
-            const newLegacyApps = legacyApps.filter(a => !existingIds.has(a.id));
-            const newJobApps = jobApps.filter(a => !existingIds.has(a.id));
+            const existingResumeIds = new Set(apps.map(a => a.resumeId).filter(Boolean));
+
+            // Also track IDs that were migrated (app_resumeId pattern)
+            apps.forEach(a => {
+                if (a.id.startsWith('app_')) {
+                    // Extract the original ID from app_xxx pattern
+                    const originalId = a.id.replace('app_', '');
+                    existingIds.add(originalId);
+                }
+            });
+
+            // Filter legacy resumes - skip if already in applications (by ID or resumeId)
+            const newLegacyApps = legacyApps.filter(a =>
+                !existingIds.has(a.id) &&
+                !existingIds.has(`app_${a.id}`) &&
+                !existingResumeIds.has(a.id)
+            );
+
+            // Filter jobs - skip if already in applications
+            const newJobApps = jobApps.filter(a =>
+                !existingIds.has(a.id) &&
+                !existingIds.has(`app_${a.id}`)
+            );
 
             apps = [...apps, ...newLegacyApps, ...newJobApps];
 
