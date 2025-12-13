@@ -468,18 +468,29 @@ export default function DashboardPage() {
                 });
             }
 
+            // Helper to safely get timestamp as milliseconds
+            const getMillis = (ts: any): number => {
+                if (!ts) return 0;
+                if (typeof ts.toMillis === 'function') return ts.toMillis();
+                if (ts.seconds) return ts.seconds * 1000; // Firestore Timestamp object
+                if (ts instanceof Date) return ts.getTime();
+                if (typeof ts === 'string') return new Date(ts).getTime();
+                if (typeof ts === 'number') return ts;
+                return 0;
+            };
+
             // Sort
             apps.sort((a, b) => {
                 switch (sortBy) {
                     case 'oldest':
-                        return (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0);
+                        return getMillis(a.createdAt) - getMillis(b.createdAt);
                     case 'ats-high':
                         return (b.atsScore || 0) - (a.atsScore || 0);
                     case 'ats-low':
                         return (a.atsScore || 0) - (b.atsScore || 0);
                     case 'newest':
                     default:
-                        return (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0);
+                        return getMillis(b.createdAt) - getMillis(a.createdAt);
                 }
             });
 

@@ -191,18 +191,29 @@ export class ApplicationService {
             });
         }
 
+        // Helper to safely get timestamp as milliseconds
+        const getMillis = (ts: any): number => {
+            if (!ts) return 0;
+            if (typeof ts.toMillis === 'function') return ts.toMillis();
+            if (ts.seconds) return ts.seconds * 1000; // Firestore Timestamp object
+            if (ts instanceof Date) return ts.getTime();
+            if (typeof ts === 'string') return new Date(ts).getTime();
+            if (typeof ts === 'number') return ts;
+            return 0;
+        };
+
         // Sort
         applications.sort((a, b) => {
             switch (sortBy) {
                 case 'oldest':
-                    return (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0);
+                    return getMillis(a.createdAt) - getMillis(b.createdAt);
                 case 'ats-high':
                     return (b.atsScore || 0) - (a.atsScore || 0);
                 case 'ats-low':
                     return (a.atsScore || 0) - (b.atsScore || 0);
                 case 'newest':
                 default:
-                    return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0);
+                    return getMillis(b.createdAt) - getMillis(a.createdAt);
             }
         });
 
@@ -253,27 +264,33 @@ export class ApplicationService {
 
                 // Create application from resume
                 const appId = `app_${resumeDoc.id}`;
-                const application: Omit<Application, 'id'> = {
+                const application: Omit<Application, 'id'> & { atsScore?: number } = {
                     userId,
                     jobTitle: resume.jobTitle || 'Untitled',
                     jobCompany: resume.jobCompany || resume.company || '',
-                    jobDescription: resume.jobDescription || null,
                     hasResume: true,
                     resumeId: resumeDoc.id,
                     resume: {
-                        personalInfo: resume.personalInfo,
-                        professionalSummary: resume.professionalSummary,
-                        technicalSkills: resume.technicalSkills,
+                        personalInfo: resume.personalInfo || {},
+                        professionalSummary: resume.professionalSummary || '',
+                        technicalSkills: resume.technicalSkills || {},
                         experience: resume.experience || [],
                         education: resume.education || [],
                     },
                     status: 'generated',
-                    atsScore: resume.atsScore?.total,
                     version: 1,
                     createdAt: resume.createdAt || Timestamp.now(),
                     generatedAt: resume.createdAt || Timestamp.now(),
                     updatedAt: resume.updatedAt || Timestamp.now(),
                 };
+
+                // Only add optional fields if they have values (Firebase rejects undefined)
+                if (resume.jobDescription) {
+                    (application as any).jobDescription = resume.jobDescription;
+                }
+                if (resume.atsScore?.total !== undefined) {
+                    application.atsScore = resume.atsScore.total;
+                }
 
                 await setDoc(doc(db, this.COLLECTION, appId), application);
                 migrated++;
