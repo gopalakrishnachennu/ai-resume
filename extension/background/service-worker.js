@@ -297,6 +297,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             getFlashSession(sendResponse);
             return true;
 
+        // Save application Q&A to Firebase
+        case 'SAVE_APPLICATION_QA':
+            saveApplicationQA(message.data, sendResponse);
+            return true;
+
         default:
             sendResponse({ success: false, error: 'Unknown message type' });
     }
@@ -445,6 +450,115 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         }
     }
 });
+
+/**
+ * Save application Q&A to Firebase
+ * Sends data to webapp which saves under user's appliedResumes collection
+ */
+async function saveApplicationQA(applicationData, sendResponse) {
+    try {
+        console.log('[JobFiller Pro] Saving application Q&A:', applicationData?.jobTitle);
+
+        // Get user ID for Firebase
+        const result = await chrome.storage.local.get(['firebaseUserId', 'firebaseProjectId']);
+        const userId = result.firebaseUserId;
+        const projectId = result.firebaseProjectId || 'ai-resume-builder-app';
+
+        if (!userId) {
+            console.warn('[JobFiller Pro] No user ID for Q&A save');
+            // Save locally instead
+            const localResult = await saveQAToLocal(applicationData);
+            sendResponse({ success: true, savedLocally: true });
+            return;
+        }
+
+        // Build the Firebase URL
+        const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${userId}/appliedJobs`;
+
+        // Convert data to Firestore format
+        const firestoreDoc = {
+            fields: {
+                url: { stringValue: applicationData.url || '' },
+                title: { stringValue: applicationData.title || '' },
+                platform: { stringValue: applicationData.platform || '' },
+                jobTitle: { stringValue: applicationData.jobTitle || '' },
+                company: { stringValue: applicationData.company || '' },
+                appliedAt: { timestampValue: new Date().toISOString() },
+                questionsAnswered: { integerValue: String(applicationData.questionsAnswered || 0) },
+                qa: {
+                    arrayValue: {
+                        values: (applicationData.qa || []).map(item => ({
+                            mapValue: {
+                                fields: {
+                                    q: { stringValue: item.q || '' },
+                                    a: { stringValue: item.a || '' },
+                                    cat: { stringValue: item.cat || '' }
+                                }
+                            }
+                        }))
+                    }
+                }
+            }
+        };
+
+        try {
+            // Try to save to Firestore directly
+            const response = await fetch(firestoreUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(firestoreDoc)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const docId = data.name?.split('/').pop();
+                console.log('[JobFiller Pro] Q&A saved to Firebase:', docId);
+                sendResponse({ success: true, docId });
+            } else {
+                // Fallback to local storage
+                console.warn('[JobFiller Pro] Firebase save failed, saving locally');
+                await saveQAToLocal(applicationData);
+                sendResponse({ success: true, savedLocally: true });
+            }
+        } catch (fetchError) {
+            // Fallback to local storage
+            console.warn('[JobFiller Pro] Firebase fetch error, saving locally:', fetchError);
+            await saveQAToLocal(applicationData);
+            sendResponse({ success: true, savedLocally: true });
+        }
+    } catch (error) {
+        console.error('[JobFiller Pro] Q&A save error:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+/**
+ * Save Q&A to local storage as backup
+ */
+async function saveQAToLocal(applicationData) {
+    try {
+        const result = await chrome.storage.local.get('appliedJobs');
+        const jobs = result.appliedJobs || [];
+
+        jobs.unshift({
+            ...applicationData,
+            savedLocally: true,
+            savedAt: new Date().toISOString()
+        });
+
+        // Keep last 50 applications
+        if (jobs.length > 50) jobs.splice(50);
+
+        await chrome.storage.local.set({ appliedJobs: jobs });
+        console.log('[JobFiller Pro] Q&A saved to local storage');
+        return true;
+    } catch (error) {
+        console.error('[JobFiller Pro] Local Q&A save error:', error);
+        return false;
+    }
+}
 
 // Handle extension icon click
 chrome.action.onClicked.addListener((tab) => {

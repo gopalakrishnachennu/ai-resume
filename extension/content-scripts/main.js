@@ -322,6 +322,32 @@ async function handleQuickFillFromBanner() {
             aiStats: aiResult?.stats
         });
 
+        // Capture and save Q&A for interview prep
+        if (typeof QACapture !== 'undefined') {
+            try {
+                const qaList = QACapture.capture(fields);
+                if (qaList.length > 0) {
+                    const applicationData = QACapture.buildApplicationSummary(qaList, {
+                        platform: currentPlatform?.name,
+                        jobTitle: session?.jobTitle || fields.metadata?.jobTitle,
+                        company: session?.jobCompany || fields.metadata?.company
+                    });
+
+                    // Save to Firebase (async, don't wait)
+                    QACapture.saveToFirebase(applicationData).then(result => {
+                        if (result.success) {
+                            Utils.log(`[QuickFill] ${qaList.length} Q&A saved for interview prep`);
+                        }
+                    });
+
+                    // Also save locally as backup
+                    QACapture.saveToLocal(applicationData);
+                }
+            } catch (qaError) {
+                Utils.log('Q&A capture error (non-fatal): ' + qaError.message, 'warn');
+            }
+        }
+
         return {
             success: fillResult.success,
             filledCount: totalFilled,

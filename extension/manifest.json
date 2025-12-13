@@ -62,6 +62,7 @@
         "lib/response-validator.js",
         "lib/response-cache.js",
         "lib/groq-client.js",
+        "lib/qa-capture.js",
         "content-scripts/utils.js",
         "content-scripts/platform-detector.js",
         "content-scripts/field-patterns.js",
