@@ -203,18 +203,21 @@ async function ensureInitialized(force = false) {
 /**
  * Handle Quick Fill from the notification banner
  * Priority: Pushed Flash session > Firebase session > Local profile
+ * Uses tiered approach: Tier 1-3 (no AI) then Tier 4 (Groq AI) for remaining fields
  */
 async function handleQuickFillFromBanner() {
     try {
         let profile = null;
+        let session = null;
         let isFromFlash = false;
 
         // 1. Check for PUSHED flash session (directly from web app - most forceful)
         try {
             const flashResult = await chrome.runtime.sendMessage({ type: 'GET_FLASH_SESSION' });
             if (flashResult?.success && flashResult.session) {
+                session = flashResult.session;
                 if (typeof FirebaseSession !== 'undefined') {
-                    profile = FirebaseSession.sessionToProfile(flashResult.session);
+                    profile = FirebaseSession.sessionToProfile(session);
                     isFromFlash = true;
                     Utils.log('Using PUSHED Flash session for auto-fill (direct from web app)');
                 }
@@ -225,7 +228,7 @@ async function handleQuickFillFromBanner() {
 
         // 2. Fall back to Firebase session read
         if (!profile && typeof FirebaseSession !== 'undefined') {
-            const session = await FirebaseSession.checkActiveSession();
+            session = await FirebaseSession.checkActiveSession();
             if (session) {
                 profile = FirebaseSession.sessionToProfile(session);
                 isFromFlash = true;
@@ -248,17 +251,58 @@ async function handleQuickFillFromBanner() {
         const fields = detector.detectFormFields();
 
         // Show fill tracker
-        fillTracker.show(fields);
+        if (fillTracker) {
+            fillTracker.show(fields);
+        }
 
-        // Fill form with progress updates
+        // PHASE 1: Use traditional form filler for known fields
         const fillResult = await filler.fillForm(profile, fields);
 
-        // Update tracker with final result
-        fillTracker.updateProgress(fillResult.filledCount, fillResult.totalFields);
+        // Update tracker with initial result
+        if (fillTracker) {
+            fillTracker.updateProgress(fillResult.filledCount, fillResult.totalFields);
+        }
+
+        // PHASE 2: Use AI form filler for remaining fields (if Groq is configured)
+        let aiResult = null;
+        if (typeof AIFormFiller !== 'undefined' && session) {
+            try {
+                // Load Groq keys first
+                if (typeof GroqClient !== 'undefined') {
+                    await GroqClient.loadKeys();
+                }
+
+                // Only run AI filler if we have Groq configured
+                if (GroqClient?.isReady?.()) {
+                    Utils.log('[QuickFill] Running AI form filler for remaining fields...');
+
+                    // Create session object with job info for AI
+                    const aiSession = {
+                        ...session,
+                        jobTitle: session.jobTitle || fields.metadata?.jobTitle || '',
+                        jobCompany: session.jobCompany || fields.metadata?.company || ''
+                    };
+
+                    aiResult = await AIFormFiller.fillFields(fields, aiSession);
+
+                    Utils.log(`[QuickFill] AI filled ${aiResult.stats.tier4 + aiResult.stats.cached} additional fields`);
+
+                    // Update tracker with combined result
+                    if (fillTracker) {
+                        const totalFilled = fillResult.filledCount + aiResult.filled.length;
+                        fillTracker.updateProgress(totalFilled, fillResult.totalFields);
+                    }
+                } else {
+                    Utils.log('[QuickFill] Groq not configured, skipping AI fill');
+                }
+            } catch (aiError) {
+                Utils.log('AI fill error (non-fatal): ' + aiError.message, 'warn');
+            }
+        }
 
         // Learn from filled values for future predictions
-        if (predictionEngine && Array.isArray(fields)) {
-            fields.forEach(field => {
+        if (predictionEngine && Array.isArray(fields.personal)) {
+            [...(fields.personal || []), ...(fields.experience || []), ...(fields.education || [])].forEach(field => {
                 const el = field.element;
                 if (el && el.value) {
                     predictionEngine.learn(
@@ -271,11 +315,19 @@ async function handleQuickFillFromBanner() {
         }
 
         // Save to history
-        await saveApplicationToHistory(fillResult);
+        const totalFilled = fillResult.filledCount + (aiResult?.filled?.length || 0);
+        await saveApplicationToHistory({
+            ...fillResult,
+            filledCount: totalFilled,
+            aiStats: aiResult?.stats
+        });
 
         return {
             success: fillResult.success,
-            filledCount: fillResult.filledCount,
+            filledCount: totalFilled,
+            traditionalFilled: fillResult.filledCount,
+            aiFilled: aiResult?.filled?.length || 0,
+            aiStats: aiResult?.stats,
             isFromFlash
         };
     } catch (error) {
@@ -283,6 +335,7 @@ async function handleQuickFillFromBanner() {
         return { success: false, error: error.message };
     }
 }
+
 
 /**
  * Handle checklist request from banner

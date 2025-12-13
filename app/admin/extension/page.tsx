@@ -36,6 +36,13 @@ interface ExtensionSettings {
     showExtensionPrompt: boolean;
     showInstallGuide: boolean;
 
+    // Groq AI Settings
+    groqApiKeys: string; // Multiple keys, one per line
+    groqModel: string;
+    groqEnabled: boolean;
+    groqTemperature: number;
+    groqMaxTokensPerField: number;
+
     // Last updated
     updatedAt?: any;
 }
@@ -61,6 +68,13 @@ const defaultSettings: ExtensionSettings = {
 
     showExtensionPrompt: true,
     showInstallGuide: true,
+
+    // Groq AI Defaults
+    groqApiKeys: '',
+    groqModel: 'gemma2-2b-it',
+    groqEnabled: true,
+    groqTemperature: 0.3,
+    groqMaxTokensPerField: 150,
 };
 
 export default function ExtensionSettingsPage() {
@@ -103,7 +117,29 @@ export default function ExtensionSettingsPage() {
                 ...settings,
                 updatedAt: serverTimestamp(),
             });
-            toast.success('Extension settings saved!');
+
+            // Also sync Groq settings to extension if connected
+            if (settings.groqEnabled && settings.groqApiKeys) {
+                try {
+                    const { syncGroqSettingsToExtension } = await import('@/lib/extensionBridge');
+                    const result = await syncGroqSettingsToExtension({
+                        groqApiKeys: settings.groqApiKeys,
+                        groqModel: settings.groqModel,
+                        groqEnabled: settings.groqEnabled,
+                        groqTemperature: settings.groqTemperature,
+                        groqMaxTokensPerField: settings.groqMaxTokensPerField,
+                    });
+                    if (result.success) {
+                        toast.success(`Extension settings saved! ${result.keyCount} API keys synced.`);
+                    } else {
+                        toast.success('Settings saved! Extension sync optional.');
+                    }
+                } catch (syncError) {
+                    toast.success('Extension settings saved!');
+                }
+            } else {
+                toast.success('Extension settings saved!');
+            }
         } catch (error) {
             console.error('Error saving settings:', error);
             toast.error('Failed to save settings');
@@ -363,6 +399,94 @@ export default function ExtensionSettingsPage() {
                                         placeholder="2.0.0"
                                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                     />
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Groq AI Settings */}
+                        <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-cyan-50 to-blue-50">
+                                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    🤖 Groq AI Settings
+                                </h2>
+                                <p className="text-sm text-gray-600">Configure AI-powered form filling with Groq</p>
+                            </div>
+                            <div className="p-6 space-y-6">
+                                <ToggleRow
+                                    label="Enable Groq AI"
+                                    description="Use AI to fill open-ended questions (cover letters, why interested, etc.)"
+                                    enabled={settings.groqEnabled}
+                                    onChange={(v) => updateSetting('groqEnabled', v)}
+                                />
+
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <p className="text-sm text-blue-800">
+                                        <strong>Free Tier:</strong> Add multiple Groq API keys (one per line) for automatic failover.
+                                        When one key hits rate limits, the next key is used automatically.
+                                        Get free API keys at <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">console.groq.com</a>
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Groq API Keys (one per line)
+                                    </label>
+                                    <textarea
+                                        value={settings.groqApiKeys}
+                                        onChange={(e) => updateSetting('groqApiKeys', e.target.value)}
+                                        placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx&#10;gsk_yyyyyyyyyyyyyyyyyyyyyyyy&#10;gsk_zzzzzzzzzzzzzzzzzzzzzzzz"
+                                        rows={5}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {settings.groqApiKeys.split('\n').filter(k => k.trim()).length} keys configured
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Model
+                                        </label>
+                                        <select
+                                            value={settings.groqModel}
+                                            onChange={(e) => updateSetting('groqModel', e.target.value)}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        >
+                                            <option value="gemma2-2b-it">Gemma 2 2B (Fast)</option>
+                                            <option value="llama-3.1-8b-instant">Llama 3.1 8B (Balanced)</option>
+                                            <option value="llama-3.1-70b-versatile">Llama 3.1 70B (Quality)</option>
+                                            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Temperature ({settings.groqTemperature})
+                                        </label>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="1"
+                                            step="0.1"
+                                            value={settings.groqTemperature}
+                                            onChange={(e) => updateSetting('groqTemperature', parseFloat(e.target.value))}
+                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">Lower = more deterministic</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Max Tokens Per Field
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={settings.groqMaxTokensPerField}
+                                            onChange={(e) => updateSetting('groqMaxTokensPerField', parseInt(e.target.value))}
+                                            min={50}
+                                            max={500}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </section>

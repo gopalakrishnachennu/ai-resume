@@ -77,6 +77,14 @@
                     </svg>
                     Smart Features
                 </li>
+                <li class="nav-item" data-tab="ai-templates">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                        </path>
+                    </svg>
+                    AI Templates
+                </li>
             </ul>
             <div class="sidebar-footer">
                 <button class="btn btn-danger" id="clearData">
@@ -383,6 +391,122 @@
                             <input type="checkbox" id="smartContext" checked>
                             <span class="toggle-slider"></span>
                         </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI Templates Tab -->
+            <section class="tab-content" id="tab-ai-templates">
+                <header class="content-header">
+                    <h2>AI Answer Templates</h2>
+                    <p>Customize how AI generates answers for common job application questions</p>
+                </header>
+
+                <div class="settings-group">
+                    <h3>🤖 Groq AI Status</h3>
+                    <div class="ai-status-card" id="groqStatusCard">
+                        <div class="status-indicator checking">
+                            <span class="dot"></span>
+                            <span class="status-label" id="groqStatusLabel">Checking...</span>
+                        </div>
+                        <div class="status-details">
+                            <p id="groqStatusMessage">Checking Groq API configuration...</p>
+                            <button class="btn btn-primary btn-small" id="refreshGroqStatus">Refresh Status</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>📝 Answer Templates</h3>
+                    <p class="group-hint">These templates are used when filling forms. Variables like {{jobTitle}} and
+                        {{jobCompany}} are replaced automatically.</p>
+
+                    <div class="template-list" id="templateList">
+                        <!-- Template items will be loaded dynamically -->
+                        <div class="template-item">
+                            <div class="template-header">
+                                <h4>Why are you interested in this role?</h4>
+                                <span class="template-badge">Most Used</span>
+                            </div>
+                            <textarea class="template-input" id="template_whyInterested" rows="3"
+                                placeholder="Loading template..."></textarea>
+                            <div class="template-variables">
+                                <span class="variable-tag">{{jobTitle}}</span>
+                                <span class="variable-tag">{{jobCompany}}</span>
+                                <span class="variable-tag">{{skills}}</span>
+                                <span class="variable-tag">{{years}}</span>
+                            </div>
+                        </div>
+
+                        <div class="template-item">
+                            <div class="template-header">
+                                <h4>About Yourself / Professional Summary</h4>
+                            </div>
+                            <textarea class="template-input" id="template_aboutYourself" rows="3"
+                                placeholder="Loading template..."></textarea>
+                            <div class="template-variables">
+                                <span class="variable-tag">{{currentRole}}</span>
+                                <span class="variable-tag">{{skills}}</span>
+                            </div>
+                        </div>
+
+                        <div class="template-item">
+                            <div class="template-header">
+                                <h4>Cover Letter</h4>
+                            </div>
+                            <textarea class="template-input" id="template_coverLetter" rows="5"
+                                placeholder="Loading template..."></textarea>
+                            <div class="template-variables">
+                                <span class="variable-tag">{{jobTitle}}</span>
+                                <span class="variable-tag">{{jobCompany}}</span>
+                                <span class="variable-tag">{{name}}</span>
+                            </div>
+                        </div>
+
+                        <div class="template-item">
+                            <div class="template-header">
+                                <h4>Why are you leaving your current job?</h4>
+                            </div>
+                            <textarea class="template-input" id="template_whyLeaving" rows="2"
+                                placeholder="Loading template..."></textarea>
+                        </div>
+
+                        <div class="template-item">
+                            <div class="template-header">
+                                <h4>How did you hear about us?</h4>
+                            </div>
+                            <input type="text" class="form-input" id="template_howDidYouHear" value="LinkedIn">
+                        </div>
+                    </div>
+
+                    <div class="template-actions">
+                        <button class="btn btn-primary" id="saveTemplates">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                            Save Templates
+                        </button>
+                        <button class="btn btn-secondary" id="resetTemplates">
+                            Reset to Defaults
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>📊 Cache Statistics</h3>
+                    <div class="cache-stats">
+                        <div class="stat-item">
+                            <span class="stat-value" id="cacheCount">0</span>
+                            <span class="stat-label">Cached Answers</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="cacheSize">0 KB</span>
+                            <span class="stat-label">Cache Size</span>
+                        </div>
+                        <button class="btn btn-danger btn-small" id="clearCache">Clear Cache</button>
                     </div>
                 </div>
             </section>

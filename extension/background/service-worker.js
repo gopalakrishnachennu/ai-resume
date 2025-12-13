@@ -105,6 +105,11 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
             handleSyncProfile(message.data, sendResponse);
             return true;
 
+        // Web app syncs Groq API settings from admin panel
+        case 'SYNC_GROQ_SETTINGS':
+            handleSyncGroqSettings(message.data, sendResponse);
+            return true;
+
         // Web app checks if extension is installed
         case 'PING':
             sendResponse({
@@ -217,6 +222,42 @@ async function handleConnectUser(userData, sendResponse) {
         sendResponse({ success: true, message: 'User connected' });
     } catch (error) {
         console.error('[JobFiller Pro] Connection error:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+/**
+ * Handle Groq settings sync from admin panel
+ * Stores API keys and model configuration for AI form filling
+ */
+async function handleSyncGroqSettings(groqData, sendResponse) {
+    try {
+        console.log('[JobFiller Pro] Syncing Groq settings');
+
+        if (groqData) {
+            // Parse API keys (one per line)
+            const apiKeys = groqData.groqApiKeys
+                ? groqData.groqApiKeys.split('\n').map(k => k.trim()).filter(k => k.length > 0)
+                : [];
+
+            await chrome.storage.local.set({
+                groqApiKeys: apiKeys,
+                groqSettings: {
+                    model: groqData.groqModel || 'gemma2-2b-it',
+                    temperature: groqData.groqTemperature || 0.3,
+                    maxTokensPerField: groqData.groqMaxTokensPerField || 150,
+                    enabled: groqData.groqEnabled !== false
+                },
+                groqSyncedAt: Date.now()
+            });
+
+            console.log(`[JobFiller Pro] Groq settings synced - ${apiKeys.length} API keys`);
+            sendResponse({ success: true, message: 'Groq settings synced', keyCount: apiKeys.length });
+        } else {
+            sendResponse({ success: false, error: 'No Groq data provided' });
+        }
+    } catch (error) {
+        console.error('[JobFiller Pro] Groq sync error:', error);
         sendResponse({ success: false, error: error.message });
     }
 }

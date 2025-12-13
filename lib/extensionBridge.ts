@@ -306,5 +306,58 @@ export async function syncProfileToExtension(profileData: any): Promise<{ succes
     });
 }
 
+/**
+ * Sync Groq AI settings to extension from admin panel
+ */
+export async function syncGroqSettingsToExtension(
+    groqSettings: {
+        groqApiKeys: string;
+        groqModel: string;
+        groqEnabled: boolean;
+        groqTemperature: number;
+        groqMaxTokensPerField: number;
+    }
+): Promise<{ success: boolean; error?: string; keyCount?: number }> {
+    const extensionId = await getExtensionIdWithFallback();
+
+    if (!extensionId) {
+        console.warn('[ExtensionBridge] No extension ID for Groq sync');
+        return { success: false, error: 'Extension not found' };
+    }
+
+    return new Promise((resolve) => {
+        if (typeof chrome === 'undefined' || !chrome.runtime) {
+            resolve({ success: false, error: 'Chrome API not available' });
+            return;
+        }
+
+        try {
+            chrome.runtime.sendMessage(
+                extensionId,
+                {
+                    type: 'SYNC_GROQ_SETTINGS',
+                    data: groqSettings
+                },
+                (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.warn('[ExtensionBridge] Groq sync failed:', chrome.runtime.lastError);
+                        resolve({ success: false, error: chrome.runtime.lastError.message });
+                    } else if (response?.success) {
+                        console.log('[ExtensionBridge] Groq settings synced!', response.keyCount, 'keys');
+                        resolve({ success: true, keyCount: response.keyCount });
+                    } else {
+                        resolve({ success: false, error: response?.error || 'Unknown error' });
+                    }
+                }
+            );
+
+            // Timeout after 2 seconds
+            setTimeout(() => resolve({ success: false, error: 'Timeout' }), 2000);
+        } catch (error: any) {
+            resolve({ success: false, error: error.message });
+        }
+    });
+}
+
 // Export for direct access
 export { getExtensionId };
