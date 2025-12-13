@@ -21,6 +21,12 @@ const FieldResolver = {
         github: session => session.personalInfo?.github,
         website: session => session.personalInfo?.portfolio || session.personalInfo?.website,
         twitter: session => session.personalInfo?.twitter,
+        currentLocation: session => {
+            const loc = session.personalInfo?.location;
+            if (!loc) return '';
+            const parts = [loc.city, loc.state, loc.country].filter(Boolean);
+            return parts.join(', ');
+        },
 
         // Experience
         company: session => session.experience?.[0]?.company,
@@ -57,6 +63,12 @@ const FieldResolver = {
         'willing to relocate': session => session.preferences?.willingToRelocate === true,
         'open to relocation': session => session.preferences?.willingToRelocate === true,
         'relocate for': session => session.preferences?.willingToRelocate === true,
+        'willing to commute': session => true,
+        'in the office': session => true,
+        'office 3 days': session => true,
+        'office days': session => true,
+        'hybrid role': session => true,
+        'comfortable with': session => true,
         'work remotely': session => true,
         'remote work': session => true,
         'work from home': session => true,

@@ -135,6 +135,18 @@ const FieldPatterns = {
         category: 'personal',
         priority: 8
     },
+    currentLocation: {
+        patterns: [
+            /current[\\s_-]?location/i,
+            /where[\\s_-]?are[\\s_-]?you[\\s_-]?located/i,
+            /current[\\s_-]?city/i,
+            /^location$/i,
+            /your[\\s_-]?location/i,
+            /reside/i
+        ],
+        category: 'personal',
+        priority: 9
+    },
 
     // Online Profiles
     linkedin: {
