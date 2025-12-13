@@ -373,6 +373,57 @@ body {
     border-radius: var(--radius-sm);
 }
 
+/* Experience Cards */
+.experience-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.experience-card:last-child {
+    margin-bottom: 0;
+}
+
+.experience-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-xs);
+}
+
+.experience-header strong {
+    color: var(--gray-800);
+    font-size: 14px;
+}
+
+.experience-company {
+    color: #7c3aed;
+    font-weight: 500;
+}
+
+.badge-current {
+    background: var(--success);
+    color: white;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.experience-meta {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-bottom: var(--space-sm);
+}
+
+.experience-card .responsibilities-list {
+    font-size: 12px;
+    margin-top: var(--space-sm);
+}
+
 .session-detail {
     display: flex;
     gap: var(--space-sm);

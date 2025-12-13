@@ -243,10 +243,34 @@ class OptionsController {
                     document.getElementById('sessionJobTitle').textContent = session.jobTitle || session.targetJobTitle || '-';
                     document.getElementById('sessionJobCompany').textContent = session.jobCompany || session.targetCompany || '-';
 
-                    // Current Experience - get most recent (index 0)
-                    const exp = session.experience?.[0] || {};
-                    document.getElementById('sessionCurrentRole').textContent = exp.title || exp.position || '-';
-                    document.getElementById('sessionCurrentCompany').textContent = exp.company || '-';
+                    // ALL Experiences - render each one with responsibilities
+                    const allExperiences = session.experience || [];
+                    const expListContainer = document.getElementById('sessionExperienceList');
+
+                    if (allExperiences.length > 0) {
+                        expListContainer.innerHTML = allExperiences.map((exp, index) => {
+                            const respList = (exp.responsibilities || [])
+                                .map(r => `<li>${r}</li>`)
+                                .join('');
+                            const dateRange = exp.current
+                                ? `${exp.startDate || ''} - Present`
+                                : `${exp.startDate || ''} - ${exp.endDate || ''}`;
+
+                            return `
+                                <div class="experience-card">
+                                    <div class="experience-header">
+                                        <strong>${exp.title || exp.position || 'Role'}</strong>
+                                        <span class="experience-company">@ ${exp.company || 'Company'}</span>
+                                        ${exp.current ? '<span class="badge-current">Current</span>' : ''}
+                                    </div>
+                                    <div class="experience-meta">${dateRange} | ${exp.location || ''}</div>
+                                    ${respList ? `<ul class="responsibilities-list">${respList}</ul>` : ''}
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        expListContainer.innerHTML = '<p>No experience data</p>';
+                    }
 
                     // Skills summary
                     const skills = session.skills?.all ||
@@ -254,21 +278,6 @@ class OptionsController {
                     document.getElementById('sessionSkills').textContent = skills.length > 200
                         ? skills.substring(0, 200) + '...'
                         : skills;
-
-                    // Responsibilities from current experience
-                    const responsibilitiesList = document.getElementById('sessionResponsibilities');
-                    const responsibilities = exp.responsibilities || [];
-                    if (responsibilities.length > 0) {
-                        responsibilitiesList.innerHTML = responsibilities
-                            .slice(0, 5)
-                            .map(r => `<li>${r}</li>`)
-                            .join('');
-                        if (responsibilities.length > 5) {
-                            responsibilitiesList.innerHTML += `<li>... and ${responsibilities.length - 5} more</li>`;
-                        }
-                    } else {
-                        responsibilitiesList.innerHTML = '<li>-</li>';
-                    }
 
                     // Job Description
                     const jd = session.jobDescription || '';
