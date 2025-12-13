@@ -698,6 +698,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return true;
 
         case MESSAGE_TYPES.QUICK_FILL:
+        case 'QUICK_FILL':  // Also handle uppercase from popup
             handleQuickFill(sendResponse);
             return true;
 
