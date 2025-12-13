@@ -171,37 +171,33 @@ const FirebaseSession = {
         }
 
         return {
-            // Personal Info - CRITICAL: firstName and lastName must be set
-            firstName,
-            lastName,
-            fullName: computedFullName,
-            email: personalInfo.email || '',
-            phone: personalInfo.phone || '',
+            // NESTED STRUCTURE for form-filler.js compatibility
+            personalInfo: {
+                firstName,
+                lastName,
+                fullName: computedFullName,
+                middleName: personalInfo.middleName || '',
+                email: personalInfo.email || '',
+                phone: personalInfo.phone || '',
+                location: {
+                    address: locationStr,
+                    city,
+                    state,
+                    country,
+                    zipCode: personalInfo.zipCode || '',
+                },
+                linkedin: personalInfo.linkedin || '',
+                github: personalInfo.github || '',
+                twitter: personalInfo.twitter || '',
+                portfolio: personalInfo.portfolio || '',
+                website: personalInfo.portfolio || '',
+            },
 
-            // Location
-            location: locationStr || `${city}, ${state}`.trim(),
-            city,
-            state,
-            country,
-            address: locationStr,
-
-            // Links
-            linkedin: personalInfo.linkedin || '',
-            linkedinUrl: personalInfo.linkedin || '',
-            github: personalInfo.github || '',
-            githubUrl: personalInfo.github || '',
-            portfolio: personalInfo.portfolio || '',
-            portfolioUrl: personalInfo.portfolio || '',
-            website: personalInfo.portfolio || '',
-
-            // Professional
-            summary: session.professionalSummary || '',
-            professionalSummary: session.professionalSummary || '',
-
-            // Experience
+            // Experience array
             experience: (session.experience || []).map(exp => ({
-                title: exp.title || '',
                 company: exp.company || '',
+                position: exp.title || '',
+                title: exp.title || '',
                 location: exp.location || '',
                 startDate: exp.startDate || '',
                 endDate: exp.endDate || '',
@@ -210,74 +206,58 @@ const FirebaseSession = {
                 responsibilities: exp.responsibilities || [],
             })),
 
-            // Most recent job
-            currentTitle: session.experience?.[0]?.title || '',
-            currentCompany: session.experience?.[0]?.company || '',
-
-            // Education
+            // Education array
             education: (session.education || []).map(edu => ({
-                school: edu.institution || '',
                 institution: edu.institution || '',
+                school: edu.institution || '',
                 degree: edu.degree || '',
                 field: edu.field || '',
+                major: edu.field || '',
                 graduationDate: edu.graduationDate || '',
                 gpa: edu.gpa || '',
             })),
 
-            // Most recent education
-            highestDegree: session.education?.[0]?.degree || '',
-            school: session.education?.[0]?.institution || '',
-            major: session.education?.[0]?.field || '',
-            graduationYear: session.education?.[0]?.graduationDate || '',
+            // Skills object
+            skills: {
+                all: skills.all || '',
+                technical: {
+                    programming: skills.languages || [],
+                    frameworks: skills.frameworks || [],
+                    tools: skills.tools || [],
+                    databases: skills.databases || [],
+                    cloud: skills.cloud || [],
+                },
+                soft: [],
+            },
 
-            // Skills
-            skills: skills.all || '',
-            technicalSkills: skills.all || '',
-            languages: (skills.languages || []).join(', '),
-            frameworks: (skills.frameworks || []).join(', '),
-            tools: (skills.tools || []).join(', '),
-            databases: (skills.databases || []).join(', '),
-            cloud: (skills.cloud || []).join(', '),
+            // Preferences object
+            preferences: {
+                workAuthorized: extensionSettings.workAuthorization === 'authorized' || extensionSettings.workAuthorization === 'yes',
+                sponsorshipRequired: extensionSettings.requireSponsorship === 'yes' || extensionSettings.requireSponsorship === true,
+                willingToRelocate: extensionSettings.willingToRelocate === 'yes' || extensionSettings.willingToRelocate === true,
+                salaryExpectation: {
+                    min: extensionSettings.salaryMin || '',
+                    max: extensionSettings.salaryMax || '',
+                    expected: extensionSettings.salaryExpectation || '',
+                },
+                noticePeriod: extensionSettings.noticePeriod || 'Immediately',
+                jobTypes: ['Full-time'],
+                workArrangement: [extensionSettings.workType || 'Remote'],
+            },
 
-            // Work Authorization (from extension settings)
-            workAuthorization: extensionSettings.workAuthorization || '',
-            requireSponsorship: extensionSettings.requireSponsorship || '',
-            authorizedCountries: extensionSettings.authorizedCountries || '',
+            // Professional Summary
+            professionalSummary: session.professionalSummary || '',
 
-            // Salary
-            currentSalary: extensionSettings.currentSalary || '',
-            salaryExpectation: extensionSettings.salaryExpectation || '',
-            salaryMin: extensionSettings.salaryMin || '',
-            salaryMax: extensionSettings.salaryMax || '',
-            salaryCurrency: extensionSettings.salaryCurrency || 'USD',
-            desiredSalary: extensionSettings.salaryExpectation || '',
-
-            // Experience level
-            totalExperience: extensionSettings.totalExperience || '',
-            yearsOfExperience: extensionSettings.totalExperience || '',
-
-            // Work preferences
-            workType: extensionSettings.workType || '',
-            willingToRelocate: extensionSettings.willingToRelocate || '',
-            noticePeriod: extensionSettings.noticePeriod || '',
-
-            // Demographics (optional)
-            gender: extensionSettings.gender || '',
-            ethnicity: extensionSettings.ethnicity || '',
-            veteranStatus: extensionSettings.veteranStatus || '',
-            disabilityStatus: extensionSettings.disabilityStatus || '',
-
-            // Job being applied to
+            // Target job
             targetJobTitle: session.jobTitle || '',
             targetCompany: session.jobCompany || '',
 
-            // File URLs (for upload fields)
+            // URLs
             resumePdfUrl: session.pdfUrl || '',
             resumeDocxUrl: session.docxUrl || '',
 
             // Session metadata
             _sessionActive: true,
-            _sessionJobUrl: session.jobUrl || '',
             _fromFlash: true,
         };
     },
