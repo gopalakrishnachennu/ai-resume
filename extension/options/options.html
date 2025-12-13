@@ -143,9 +143,11 @@
                 </div>
 
                 <div class="profile-editor" id="profileEditor" style="display: none;">
-                    <!-- Personal Info -->
+                    <!-- Personal Info - Simplified -->
                     <div class="editor-section">
-                        <h3>Personal Information</h3>
+                        <h3>Basic Information</h3>
+                        <p class="section-hint">Your name and email are used for identification. Detailed profile data
+                            comes from the webapp when you use Flash.</p>
                         <div class="form-grid">
                             <div class="form-group">
                                 <label>First Name</label>
@@ -155,48 +157,30 @@
                                 <label>Last Name</label>
                                 <input type="text" id="lastName" placeholder="Doe">
                             </div>
-                            <div class="form-group">
+                            <div class="form-group full-width">
                                 <label>Email</label>
                                 <input type="email" id="email" placeholder="john@example.com">
                             </div>
-                            <div class="form-group">
-                                <label>Phone</label>
-                                <input type="tel" id="phone" placeholder="+1-555-555-5555">
-                            </div>
-                            <div class="form-group">
-                                <label>City</label>
-                                <input type="text" id="city" placeholder="San Francisco">
-                            </div>
-                            <div class="form-group">
-                                <label>State</label>
-                                <input type="text" id="state" placeholder="CA">
-                            </div>
-                            <div class="form-group full-width">
-                                <label>LinkedIn URL</label>
-                                <input type="url" id="linkedin" placeholder="https://linkedin.com/in/username">
-                            </div>
-                            <div class="form-group full-width">
-                                <label>GitHub URL</label>
-                                <input type="url" id="github" placeholder="https://github.com/username">
-                            </div>
                         </div>
                     </div>
 
-                    <!-- Professional Summary -->
-                    <div class="editor-section">
-                        <h3>Professional Summary</h3>
-                        <div class="form-group full-width">
-                            <textarea id="summary" rows="4"
-                                placeholder="Write a brief professional summary..."></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Raw JSON Editor -->
-                    <div class="editor-section">
-                        <h3>Full Profile (JSON)</h3>
-                        <p class="section-hint">Edit your complete profile data in JSON format</p>
-                        <div class="form-group full-width">
-                            <textarea id="jsonEditor" rows="15" class="json-editor"></textarea>
+                    <!-- Active Session Info -->
+                    <div class="editor-section" id="sessionInfoSection" style="display: none;">
+                        <h3>⚡ Active Session</h3>
+                        <p class="section-hint">Your current Flash session from the webapp</p>
+                        <div class="session-info-card">
+                            <div class="session-detail">
+                                <span class="session-label">Job:</span>
+                                <span class="session-value" id="sessionJobTitle">-</span>
+                            </div>
+                            <div class="session-detail">
+                                <span class="session-label">Company:</span>
+                                <span class="session-value" id="sessionJobCompany">-</span>
+                            </div>
+                            <div class="session-detail">
+                                <span class="session-label">Skills:</span>
+                                <span class="session-value" id="sessionSkills">-</span>
+                            </div>
                         </div>
                     </div>
 

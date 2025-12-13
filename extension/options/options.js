@@ -112,18 +112,13 @@ class OptionsController {
             window.open('https://github.com/yourusername/jobfiller-pro', '_blank');
         });
 
-        // JSON editor change
-        document.getElementById('jsonEditor').addEventListener('input', () => {
-            this.updateFormFromJson();
-        });
-
-        // Form field changes
-        const formFields = ['firstName', 'lastName', 'email', 'phone', 'city', 'state', 'linkedin', 'github', 'summary'];
+        // Form field changes - simplified to just name and email
+        const formFields = ['firstName', 'lastName', 'email'];
         formFields.forEach(field => {
             const element = document.getElementById(field);
             if (element) {
                 element.addEventListener('input', () => {
-                    this.updateJsonFromForm();
+                    this.updateProfileFromForm();
                 });
             }
         });
@@ -168,15 +163,15 @@ class OptionsController {
             `;
             profileStatus.querySelector('h3').textContent = 'Profile Loaded';
             profileStatus.querySelector('p').textContent =
-                `${this.profile.personalInfo?.firstName} ${this.profile.personalInfo?.lastName} - ${this.profile.personalInfo?.email}`;
+                `${this.profile.personalInfo?.firstName || ''} ${this.profile.personalInfo?.lastName || ''} - ${this.profile.personalInfo?.email || ''}`;
 
             profileEditor.style.display = 'block';
 
             // Fill form fields
             this.fillFormFromProfile();
 
-            // Fill JSON editor
-            document.getElementById('jsonEditor').value = JSON.stringify(this.profile, null, 2);
+            // Load session info
+            this.loadSessionInfo();
         }
     }
 
@@ -187,13 +182,7 @@ class OptionsController {
         const fields = {
             firstName: p.personalInfo?.firstName,
             lastName: p.personalInfo?.lastName,
-            email: p.personalInfo?.email,
-            phone: p.personalInfo?.phone,
-            city: p.personalInfo?.location?.city,
-            state: p.personalInfo?.location?.state,
-            linkedin: p.personalInfo?.linkedin,
-            github: p.personalInfo?.github,
-            summary: p.professionalSummary?.default
+            email: p.personalInfo?.email
         };
 
         for (const [id, value] of Object.entries(fields)) {
@@ -204,41 +193,46 @@ class OptionsController {
         }
     }
 
-    updateJsonFromForm() {
+    // Update profile from simplified form
+    updateProfileFromForm() {
         if (!this.profile) {
             this.profile = this.createEmptyProfile();
         }
 
-        // Update profile from form fields
         this.profile.personalInfo = this.profile.personalInfo || {};
-        this.profile.personalInfo.firstName = document.getElementById('firstName').value;
-        this.profile.personalInfo.lastName = document.getElementById('lastName').value;
-        this.profile.personalInfo.email = document.getElementById('email').value;
-        this.profile.personalInfo.phone = document.getElementById('phone').value;
-
-        this.profile.personalInfo.location = this.profile.personalInfo.location || {};
-        this.profile.personalInfo.location.city = document.getElementById('city').value;
-        this.profile.personalInfo.location.state = document.getElementById('state').value;
-
-        this.profile.personalInfo.linkedin = document.getElementById('linkedin').value;
-        this.profile.personalInfo.github = document.getElementById('github').value;
-
-        this.profile.professionalSummary = this.profile.professionalSummary || {};
-        this.profile.professionalSummary.default = document.getElementById('summary').value;
-
-        // Update JSON editor
-        document.getElementById('jsonEditor').value = JSON.stringify(this.profile, null, 2);
+        this.profile.personalInfo.firstName = document.getElementById('firstName')?.value || '';
+        this.profile.personalInfo.lastName = document.getElementById('lastName')?.value || '';
+        this.profile.personalInfo.email = document.getElementById('email')?.value || '';
     }
 
-    updateFormFromJson() {
+    // Load active session info
+    async loadSessionInfo() {
         try {
-            const json = document.getElementById('jsonEditor').value;
-            this.profile = JSON.parse(json);
-            this.fillFormFromProfile();
+            const result = await chrome.storage.local.get(['flashSession', 'flashSessionTimestamp']);
+            const sessionSection = document.getElementById('sessionInfoSection');
+
+            if (result.flashSession && result.flashSessionTimestamp) {
+                const age = Date.now() - result.flashSessionTimestamp;
+                if (age < 3600000) { // 1 hour
+                    const session = result.flashSession;
+
+                    sessionSection.style.display = 'block';
+                    document.getElementById('sessionJobTitle').textContent = session.jobTitle || '-';
+                    document.getElementById('sessionJobCompany').textContent = session.jobCompany || '-';
+
+                    // Skills summary
+                    const skills = session.skills?.all || '';
+                    document.getElementById('sessionSkills').textContent = skills ? skills.substring(0, 100) + '...' : '-';
+                    return;
+                }
+            }
+            sessionSection.style.display = 'none';
         } catch (error) {
-            // Invalid JSON, don't update form
+            console.log('[Options] No session info:', error);
         }
     }
+
+
 
     createEmptyProfile() {
         return {
@@ -441,19 +435,15 @@ class OptionsController {
 
     async saveProfile() {
         try {
-            // Get JSON from editor
-            const json = document.getElementById('jsonEditor').value;
-            const profile = JSON.parse(json);
+            // Update from form fields
+            this.updateProfileFromForm();
+            this.profile.lastUpdated = new Date().toISOString();
 
-            profile.lastUpdated = new Date().toISOString();
-
-            await chrome.storage.local.set({ userProfile: profile });
-            this.profile = profile;
-
+            await chrome.storage.local.set({ userProfile: this.profile });
             this.showToast('Profile saved successfully!', 'success');
         } catch (error) {
             console.error('Error saving profile:', error);
-            this.showToast('Invalid JSON format', 'error');
+            this.showToast('Failed to save profile', 'error');
         }
     }
 
