@@ -64,6 +64,7 @@
         "lib/groq-client.js",
         "lib/qa-capture.js",
         "lib/submit-detector.js",
+        "lib/diagnostics.js",
         "content-scripts/utils.js",
         "content-scripts/platform-detector.js",
         "content-scripts/field-patterns.js",
