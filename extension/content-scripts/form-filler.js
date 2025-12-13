@@ -152,6 +152,15 @@ class FormFiller {
                     case 'twitter':
                         value = personalInfo.twitter;
                         break;
+                    case 'currentLocation':
+                        // Combine city, state, country for "current location" fields
+                        const locParts = [
+                            personalInfo.location?.city,
+                            personalInfo.location?.state,
+                            personalInfo.location?.country
+                        ].filter(Boolean);
+                        value = locParts.join(', ');
+                        break;
                 }
 
                 if (value) {
