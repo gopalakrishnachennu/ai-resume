@@ -376,6 +376,7 @@ export default function DashboardPage() {
                 where('userId', '==', user.uid)
             );
             const resumesSnapshot = await getDocs(resumesQuery);
+            console.log('[Dashboard] Resumes query result:', resumesSnapshot.docs.length, 'docs for user:', user.uid);
 
             const legacyApps: Application[] = resumesSnapshot.docs.map(doc => {
                 const data = doc.data();

@@ -377,6 +377,7 @@ export default function GeneratePage() {
             };
 
             await setDoc(doc(db, 'resumes', resumeId), resumeData);
+            console.log('[Generate] Resume saved to resumes collection:', resumeId, 'userId:', user.uid);
 
             // Clear localStorage
             localStorage.removeItem('draft_jobDescription');
