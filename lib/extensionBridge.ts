@@ -125,6 +125,7 @@ export async function pingExtension(): Promise<{ installed: boolean; version?: s
  * Push Flash session data directly to extension
  * This bypasses Firebase read on the extension side
  * Uses admin-configured ID as fallback when auto-discovery fails
+ * Now also includes Groq API settings from admin config
  */
 export async function pushFlashSession(
     userId: string,
@@ -132,6 +133,30 @@ export async function pushFlashSession(
     sessionData: any
 ): Promise<{ success: boolean; error?: string }> {
     const extensionId = await getExtensionIdWithFallback();
+
+    // Try to fetch Groq settings from admin config
+    let groqSettings = null;
+    try {
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('@/lib/firebase');
+        const adminDocRef = doc(db, 'adminSettings', 'extension');
+        const adminDoc = await getDoc(adminDocRef);
+        if (adminDoc.exists()) {
+            const data = adminDoc.data();
+            if (data.groqEnabled && data.groqApiKeys) {
+                groqSettings = {
+                    groqApiKeys: data.groqApiKeys,
+                    groqModel: data.groqModel || 'llama-3.1-8b-instant',
+                    groqEnabled: data.groqEnabled,
+                    groqTemperature: data.groqTemperature || 0.3,
+                    groqMaxTokensPerField: data.groqMaxTokensPerField || 150
+                };
+                console.log('[ExtensionBridge] Including Groq settings in session push');
+            }
+        }
+    } catch (error) {
+        console.log('[ExtensionBridge] Could not fetch Groq settings:', error);
+    }
 
     if (!extensionId) {
         console.warn('[ExtensionBridge] No extension ID available - using postMessage fallback');
@@ -141,7 +166,8 @@ export async function pushFlashSession(
                 type: 'JOBFILLER_FLASH_SESSION',
                 userId,
                 projectId,
-                session: sessionData
+                session: sessionData,
+                groqSettings
             }, '*');
         }
         return { success: true }; // Optimistic - postMessage sent
@@ -161,7 +187,8 @@ export async function pushFlashSession(
                     data: {
                         userId,
                         projectId,
-                        session: sessionData
+                        session: sessionData,
+                        groqSettings // Include Groq settings
                     }
                 },
                 (response) => {

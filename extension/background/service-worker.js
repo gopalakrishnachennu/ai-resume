@@ -189,6 +189,36 @@ async function handleFlashSession(sessionData, sender, sendResponse) {
             console.log('[JobFiller Pro] Flash session stored locally');
         }
 
+        // If Groq settings are included in the session, sync them
+        if (sessionData.groqSettings || sessionData.session?.groqApiKeys) {
+            const groqData = sessionData.groqSettings || {
+                groqApiKeys: sessionData.session.groqApiKeys,
+                groqModel: sessionData.session.groqModel || 'llama-3.1-8b-instant',
+                groqEnabled: true
+            };
+
+            if (groqData.groqApiKeys) {
+                const apiKeys = String(groqData.groqApiKeys)
+                    .split('\n')
+                    .map(k => k.trim())
+                    .filter(k => k.length > 0);
+
+                if (apiKeys.length > 0) {
+                    await chrome.storage.local.set({
+                        groqApiKeys: apiKeys,
+                        groqSettings: {
+                            model: groqData.groqModel || 'llama-3.1-8b-instant',
+                            temperature: groqData.groqTemperature || 0.3,
+                            maxTokensPerField: groqData.groqMaxTokensPerField || 150,
+                            enabled: groqData.groqEnabled !== false
+                        },
+                        groqSyncedAt: Date.now()
+                    });
+                    console.log(`[JobFiller Pro] Groq API keys synced from session: ${apiKeys.length} keys`);
+                }
+            }
+        }
+
         // Notify all tabs about the new session
         const tabs = await chrome.tabs.query({});
         tabs.forEach(tab => {
