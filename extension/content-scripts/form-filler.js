@@ -45,6 +45,7 @@ class FormFiller {
             await this.fillPreferencesFields(detectedFields.preferences);
             await this.fillDocumentsFields(detectedFields.documents);
             await this.fillMiscFields(detectedFields.misc);
+            await this.fillDemographicsFields(detectedFields.demographics); // EEO fields
 
             // Handle file uploads (resume)
             await this.fillResumeFields(detectedFields.resume);
@@ -677,6 +678,127 @@ class FormFiller {
                 });
             }
         }
+    }
+
+    /**
+     * Fill demographics/EEO fields (gender, race, veteran, disability)
+     * @param {Array} fields - Demographics fields
+     */
+    async fillDemographicsFields(fields) {
+        if (!fields || fields.length === 0) return;
+
+        const es = this.profile.extensionSettings || {};
+
+        for (const field of fields) {
+            try {
+                let value = null;
+                const element = field.element;
+                const isSelect = element?.tagName === 'SELECT';
+
+                switch (field.classification) {
+                    case 'gender':
+                        if (es.gender) {
+                            value = es.gender;
+                            // For selects, try to match the option
+                            if (isSelect) {
+                                value = this.findBestSelectOption(element, es.gender);
+                            }
+                        }
+                        break;
+
+                    case 'ethnicity':
+                    case 'race':
+                        if (es.ethnicity) {
+                            value = es.ethnicity;
+                            if (isSelect) {
+                                value = this.findBestSelectOption(element, es.ethnicity);
+                            }
+                        }
+                        break;
+
+                    case 'veteranStatus':
+                    case 'veteran':
+                        if (es.veteranStatus) {
+                            const isVeteran = es.veteranStatus === 'yes';
+                            if (isSelect) {
+                                value = this.findBestSelectOption(element,
+                                    isVeteran ? ['veteran', 'yes', 'I am a veteran'] : ['not a veteran', 'no', 'I am not a veteran']
+                                );
+                            } else {
+                                value = isVeteran ? 'Yes' : 'No';
+                            }
+                        }
+                        break;
+
+                    case 'disabilityStatus':
+                    case 'disability':
+                        if (es.disabilityStatus) {
+                            const hasDisability = es.disabilityStatus === 'yes';
+                            if (isSelect) {
+                                value = this.findBestSelectOption(element,
+                                    hasDisability
+                                        ? ['I have a disability', 'yes', 'disability']
+                                        : ['I do not have a disability', 'no', 'no disability', 'decline']
+                                );
+                            } else {
+                                value = hasDisability ? 'Yes' : 'No';
+                            }
+                        }
+                        break;
+                }
+
+                if (value) {
+                    await this.fillField(field, value);
+                    Utils.log(`✓ Filled ${field.classification}: "${value}"`, 'info');
+                }
+            } catch (error) {
+                this.errors.push({
+                    field: field.classification,
+                    error: error.message
+                });
+                Utils.log(`✗ Error filling ${field.classification}: ${error.message}`, 'error');
+            }
+        }
+    }
+
+    /**
+     * Find best matching option in a select dropdown
+     * @param {HTMLSelectElement} select - Select element
+     * @param {string|Array} searchTerms - Terms to search for
+     * @returns {string|null} - Best matching option value
+     */
+    findBestSelectOption(select, searchTerms) {
+        if (!select || select.tagName !== 'SELECT') return null;
+
+        const terms = Array.isArray(searchTerms) ? searchTerms : [searchTerms];
+        const options = Array.from(select.options);
+
+        // First try exact match
+        for (const term of terms) {
+            for (const opt of options) {
+                const optText = opt.text.toLowerCase().trim();
+                const optValue = opt.value.toLowerCase().trim();
+                const searchTerm = term.toLowerCase().trim();
+
+                if (optText === searchTerm || optValue === searchTerm) {
+                    return opt.value;
+                }
+            }
+        }
+
+        // Then try partial match
+        for (const term of terms) {
+            for (const opt of options) {
+                const optText = opt.text.toLowerCase();
+                const searchTerm = term.toLowerCase();
+
+                if (optText.includes(searchTerm) || searchTerm.includes(optText)) {
+                    return opt.value;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
