@@ -725,20 +725,6 @@ export default function EditorPage() {
         setSaving(true);
 
         try {
-            const sanitize = (value: any): any => {
-                if (Array.isArray(value)) {
-                    return value.map(sanitize);
-                }
-                if (value && typeof value === 'object') {
-                    return Object.entries(value).reduce((acc, [k, v]) => {
-                        if (v === undefined) return acc;
-                        acc[k] = sanitize(v);
-                        return acc;
-                    }, {} as any);
-                }
-                return value === undefined ? null : value;
-            };
-
             const resumeId = params.id === 'new' ? `resume_${Date.now()}` : params.id;
 
             const atsScoreData = {
@@ -794,7 +780,7 @@ export default function EditorPage() {
                 await setDoc(appDocRef, {
                     jobTitle: jobTitle || 'Imported Resume',
                     jobCompany: jobCompany || 'Quick Format',
-                    resume: sanitize(updatedResume),
+                    resume: updatedResume,
                     atsScore: atsScoreData.total,
                     settings,
                     sections,
@@ -820,9 +806,8 @@ export default function EditorPage() {
                 // Title is derived from experience[0].title or job analysis
                 const derivedTitle = jobAnalysis?.title || resumeData.experience[0]?.title || 'Untitled';
 
-                const resumePayload = {
+                await setDoc(resumeDocRef, {
                     ...resumeDoc.data(),
-                    userId: user.uid,  // Explicitly preserve userId for dashboard query
                     jobTitle: derivedTitle,
                     jobCompany: jobCompany || '',
                     company: jobCompany || '',  // Backward compatibility
@@ -861,9 +846,7 @@ export default function EditorPage() {
                     settings,  // Save formatting settings
                     sections,  // Save section order
                     updatedAt: serverTimestamp(),
-                };
-
-                await setDoc(resumeDocRef, sanitize(resumePayload), { merge: true });
+                }, { merge: true });
 
                 console.log('[Editor] Resume saved to resumes collection (top-level)');
                 toast.success('Resume updated! 🎉');
@@ -914,8 +897,7 @@ export default function EditorPage() {
                         }, {}),
                     };
 
-                    await setDoc(appDocRef, sanitize({
-                        userId: user.uid,  // Explicitly preserve userId
+                    await setDoc(appDocRef, {
                         jobTitle: derivedTitle,
                         jobCompany: jobCompany || '',
                         resume: updatedResume,
@@ -923,14 +905,14 @@ export default function EditorPage() {
                         settings,
                         sections,
                         updatedAt: serverTimestamp(),
-                    }), { merge: true });
+                    }, { merge: true });
 
                     console.log('[Editor] Resume saved to applications collection');
                     toast.success('Resume updated! 🎉');
                     localStorage.removeItem(`draft_resume_${params.id}`);
                 } else {
                     // Final fallback: Save to appliedResumes (old format)
-                    await setDoc(doc(db, 'appliedResumes', resumeId as string), sanitize({
+                    await setDoc(doc(db, 'appliedResumes', resumeId as string), {
                         userId: user.uid,
                         jobTitle: jobAnalysis?.title || 'Untitled',
                         company: jobAnalysis?.company || '',
@@ -942,7 +924,7 @@ export default function EditorPage() {
                         status: 'draft',
                         createdAt: serverTimestamp(),
                         updatedAt: serverTimestamp(),
-                    }));
+                    });
 
                     toast.success('Resume saved! 🎉');
                     localStorage.removeItem(`draft_resume_${params.id}`);
