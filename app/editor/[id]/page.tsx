@@ -463,7 +463,7 @@ export default function EditorPage() {
                     const resumeData = resumeDoc.data();
 
                     // Load job title and company (check both field names for compatibility)
-                    setJobTitle(resumeData.jobTitle || '');
+                    setJobTitle(resumeData.jobTitle || resumeData.title || '');
                     setJobCompany(resumeData.jobCompany || resumeData.company || '');
 
                     // Check if this is AI-generated resume (new format)
@@ -525,8 +525,8 @@ export default function EditorPage() {
                 const appDoc = await getDoc(doc(db, 'applications', params.id as string));
                 if (appDoc.exists()) {
                     const appData = appDoc.data() as any;
-                    setJobTitle(appData.jobTitle || '');
-                    setJobCompany(appData.jobCompany || '');
+                    setJobTitle(appData.jobTitle || appData.title || '');
+                    setJobCompany(appData.jobCompany || appData.company || '');
 
                     if (appData.resume) {
                         const resume = appData.resume;
