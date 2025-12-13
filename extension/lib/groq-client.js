@@ -15,13 +15,35 @@ const GroqClient = {
         defaultMaxTokens: 800
     },
 
-    // Load API keys from storage
+    // Load API keys from storage (with flashSession fallback)
     loadKeys: async () => {
         try {
-            const result = await chrome.storage.local.get(['groqApiKeys', 'groqSettings']);
+            const result = await chrome.storage.local.get([
+                'groqApiKeys',
+                'groqSettings',
+                'flashSession'  // Also check flashSession
+            ]);
 
-            if (result.groqApiKeys && Array.isArray(result.groqApiKeys)) {
+            // First, try direct groqApiKeys array
+            if (result.groqApiKeys && Array.isArray(result.groqApiKeys) && result.groqApiKeys.length > 0) {
                 GroqClient.apiKeys = result.groqApiKeys.filter(k => k && k.trim());
+            }
+
+            // Fallback: Check flashSession.extensionSettings for Groq API key
+            if (GroqClient.apiKeys.length === 0 && result.flashSession?.extensionSettings) {
+                const es = result.flashSession.extensionSettings;
+                const flashKey = es.groqApiKey || es.groqApiKeys;
+                if (flashKey) {
+                    // Could be a single key or multiple keys (newline separated)
+                    const keys = String(flashKey).split('\n').map(k => k.trim()).filter(k => k.length > 0);
+                    if (keys.length > 0) {
+                        GroqClient.apiKeys = keys;
+                        console.log(`[Groq] Loaded ${keys.length} API key(s) from flashSession.extensionSettings`);
+
+                        // Also store them for future use
+                        await chrome.storage.local.set({ groqApiKeys: keys });
+                    }
+                }
             }
 
             if (result.groqSettings) {
