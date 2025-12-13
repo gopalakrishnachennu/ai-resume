@@ -22,6 +22,7 @@ interface ExtensionSettings {
     // Extension IDs (for messaging)
     extensionId: string; // Manual ID for dev mode
     storeExtensionId: string; // Chrome Web Store ID when approved
+    webappUrl: string; // Your webapp URL for externally_connectable
 
     // Extension Download/Install Links
     chromeWebStoreUrl: string;
@@ -58,6 +59,7 @@ const defaultSettings: ExtensionSettings = {
 
     extensionId: '', // Set after loading in dev mode
     storeExtensionId: '', // Set after Chrome Web Store approval
+    webappUrl: 'https://ai-resume-gopalakrishnachennu.vercel.app', // Your webapp URL
 
     chromeWebStoreUrl: '',
     developerModeInstructions: '1. Open chrome://extensions\n2. Enable Developer Mode\n3. Click "Load unpacked"\n4. Select the extension folder',
@@ -281,6 +283,29 @@ export default function ExtensionSettingsPage() {
                                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">Used when Install Method is &quot;Chrome Web Store&quot;</p>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        🌐 Webapp URL (for externally_connectable)
+                                    </label>
+                                    <input
+                                        type="url"
+                                        value={settings.webappUrl || ''}
+                                        onChange={(e) => updateSetting('webappUrl', e.target.value)}
+                                        placeholder="e.g., https://your-app.vercel.app"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        ⚠️ Must match the URL in extension&apos;s <code className="bg-gray-100 px-1 rounded">manifest.json</code> → <code className="bg-gray-100 px-1 rounded">externally_connectable</code>
+                                    </p>
+                                    <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                                        <strong>Current manifest allows:</strong>
+                                        <ul className="mt-1 ml-4 list-disc">
+                                            <li>https://*.vercel.app/*</li>
+                                            <li>http://localhost:3000/*</li>
+                                        </ul>
+                                        If your webapp uses a different URL, update the manifest&apos;s <code className="bg-amber-100 px-1 rounded">externally_connectable.matches</code>
+                                    </div>
                                 </div>
                             </div>
                         </section>
