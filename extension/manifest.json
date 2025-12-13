@@ -111,6 +111,8 @@
   "externally_connectable": {
     "matches": [
       "https://*.vercel.app/*",
+      "https://ai-resume-git-feature-9d1c2b-gopalakrishnachennu-5461s-projects.vercel.app/*",
+      "https://ai-resume-gopalakrishnachennu-5461s-projects.vercel.app/*",
       "http://localhost:3000/*"
     ]
   }
