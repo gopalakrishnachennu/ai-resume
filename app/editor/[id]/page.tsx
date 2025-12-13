@@ -1419,10 +1419,6 @@ export default function EditorPage() {
                                     className="text-sm font-semibold text-slate-900 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1 block"
                                     placeholder="Job Title"
                                 />
-                                {/* Company displayed as read-only text */}
-                                <span className="text-xs text-slate-500">
-                                    {jobCompany || jobAnalysis?.company || 'No company'}
-                                </span>
                             </div>
                         </div>
                     </div>
