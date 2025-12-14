@@ -96,11 +96,100 @@ export default function ExtensionSettingsPage() {
     const [settings, setSettings] = useState<ExtensionSettings>(defaultSettings);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+    const [extensionInstalled, setExtensionInstalled] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
     useEffect(() => {
         useAuthStore.getState().initialize();
+        // Check if extension is installed
+        checkExtensionInstalled();
     }, []);
+
+    const checkExtensionInstalled = async () => {
+        try {
+            const { isExtensionInstalled } = await import('@/lib/extensionBridge');
+            const installed = await isExtensionInstalled();
+            setExtensionInstalled(installed);
+        } catch {
+            setExtensionInstalled(false);
+        }
+    };
+
+    const handleSyncToExtension = async () => {
+        if (!user) return;
+
+        setSyncing(true);
+        try {
+            const { syncToExtension, isExtensionInstalled } = await import('@/lib/extensionBridge');
+
+            const installed = await isExtensionInstalled();
+            if (!installed) {
+                toast.error('Extension not detected. Make sure you have the JobFiller Pro extension installed.');
+                return;
+            }
+
+            // Build profile from settings
+            const profile = {
+                identity: {
+                    email: user.email || '',
+                    fullName: user.displayName || '',
+                },
+                social: {
+                    linkedin: settings.linkedinUrl,
+                    twitter: settings.twitterUrl,
+                    github: settings.githubUrl,
+                    portfolio: settings.portfolioUrl,
+                },
+                authorization: {
+                    status: settings.workAuthorization,
+                    sponsorship: settings.requireSponsorship,
+                    countries: settings.authorizedCountries,
+                },
+                salary: {
+                    current: settings.currentSalary,
+                    expected: settings.salaryExpectation,
+                    min: settings.salaryMin,
+                    max: settings.salaryMax,
+                    currency: settings.salaryCurrency,
+                },
+                experience: {
+                    total: settings.totalExperience,
+                    default: settings.defaultExperience,
+                },
+                education: {
+                    highest: settings.highestEducation,
+                },
+                preferences: {
+                    workType: settings.workType,
+                    relocate: settings.willingToRelocate,
+                    locations: settings.relocateLocations,
+                    noticePeriod: settings.noticePeriod,
+                    startDate: settings.expectedJoiningDate,
+                },
+                eeo: {
+                    gender: settings.gender,
+                    ethnicity: settings.ethnicity,
+                    disability: settings.disabilityStatus,
+                    veteran: settings.veteranStatus,
+                },
+            };
+
+            const success = await syncToExtension(user, profile);
+
+            if (success) {
+                toast.success('✓ Synced to extension!');
+                setExtensionInstalled(true);
+            } else {
+                toast.error('Sync failed. Try refreshing the page.');
+            }
+        } catch (error) {
+            console.error('Sync error:', error);
+            toast.error('Failed to sync to extension');
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     useEffect(() => {
         if (authLoading) return;
@@ -189,28 +278,52 @@ export default function ExtensionSettingsPage() {
                                 <p className="text-sm text-slate-500">Configure auto-fill preferences for job portals</p>
                             </div>
                         </div>
-                        <button
-                            onClick={handleSave}
-                            disabled={saving || !hasChanges}
-                            className="px-4 py-2 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                            {saving ? (
-                                <>
-                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                    </svg>
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Save Settings
-                                </>
-                            )}
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleSyncToExtension}
+                                disabled={syncing}
+                                className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {syncing ? (
+                                    <>
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                        Syncing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                        Sync to Extension
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving || !hasChanges}
+                                className="px-4 py-2 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {saving ? (
+                                    <>
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Save
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>

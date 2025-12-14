@@ -53,6 +53,26 @@ export function useGuestAuth() {
                 // Check restrictions
                 const perms = await getGuestRestrictions(firebaseUser);
                 setRestrictions(perms);
+
+                // Sync to extension if user is NOT anonymous (real account)
+                if (!firebaseUser.isAnonymous) {
+                    try {
+                        const { syncToExtension, isExtensionInstalled } = await import('@/lib/extensionBridge');
+                        const installed = await isExtensionInstalled();
+                        if (installed) {
+                            // Sync basic user info to extension
+                            await syncToExtension(firebaseUser, {
+                                identity: {
+                                    email: firebaseUser.email || '',
+                                    fullName: firebaseUser.displayName || '',
+                                }
+                            });
+                            console.log('[ExtensionSync] Synced user to extension:', firebaseUser.email);
+                        }
+                    } catch (e) {
+                        console.log('[ExtensionSync] Extension not available or sync failed');
+                    }
+                }
             } else {
                 // Check dynamic settings before auto-login
                 const settings = await getGlobalSettings();
