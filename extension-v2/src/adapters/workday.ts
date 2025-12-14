@@ -36,18 +36,19 @@ export class WorkdayAdapter extends BaseAdapter {
         for (const container of containers) {
             const automationId = container.getAttribute('data-automation-id') || '';
 
-            // Skip non-input containers
-            if (!automationId.includes('input') &&
-                !automationId.includes('select') &&
-                !automationId.includes('dropdown') &&
-                !automationId.includes('FormField')) continue;
+            // Skip non-input containers - RELAXED CHECK
+            // We trust the querySelector check below instead of string matching the ID
+            // if (!automationId.includes('input') && ... ) continue;
 
             const input = container.querySelector('input, select, textarea');
             if (!input) continue;
 
             // Get label from Workday's structure
             const labelEl = container.querySelector('[data-automation-id*="label"], label');
-            const label = labelEl?.textContent?.trim() || this.getLabel(input as HTMLElement);
+            let label = labelEl?.textContent?.trim() || this.getLabel(input as HTMLElement);
+
+            // Clean label (remove * and extra whitespace)
+            label = label.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
 
             // Detect type
             let type = "text";

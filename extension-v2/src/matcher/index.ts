@@ -93,9 +93,11 @@ export class Matcher {
         }
 
         // TIER 6: Cache Lookup
-        const cached = await getFromCache(label);
-        if (cached) {
-            return { tier: 6, value: cached, confidence: 0.8, strategy: "ai-cache" };
+        if (label.length > 2) {
+            const cached = await getFromCache(label);
+            if (cached) {
+                return { tier: 6, value: cached, confidence: 0.8, strategy: "ai-cache" };
+            }
         }
 
         // TIER 7: Groq AI
