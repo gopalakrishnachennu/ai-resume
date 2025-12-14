@@ -72,36 +72,63 @@ async function init() {
  */
 async function loadSessionFromFirebase(userId) {
     try {
-        console.log('[Popup] Loading session from Firebase for:', userId);
+        console.log('[Popup] Loading data from Firebase for:', userId);
 
-        // Webapp stores session in: activeSession/{userId}
+        // 1. Load Active Session
         const sessionDoc = await getDoc(doc(db, 'activeSession', userId));
 
         if (sessionDoc.exists()) {
             currentSession = sessionDoc.data();
-            console.log('[Popup] ✅ Session loaded from Firebase:', {
-                jobTitle: currentSession.jobTitle,
-                jobCompany: currentSession.jobCompany,
-                hasPersonalInfo: !!currentSession.personalInfo,
-                hasSkills: !!currentSession.skills,
-            });
+            console.log('[Popup] ✅ Sess loaded:', currentSession.jobCompany);
 
-            // Store session locally for form filling
             await chrome.storage.local.set({
                 session: currentSession,
-                profile: currentSession // Also store as profile for backward compatibility
+                profile: currentSession
             });
         } else {
-            console.log('[Popup] No active session in Firebase for user:', userId);
+            console.log('[Popup] No active session');
+        }
 
-            // Try to load extension settings as fallback
-            const settingsDoc = await getDoc(doc(db, 'users', userId, 'settings', 'extension'));
-            if (settingsDoc.exists()) {
-                const settings = settingsDoc.data();
-                console.log('[Popup] Loaded extension settings as fallback');
-                await chrome.storage.local.set({ extensionSettings: settings });
+        // 2. Load Settings (Groq Keys) - Critical for AI
+        // First try user-specific settings
+        let settings = {};
+        const userSettingsDoc = await getDoc(doc(db, 'users', userId, 'settings', 'extension'));
+
+        if (userSettingsDoc.exists()) {
+            settings = userSettingsDoc.data();
+            console.log('[Popup] Loaded user settings');
+        }
+
+        // Then try admin settings (global keys) if no user key
+        if (!settings.groqApiKeys) {
+            const adminSettingsDoc = await getDoc(doc(db, 'adminSettings', 'extension'));
+            if (adminSettingsDoc.exists()) {
+                const adminSettings = adminSettingsDoc.data();
+                settings = { ...settings, ...adminSettings };
+                console.log('[Popup] Loaded admin settings (Global Keys)');
             }
         }
+
+        // Parse keys if string
+        let apiKey = settings.groqApiKey;
+        if (!apiKey && settings.groqApiKeys) {
+            // Pick first key from multiline string
+            apiKey = settings.groqApiKeys.split('\n')[0]?.trim();
+        }
+
+        // Save to storage for groq.ts
+        if (apiKey) {
+            await chrome.storage.local.set({
+                settings: {
+                    ...settings,
+                    groqApiKey: apiKey // groq.ts looks for this specific field
+                }
+            });
+            console.log('[Popup] ✅ Groq API Key cached');
+        } else {
+            console.warn('[Popup] ⚠️ No Groq API Key found in settings');
+        }
+
     } catch (error) {
         console.error('[Popup] Firebase load failed:', error);
     }
