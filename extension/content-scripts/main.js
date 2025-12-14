@@ -829,13 +829,23 @@ async function handleQuickFill(sendResponse) {
     try {
         // Try PSQA (Platform-Specific Question Adapter) first
         if (window.PlatformFiller && window.AdapterRegistry) {
-            console.log('[JobFiller] Using PSQA architecture');
-            const result = await handleQuickFillPSQA();
-            sendResponse(result);
-            return;
+            console.log('[JobFiller] Trying PSQA architecture...');
+            try {
+                const result = await handleQuickFillPSQA();
+                // Only use PSQA result if it actually filled something
+                if (result.success && result.stats && result.stats.filled > 0) {
+                    console.log(`[JobFiller] PSQA success: filled ${result.stats.filled} fields`);
+                    sendResponse(result);
+                    return;
+                } else {
+                    console.log('[JobFiller] PSQA filled 0 fields, falling back to legacy');
+                }
+            } catch (psqaError) {
+                console.error('[JobFiller] PSQA error, falling back to legacy:', psqaError);
+            }
         }
 
-        // Fallback to legacy system
+        // USE LEGACY SYSTEM (proven to work)
         console.log('[JobFiller] Using legacy form filler');
         await ensureInitialized(true);
         const result = await handleQuickFillFromBanner();
@@ -856,54 +866,44 @@ async function handleQuickFill(sendResponse) {
 
 /**
  * PSQA Quick Fill - Uses Platform-Specific adapters
+ * Returns result with stats.filled count for validation
  */
 async function handleQuickFillPSQA() {
-    try {
-        // Get profile from flash session or storage
-        let profile = null;
+    // Get profile from flash session or storage
+    let profile = null;
 
-        // Try FlashSession first
-        if (window.FirebaseSession) {
-            profile = await FirebaseSession.getProfileFromFlash();
-        }
-
-        // Fallback to storage
-        if (!profile) {
-            const result = await chrome.storage.local.get('flashSession');
-            if (result.flashSession) {
-                profile = FirebaseSession.sessionToProfile(result.flashSession);
-            }
-        }
-
-        if (!profile) {
-            return {
-                success: false,
-                error: 'No profile data available. Please sync from webapp.'
-            };
-        }
-
-        // Initialize PlatformFiller
-        const platform = await PlatformFiller.init(profile);
-        console.log(`[PSQA] Initialized for ${platform}`);
-
-        // Fill all fields
-        const result = await PlatformFiller.fillAll();
-
-        return {
-            success: true,
-            platform: result.platform,
-            stats: result.stats,
-            stepInfo: result.stepInfo,
-            results: result.results.slice(0, 10), // Limit for response size
-            message: `Filled ${result.stats.filled}/${result.stats.total} fields (${result.stats.aiUsed} used AI)`
-        };
-    } catch (error) {
-        console.error('[PSQA] Error:', error);
-        return {
-            success: false,
-            error: error.message
-        };
+    // Try FlashSession first
+    if (window.FirebaseSession) {
+        profile = await FirebaseSession.getProfileFromFlash();
     }
+
+    // Fallback to storage
+    if (!profile) {
+        const result = await chrome.storage.local.get('flashSession');
+        if (result.flashSession) {
+            profile = FirebaseSession.sessionToProfile(result.flashSession);
+        }
+    }
+
+    if (!profile) {
+        throw new Error('No profile data available');
+    }
+
+    // Initialize PlatformFiller
+    const platform = await PlatformFiller.init(profile);
+    console.log(`[PSQA] Initialized for ${platform}`);
+
+    // Fill all fields
+    const result = await PlatformFiller.fillAll();
+
+    return {
+        success: true,
+        platform: result.platform,
+        stats: result.stats,
+        stepInfo: result.stepInfo,
+        results: result.results.slice(0, 10),
+        message: `Filled ${result.stats.filled}/${result.stats.total} fields (${result.stats.aiUsed} used AI)`
+    };
 }
 
 /**
