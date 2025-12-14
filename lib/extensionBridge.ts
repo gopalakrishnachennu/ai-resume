@@ -186,7 +186,48 @@ export function setupAutoSync(
 // Alias exports for backward compatibility
 export const isExtensionAvailable = isExtensionInstalled;
 export const pushFlashSession = createFlashSession;
-export const syncProfileToExtension = syncToExtension;
+
+/**
+ * Sync profile data to extension (standalone, no user required)
+ * Used by dashboard for auto-sync
+ */
+export async function syncProfileToExtension(profile: any): Promise<boolean> {
+    try {
+        const installed = await isExtensionInstalled();
+        if (!installed) {
+            console.warn("[ExtensionBridge] Extension not installed");
+            return false;
+        }
+
+        // Send profile directly to extension
+        return new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+                window.removeEventListener("message", handler);
+                resolve(false);
+            }, 3000);
+
+            const handler = (event: MessageEvent) => {
+                if (event.data?.type === "JOBFILLER_PROFILE_SUCCESS") {
+                    clearTimeout(timeout);
+                    window.removeEventListener("message", handler);
+                    console.log("[ExtensionBridge] Profile sync successful");
+                    resolve(true);
+                } else if (event.data?.type === "JOBFILLER_PROFILE_ERROR") {
+                    clearTimeout(timeout);
+                    window.removeEventListener("message", handler);
+                    console.error("[ExtensionBridge] Profile sync error:", event.data.error);
+                    resolve(false);
+                }
+            };
+
+            window.addEventListener("message", handler);
+            window.postMessage({ type: "JOBFILLER_PROFILE", payload: { profile } }, "*");
+        });
+    } catch (error) {
+        console.error("[ExtensionBridge] Profile sync failed:", error);
+        return false;
+    }
+}
 
 /**
  * Sync Groq settings to extension (for admin panel)
