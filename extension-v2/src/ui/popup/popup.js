@@ -1,9 +1,26 @@
 /**
- * JobFiller Pro - Popup Script
- * Premium Design with Active Session Data Display
+ * JobFiller Pro - Popup Script with Firebase Direct Sync
+ * Reads active session from Firestore directly
  */
 
-// Dashboard URL - Update this with your production URL
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+
+// Firebase config - MUST match your webapp
+const firebaseConfig = {
+    apiKey: "AIzaSyANSk1PwPkMabX6kRGOYnldoeEC8VvtB5Q",
+    authDomain: "ai-resume-f9b01.firebaseapp.com",
+    projectId: "ai-resume-f9b01",
+    storageBucket: "ai-resume-f9b01.firebasestorage.app",
+    messagingSenderId: "836466410766",
+    appId: "1:836466410766:web:146188f9d00106ea1d835f"
+};
+
+// Initialize Firebase
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const db = getFirestore(app);
+
+// Dashboard URL
 const DASHBOARD_URL = "https://ai-resume-git-feature-9d1c2b-gopalakrishnachennu-5461s-projects.vercel.app";
 
 // DOM Elements
@@ -22,45 +39,78 @@ const statFilled = document.getElementById('stat-filled');
 const statAccuracy = document.getElementById('stat-accuracy');
 const statApps = document.getElementById('stat-apps');
 
+// Current session data
+let currentSession = null;
+let currentUserId = null;
+
 /**
  * Initialize popup
  */
 async function init() {
-    console.log('[Popup] Initializing...');
-    await checkConnection();
+    console.log('[Popup] Initializing with Firebase sync...');
+
+    // First check local storage for userId
+    const stored = await chrome.storage.local.get(['auth', 'stats']);
+
+    if (stored.auth?.uid) {
+        currentUserId = stored.auth.uid;
+        console.log('[Popup] Found userId:', currentUserId);
+
+        // Load session from Firebase
+        await loadSessionFromFirebase(currentUserId);
+        showConnectedState(stored.auth, currentSession, stored.stats);
+    } else {
+        console.log('[Popup] No userId in storage - showing not connected');
+        showNotConnectedState();
+    }
+
     setupEventListeners();
 }
 
 /**
- * Check if user is connected and load session data
+ * Load active session from Firebase
  */
-async function checkConnection() {
+async function loadSessionFromFirebase(userId) {
     try {
-        const result = await chrome.storage.local.get(['auth', 'profile', 'session', 'stats']);
-        console.log('[Popup] Storage data:', result);
+        console.log('[Popup] Loading session from Firebase for:', userId);
 
-        if (result.auth && result.auth.uid) {
-            showConnectedState(result.auth, result.profile, result.session, result.stats);
-        } else if (result.session) {
-            // Have session but no auth - show connected with session data
-            const auth = {
-                displayName: result.session.personalInfo?.name || result.session.displayName || 'User',
-                email: result.session.personalInfo?.email || result.session.email || '',
-            };
-            showConnectedState(auth, result.profile || result.session, result.session, result.stats);
+        // Try to get active session
+        const sessionDoc = await getDoc(doc(db, 'users', userId, 'sessions', 'active'));
+
+        if (sessionDoc.exists()) {
+            currentSession = sessionDoc.data();
+            console.log('[Popup] ✅ Session loaded from Firebase:', {
+                jobTitle: currentSession.jobTitle,
+                jobCompany: currentSession.jobCompany,
+                hasPersonalInfo: !!currentSession.personalInfo,
+                hasSkills: !!currentSession.skills,
+            });
+
+            // Store session locally for form filling
+            await chrome.storage.local.set({
+                session: currentSession,
+                profile: currentSession // Also store as profile for backward compatibility
+            });
         } else {
-            showNotConnectedState();
+            console.log('[Popup] No active session in Firebase');
+
+            // Try to load extension settings as fallback
+            const settingsDoc = await getDoc(doc(db, 'users', userId, 'settings', 'extension'));
+            if (settingsDoc.exists()) {
+                const settings = settingsDoc.data();
+                console.log('[Popup] Loaded extension settings as fallback');
+                await chrome.storage.local.set({ extensionSettings: settings });
+            }
         }
     } catch (error) {
-        console.error('[Popup] Check connection failed:', error);
-        showNotConnectedState();
+        console.error('[Popup] Firebase load failed:', error);
     }
 }
 
 /**
  * Show connected state with session data
  */
-function showConnectedState(auth, profile, session, stats) {
+function showConnectedState(auth, session, stats) {
     notConnectedState.style.display = 'none';
     connectedState.style.display = 'flex';
 
@@ -81,25 +131,15 @@ function showConnectedState(auth, profile, session, stats) {
     // Stats
     if (stats) {
         statFilled.textContent = stats.filledToday || 0;
-        statApps.textContent = stats.totalApplications || stats.totalFilled || 0;
+        statApps.textContent = stats.totalFilled || 0;
     }
 
-    // Log profile data for debugging
-    if (profile) {
-        console.log('[Popup] Profile loaded:', {
-            identity: profile.identity,
-            hasAuth: !!profile.authorization,
-            hasSalary: !!profile.salary,
-            hasExp: !!profile.experience,
-        });
-    }
-
-    if (session) {
-        console.log('[Popup] Session loaded:', {
-            hasPersonalInfo: !!session.personalInfo,
-            hasSkills: !!session.skills,
-            hasExperience: !!session.experience,
-        });
+    // Update button text if we have an active session
+    if (session?.jobTitle) {
+        const btnSubtitle = fillBtn.querySelector('.btn-subtitle');
+        if (btnSubtitle) {
+            btnSubtitle.textContent = `${session.jobTitle} @ ${session.jobCompany}`;
+        }
     }
 }
 
@@ -123,9 +163,19 @@ function setupEventListeners() {
     // Fill button
     fillBtn?.addEventListener('click', handleFillForm);
 
-    // Refresh/Sync button
-    refreshBtn?.addEventListener('click', () => {
-        chrome.tabs.create({ url: DASHBOARD_URL + '/settings/extension' });
+    // Refresh/Sync button - reload from Firebase
+    refreshBtn?.addEventListener('click', async () => {
+        if (currentUserId) {
+            const btnText = refreshBtn.textContent;
+            refreshBtn.textContent = '...';
+            await loadSessionFromFirebase(currentUserId);
+            refreshBtn.textContent = btnText;
+
+            const stored = await chrome.storage.local.get(['auth', 'stats']);
+            showConnectedState(stored.auth, currentSession, stored.stats);
+        } else {
+            chrome.tabs.create({ url: DASHBOARD_URL + '/settings/extension' });
+        }
     });
 
     // Settings button
@@ -154,21 +204,28 @@ async function handleFillForm() {
     btnIcon.textContent = '↻';
 
     try {
-        // First check if we have session data
+        // Reload session from Firebase to ensure fresh data
+        if (currentUserId) {
+            await loadSessionFromFirebase(currentUserId);
+        }
+
+        // Check if we have session data
         const storage = await chrome.storage.local.get(['profile', 'session']);
         console.log('[Popup] Fill with data:', storage);
 
         if (!storage.profile && !storage.session) {
-            showMessage('No profile data. Please sync from dashboard first.');
             resetButton();
+            btnTitle.textContent = 'No session - Flash first!';
+            setTimeout(() => { btnTitle.textContent = originalTitle; }, 2000);
             return;
         }
 
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
         if (!tab?.id) {
-            showMessage('No active tab found');
             resetButton();
+            btnTitle.textContent = 'No active tab';
+            setTimeout(() => { btnTitle.textContent = originalTitle; }, 2000);
             return;
         }
 
@@ -176,7 +233,7 @@ async function handleFillForm() {
             fillBtn.classList.remove('loading');
 
             if (chrome.runtime.lastError) {
-                btnTitle.textContent = 'Navigate to a job page first';
+                btnTitle.textContent = 'Navigate to job page first';
                 btnIcon.textContent = '📋';
                 setTimeout(() => {
                     btnTitle.textContent = originalTitle;
@@ -188,7 +245,7 @@ async function handleFillForm() {
             if (response?.success) {
                 // Success state
                 fillBtn.classList.add('success');
-                btnTitle.textContent = 'Filled ' + (response.filled || 0) + ' Fields';
+                btnTitle.textContent = 'Filled ' + (response.filled || 0) + ' Fields!';
                 btnIcon.textContent = '✓';
 
                 // Update stats
@@ -200,10 +257,8 @@ async function handleFillForm() {
                     btnIcon.textContent = originalIcon;
                 }, 3000);
             } else {
-                // Error
                 btnTitle.textContent = response?.error || 'No forms found';
                 btnIcon.textContent = '⚠';
-
                 setTimeout(() => {
                     btnTitle.textContent = originalTitle;
                     btnIcon.textContent = originalIcon;
@@ -213,7 +268,6 @@ async function handleFillForm() {
     } catch (error) {
         console.error('[Popup] Fill error:', error);
         resetButton();
-        showMessage('Unable to fill form');
     }
 
     function resetButton() {
@@ -224,12 +278,12 @@ async function handleFillForm() {
 }
 
 /**
- * Update stats in storage and UI
+ * Update stats
  */
 async function updateStats(filled) {
     try {
         const result = await chrome.storage.local.get(['stats']);
-        const stats = result.stats || { filledToday: 0, totalApplications: 0, totalFilled: 0 };
+        const stats = result.stats || { filledToday: 0, totalFilled: 0 };
         stats.filledToday = (stats.filledToday || 0) + filled;
         stats.totalFilled = (stats.totalFilled || 0) + filled;
         await chrome.storage.local.set({ stats });
@@ -238,14 +292,6 @@ async function updateStats(filled) {
     } catch (e) {
         console.error('[Popup] Update stats failed:', e);
     }
-}
-
-/**
- * Show temporary message (could add toast later)
- */
-function showMessage(msg) {
-    console.log('[JobFiller] ' + msg);
-    // Could add a toast notification here
 }
 
 // Initialize on DOM ready
