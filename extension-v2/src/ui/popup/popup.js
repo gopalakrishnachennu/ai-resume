@@ -279,7 +279,7 @@ function setupEventListeners() {
 
     if (dataBtn) {
         dataBtn.addEventListener('click', () => {
-            if (dataModal) dataModal.style.display = 'block';
+            if (dataModal) dataModal.classList.add('show');
 
             if (currentSession && dataContent) {
                 // Formatting helper
@@ -369,7 +369,7 @@ function setupEventListeners() {
     }
     if (closeDataBtn) {
         closeDataBtn.addEventListener('click', () => {
-            if (dataModal) dataModal.style.display = 'none';
+            if (dataModal) dataModal.classList.remove('show');
         });
     }
 }

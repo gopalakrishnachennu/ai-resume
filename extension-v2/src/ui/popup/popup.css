@@ -454,8 +454,11 @@ body {
     z-index: 100;
     padding: 20px;
     box-sizing: border-box;
-    display: flex;
     flex-direction: column;
+}
+
+.modal.show {
+    display: flex;
 }
 
 .modal-header {
