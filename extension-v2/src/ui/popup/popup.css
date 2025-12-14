@@ -352,7 +352,12 @@ body {
     gap: 10px;
 }
 
-.resume-file {
+.resume-subtitle {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.resume-file-btn {
     flex: 1;
     display: flex;
     align-items: center;
@@ -361,6 +366,28 @@ body {
     background: var(--bg-main);
     border-radius: var(--radius-sm);
     border: 1px solid rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.resume-file-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.resume-file-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.resume-file-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.resume-file-btn.uploading {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--accent);
 }
 
 .file-icon {

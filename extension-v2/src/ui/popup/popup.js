@@ -36,8 +36,10 @@ const userEmail = document.getElementById('user-email');
 const userAvatar = document.getElementById('user-avatar');
 const avatarLetter = document.getElementById('avatar-letter');
 // Resume status elements
-const pdfStatus = document.getElementById('pdf-status');
-const docxStatus = document.getElementById('docx-status');
+const pdfUploadBtn = document.getElementById('pdf-upload-btn');
+const docxUploadBtn = document.getElementById('docx-upload-btn');
+const pdfStatusText = document.getElementById('pdf-status-text');
+const docxStatusText = document.getElementById('docx-status-text');
 const resumeHint = document.getElementById('resume-hint');
 
 // Current session data
@@ -231,45 +233,52 @@ async function updateResumeStatus() {
         const stored = await chrome.storage.local.get(['resumeInfo']);
         const resumeInfo = stored.resumeInfo || {};
 
+        // Track if files are ready for button enabling
+        const hasPdf = !!resumeInfo.pdf?.name;
+        const hasDocx = !!resumeInfo.docx?.name;
+
         // Update PDF status
-        if (pdfStatus) {
-            const pdfStatusEl = pdfStatus.querySelector('.file-status');
-            if (pdfStatusEl) {
-                if (resumeInfo.pdf?.name) {
-                    pdfStatusEl.textContent = '✓ Ready';
-                    pdfStatusEl.classList.remove('no-file');
-                    pdfStatusEl.classList.add('has-file');
-                } else {
-                    pdfStatusEl.textContent = 'Not loaded';
-                    pdfStatusEl.classList.remove('has-file');
-                    pdfStatusEl.classList.add('no-file');
-                }
+        if (pdfStatusText) {
+            if (hasPdf) {
+                pdfStatusText.textContent = '✓ Ready';
+                pdfStatusText.classList.remove('no-file');
+                pdfStatusText.classList.add('has-file');
+            } else {
+                pdfStatusText.textContent = 'Not loaded';
+                pdfStatusText.classList.remove('has-file');
+                pdfStatusText.classList.add('no-file');
             }
         }
 
+        // Enable/disable PDF button
+        if (pdfUploadBtn) {
+            pdfUploadBtn.disabled = !hasPdf;
+        }
+
         // Update DOCX status
-        if (docxStatus) {
-            const docxStatusEl = docxStatus.querySelector('.file-status');
-            if (docxStatusEl) {
-                if (resumeInfo.docx?.name) {
-                    docxStatusEl.textContent = '✓ Ready';
-                    docxStatusEl.classList.remove('no-file');
-                    docxStatusEl.classList.add('has-file');
-                } else {
-                    docxStatusEl.textContent = 'Not loaded';
-                    docxStatusEl.classList.remove('has-file');
-                    docxStatusEl.classList.add('no-file');
-                }
+        if (docxStatusText) {
+            if (hasDocx) {
+                docxStatusText.textContent = '✓ Ready';
+                docxStatusText.classList.remove('no-file');
+                docxStatusText.classList.add('has-file');
+            } else {
+                docxStatusText.textContent = 'Not loaded';
+                docxStatusText.classList.remove('has-file');
+                docxStatusText.classList.add('no-file');
             }
+        }
+
+        // Enable/disable DOCX button
+        if (docxUploadBtn) {
+            docxUploadBtn.disabled = !hasDocx;
         }
 
         // Update hint visibility
         if (resumeHint) {
-            const hasFiles = resumeInfo.pdf?.name || resumeInfo.docx?.name;
-            resumeHint.classList.toggle('hidden', hasFiles);
+            resumeHint.classList.toggle('hidden', hasPdf || hasDocx);
         }
 
-        console.log('[Popup] Resume status updated:', resumeInfo);
+        console.log('[Popup] Resume status updated:', { hasPdf, hasDocx });
     } catch (error) {
         console.error('[Popup] Error updating resume status:', error);
     }
@@ -421,6 +430,64 @@ function setupEventListeners() {
         closeDataBtn.addEventListener('click', () => {
             if (dataModal) dataModal.classList.remove('show');
         });
+    }
+
+    // PDF Upload Button - Click to upload PDF to current page
+    pdfUploadBtn?.addEventListener('click', async () => {
+        await handleResumeUpload('pdf');
+    });
+
+    // DOCX Upload Button - Click to upload DOCX to current page
+    docxUploadBtn?.addEventListener('click', async () => {
+        await handleResumeUpload('docx');
+    });
+}
+
+/**
+ * Handle resume upload to current page
+ */
+async function handleResumeUpload(format) {
+    const btn = format === 'pdf' ? pdfUploadBtn : docxUploadBtn;
+    const statusEl = format === 'pdf' ? pdfStatusText : docxStatusText;
+    const originalText = statusEl?.textContent || '';
+
+    try {
+        // Show uploading state
+        btn?.classList.add('uploading');
+        if (statusEl) statusEl.textContent = 'Uploading...';
+
+        // Get current tab
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+        if (!tab?.id) {
+            throw new Error('No active tab found');
+        }
+
+        // Send message to content script to upload the resume
+        const response = await chrome.tabs.sendMessage(tab.id, {
+            type: 'UPLOAD_RESUME',
+            format: format // 'pdf' or 'docx'
+        });
+
+        if (response?.success) {
+            if (statusEl) statusEl.textContent = '✓ Uploaded!';
+            setTimeout(() => {
+                if (statusEl) statusEl.textContent = originalText;
+            }, 2000);
+        } else {
+            throw new Error(response?.error || 'Upload failed');
+        }
+
+    } catch (error) {
+        console.error('[Popup] Resume upload failed:', error);
+        if (statusEl) {
+            statusEl.textContent = '✗ Failed';
+            setTimeout(() => {
+                statusEl.textContent = originalText;
+            }, 2000);
+        }
+    } finally {
+        btn?.classList.remove('uploading');
     }
 }
 

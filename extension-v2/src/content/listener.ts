@@ -6,8 +6,8 @@
 import { Profile } from "../core/profile";
 import { SequentialFiller } from "../filler/sequential";
 import { overlay } from "../ui/overlay";
-import { storeFileFromBuffer, hasResume, getResumeInfo } from "../files";
-import { fillAllResumeInputs } from "../files/resume";
+import { storeFileFromBuffer } from "../files";
+import { fillAllResumeInputs, attachResumeWithFormat } from "../files/resume";
 
 console.log("[JobFiller Pro V2] Content Script Loaded 🚀");
 
@@ -28,6 +28,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         case "GET_STATUS":
             handleGetStatus().then(sendResponse);
+            return true;
+
+        case "UPLOAD_RESUME":
+            handleUploadResume(request.format).then(sendResponse);
             return true;
 
         default:
@@ -114,6 +118,28 @@ async function handleFillForm(): Promise<{ success: boolean; filled?: number; er
     } catch (error) {
         console.error("[Listener] Fill error:", error);
         overlay.hide();
+        return { success: false, error: String(error) };
+    }
+}
+
+/**
+ * Handle resume upload request from popup
+ */
+async function handleUploadResume(format: 'pdf' | 'docx'): Promise<{ success: boolean; error?: string }> {
+    try {
+        console.log(`[Listener] Uploading ${format.toUpperCase()} resume to page...`);
+
+        const result = await attachResumeWithFormat(format);
+
+        if (result.success) {
+            console.log(`[Listener] ✓ Uploaded ${format.toUpperCase()} to ${result.count} input(s)`);
+            return { success: true };
+        } else {
+            console.warn(`[Listener] Upload failed:`, result.error);
+            return { success: false, error: result.error };
+        }
+    } catch (error) {
+        console.error("[Listener] Upload error:", error);
         return { success: false, error: String(error) };
     }
 }

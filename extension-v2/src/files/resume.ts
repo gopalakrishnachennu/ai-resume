@@ -111,6 +111,73 @@ export async function getResumeInfo(): Promise<{ name: string; size: number; typ
 }
 
 /**
+ * Attach a specific resume format (PDF or DOCX) to all file inputs on page
+ */
+export async function attachResumeWithFormat(format: 'pdf' | 'docx'): Promise<{ success: boolean; count: number; error?: string }> {
+    try {
+        const fileId = format === 'pdf' ? RESUME_PDF_ID : RESUME_DOCX_ID;
+        const stored = await getFile(fileId);
+
+        if (!stored) {
+            return { success: false, count: 0, error: `No ${format.toUpperCase()} resume stored` };
+        }
+
+        console.log(`[Resume] Attaching ${format.toUpperCase()}: ${stored.name}`);
+
+        // Find all file inputs on the page
+        const inputs = findResumeInputs();
+
+        if (inputs.length === 0) {
+            // Try ALL file inputs as fallback
+            const allInputs = document.querySelectorAll<HTMLInputElement>('input[type="file"]');
+            if (allInputs.length === 0) {
+                return { success: false, count: 0, error: 'No file inputs found on page' };
+            }
+            // Use first file input
+            const success = await attachToInput(allInputs[0], stored);
+            return { success, count: success ? 1 : 0 };
+        }
+
+        let count = 0;
+        for (const input of inputs) {
+            const success = await attachToInput(input, stored);
+            if (success) count++;
+        }
+
+        return { success: count > 0, count };
+
+    } catch (error) {
+        console.error('[Resume] attachResumeWithFormat failed:', error);
+        return { success: false, count: 0, error: String(error) };
+    }
+}
+
+/**
+ * Helper to attach file to a specific input
+ */
+async function attachToInput(input: HTMLInputElement, stored: { blob: Blob; name: string; type: string; updatedAt: number }): Promise<boolean> {
+    try {
+        const file = new File([stored.blob], stored.name, {
+            type: stored.type,
+            lastModified: stored.updatedAt
+        });
+
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        input.files = dataTransfer.files;
+
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+
+        console.log(`[Resume] ✓ Attached to input: ${input.id || input.name || 'unnamed'}`);
+        return true;
+    } catch (error) {
+        console.error('[Resume] Failed to attach to input:', error);
+        return false;
+    }
+}
+
+/**
  * Detect resume file inputs on page
  * Improved detection for various job portals (Lever, Workday, Greenhouse, etc.)
  */

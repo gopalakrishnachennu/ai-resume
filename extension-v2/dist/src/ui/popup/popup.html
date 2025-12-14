@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JobFiller Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/popup-B5Nm4fRC.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/popup-9OG8iRgA.css">
+  <script type="module" crossorigin src="/assets/popup-CJKE0Qau.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/popup-DrH_6RLv.css">
 </head>
 
 <body>
@@ -80,22 +80,23 @@
                 </svg>
             </button>
 
-            <!-- Resume Status -->
+            <!-- Resume Status - Click to upload -->
             <div class="resume-status" id="resume-status">
                 <div class="resume-header">
                     <span class="resume-title">📄 Resume Files</span>
+                    <span class="resume-subtitle">Click to upload</span>
                 </div>
                 <div class="resume-files">
-                    <div class="resume-file" id="pdf-status">
+                    <button class="resume-file-btn" id="pdf-upload-btn" title="Click to upload PDF">
                         <span class="file-icon">📕</span>
                         <span class="file-label">PDF</span>
-                        <span class="file-status no-file">Not loaded</span>
-                    </div>
-                    <div class="resume-file" id="docx-status">
+                        <span class="file-status no-file" id="pdf-status-text">Not loaded</span>
+                    </button>
+                    <button class="resume-file-btn" id="docx-upload-btn" title="Click to upload DOCX">
                         <span class="file-icon">📘</span>
                         <span class="file-label">DOCX</span>
-                        <span class="file-status no-file">Not loaded</span>
-                    </div>
+                        <span class="file-status no-file" id="docx-status-text">Not loaded</span>
+                    </button>
                 </div>
                 <p class="resume-hint" id="resume-hint">Use Flash button on dashboard to load resume</p>
             </div>
