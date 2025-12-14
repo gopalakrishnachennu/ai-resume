@@ -2,6 +2,7 @@ export interface CanonicalMapping {
     path: string;
     transform?: string;
     tier?: number; // Default 2
+    inferFrom?: string; // Optional: derive value from another field (e.g., gender → pronouns)
 }
 
 export const CANONICAL: Record<string, CanonicalMapping> = {
@@ -64,6 +65,9 @@ export const CANONICAL: Record<string, CanonicalMapping> = {
     // --- EEO / DEMOGRAPHICS ---
     "gender": { path: "compliance.gender" },
     "what is your gender?": { path: "compliance.gender" },
+    "pronouns": { path: "identity.pronouns", inferFrom: "compliance.gender", transform: "genderToPronouns" },
+    "your pronouns": { path: "identity.pronouns", inferFrom: "compliance.gender", transform: "genderToPronouns" },
+    "preferred pronouns": { path: "identity.pronouns", inferFrom: "compliance.gender", transform: "genderToPronouns" },
     "race": { path: "compliance.ethnicity" },
     "race/ethnicity": { path: "compliance.ethnicity" },
     "ethnicity": { path: "compliance.ethnicity" },

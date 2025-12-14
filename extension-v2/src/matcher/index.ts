@@ -53,10 +53,17 @@ export class Matcher {
             // return { tier: 1, value: null, confidence: 1, strategy: "already-filled", action: "skip" };
         }
 
+
         // TIER 2: Exact Canonical Match
         if (CANONICAL[label]) {
             const config = CANONICAL[label];
-            const value = this.getValueByPath(config.path);
+            let value = this.getValueByPath(config.path);
+
+            // If no direct value but has inferFrom, try deriving
+            if (!value && config.inferFrom) {
+                value = this.getValueByPath(config.inferFrom);
+            }
+
             if (value) {
                 return { tier: 2, value, confidence: 1.0, strategy: "canonical-exact", transform: config.transform };
             }
@@ -68,7 +75,13 @@ export class Matcher {
 
             const dist = levenshtein(label, key);
             if (dist <= 2) {
-                const value = this.getValueByPath(config.path);
+                let value = this.getValueByPath(config.path);
+
+                // Try inferFrom if no direct value
+                if (!value && config.inferFrom) {
+                    value = this.getValueByPath(config.inferFrom);
+                }
+
                 if (value) {
                     return { tier: 3, value, confidence: 0.9, strategy: `fuzzy-canonical(${key})`, transform: config.transform };
                 }

@@ -75,5 +75,30 @@ export const TRANSFORMS: Record<string, TransformFunction> = {
     // Just return as string
     toString: (_options: string[], value: any): string => {
         return String(value);
+    },
+
+    // Infer pronouns from gender
+    genderToPronouns: (options: string[], gender: string): string => {
+        const g = (gender || '').toLowerCase();
+
+        // Default mappings
+        let preferred = 'He/him'; // Default
+        if (g.includes('female') || g.includes('woman')) {
+            preferred = 'She/her';
+        } else if (g.includes('non-binary') || g.includes('other') || g.includes('prefer not')) {
+            preferred = 'They/them';
+        } else if (g.includes('male') || g.includes('man')) {
+            preferred = 'He/him';
+        }
+
+        // If options provided (checkbox/radio), find matching
+        if (options && options.length > 0) {
+            const match = options.find(o =>
+                o.toLowerCase().includes(preferred.toLowerCase().split('/')[0])
+            );
+            if (match) return match;
+        }
+
+        return preferred;
     }
 };
