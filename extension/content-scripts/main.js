@@ -823,9 +823,20 @@ async function handleFillForm(data, sendResponse) {
 
 /**
  * Handle quick fill (detect + fill)
+ * Uses new PSQA architecture when available, falls back to legacy
  */
 async function handleQuickFill(sendResponse) {
     try {
+        // Try PSQA (Platform-Specific Question Adapter) first
+        if (window.PlatformFiller && window.AdapterRegistry) {
+            console.log('[JobFiller] Using PSQA architecture');
+            const result = await handleQuickFillPSQA();
+            sendResponse(result);
+            return;
+        }
+
+        // Fallback to legacy system
+        console.log('[JobFiller] Using legacy form filler');
         await ensureInitialized(true);
         const result = await handleQuickFillFromBanner();
 
@@ -840,6 +851,58 @@ async function handleQuickFill(sendResponse) {
     } catch (error) {
         Utils.log(`Error with quick fill: ${error.message}`, 'error');
         sendResponse({ success: false, error: error.message });
+    }
+}
+
+/**
+ * PSQA Quick Fill - Uses Platform-Specific adapters
+ */
+async function handleQuickFillPSQA() {
+    try {
+        // Get profile from flash session or storage
+        let profile = null;
+
+        // Try FlashSession first
+        if (window.FirebaseSession) {
+            profile = await FirebaseSession.getProfileFromFlash();
+        }
+
+        // Fallback to storage
+        if (!profile) {
+            const result = await chrome.storage.local.get('flashSession');
+            if (result.flashSession) {
+                profile = FirebaseSession.sessionToProfile(result.flashSession);
+            }
+        }
+
+        if (!profile) {
+            return {
+                success: false,
+                error: 'No profile data available. Please sync from webapp.'
+            };
+        }
+
+        // Initialize PlatformFiller
+        const platform = await PlatformFiller.init(profile);
+        console.log(`[PSQA] Initialized for ${platform}`);
+
+        // Fill all fields
+        const result = await PlatformFiller.fillAll();
+
+        return {
+            success: true,
+            platform: result.platform,
+            stats: result.stats,
+            stepInfo: result.stepInfo,
+            results: result.results.slice(0, 10), // Limit for response size
+            message: `Filled ${result.stats.filled}/${result.stats.total} fields (${result.stats.aiUsed} used AI)`
+        };
+    } catch (error) {
+        console.error('[PSQA] Error:', error);
+        return {
+            success: false,
+            error: error.message
+        };
     }
 }
 
