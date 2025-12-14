@@ -161,9 +161,12 @@ export class WorkdayAdapter extends BaseAdapter {
         // Dispatch events React listens to
         el.dispatchEvent(new Event('input', { bubbles: true }));
         el.dispatchEvent(new Event('change', { bubbles: true }));
-        el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
-        el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
 
+        // Removed keydown/keyup as they can trigger validation logic that crashes 
+        // if event properties are missing/unexpected
+
+        // Small delay to let React process the change before blurring
+        await new Promise(r => setTimeout(r, 50));
         el.blur();
     }
 

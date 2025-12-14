@@ -26,7 +26,8 @@ export interface FillSummary {
 // Callback for progress updates
 export type ProgressCallback = (current: number, total: number, field: FieldInfo, status: string) => void;
 
-const FILL_DELAY = 75; // ms between fields (human-like)
+const FILL_DELAY = 300; // Increased to prevent Workday crashes
+
 
 /**
  * Sequential Form Filler
