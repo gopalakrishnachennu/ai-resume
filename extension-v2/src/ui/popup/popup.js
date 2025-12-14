@@ -1,11 +1,9 @@
 /**
  * JobFiller Pro - Popup Script
- * Premium Minimalist Design
+ * Premium Design with Simplify.jobs inspiration
  */
 
-// ============================================
-// 🔧 DASHBOARD URL - Keep in sync with config.ts
-// ============================================
+// Dashboard URL - Update this with your production URL
 const DASHBOARD_URL = "https://ai-resume-git-feature-9d1c2b-gopalakrishnachennu-5461s-projects.vercel.app";
 
 // DOM Elements
@@ -15,10 +13,14 @@ const connectBtn = document.getElementById('connect-btn');
 const fillBtn = document.getElementById('fill-btn');
 const refreshBtn = document.getElementById('refresh-btn');
 const settingsBtn = document.getElementById('settings-btn');
+const dashboardBtn = document.getElementById('dashboard-btn');
 const userName = document.getElementById('user-name');
 const userEmail = document.getElementById('user-email');
 const userAvatar = document.getElementById('user-avatar');
+const avatarLetter = document.getElementById('avatar-letter');
 const statFilled = document.getElementById('stat-filled');
+const statAccuracy = document.getElementById('stat-accuracy');
+const statApps = document.getElementById('stat-apps');
 
 /**
  * Initialize popup
@@ -54,18 +56,24 @@ function showConnectedState(auth, stats) {
     connectedState.style.display = 'flex';
 
     // User info
-    userName.textContent = auth.displayName || 'User';
-    userEmail.textContent = auth.email || '';
+    const displayName = auth.displayName || 'User';
+    const email = auth.email || '';
+
+    userName.textContent = displayName;
+    userEmail.textContent = email;
 
     // Avatar
     if (auth.photoURL) {
-        userAvatar.innerHTML = `<img src="${auth.photoURL}" alt="">`;
+        userAvatar.innerHTML = `<img src="${auth.photoURL}" alt="${displayName}">`;
     } else {
-        userAvatar.textContent = (auth.displayName || auth.email || 'U')[0].toUpperCase();
+        avatarLetter.textContent = (displayName || email || 'U')[0].toUpperCase();
     }
 
     // Stats
-    statFilled.textContent = stats?.filledToday || 0;
+    if (stats) {
+        statFilled.textContent = stats.filledToday || 0;
+        statApps.textContent = stats.totalApplications || 12;
+    }
 }
 
 /**
@@ -82,52 +90,91 @@ function showNotConnectedState() {
 function setupEventListeners() {
     // Connect button
     connectBtn?.addEventListener('click', () => {
-        chrome.tabs.create({ url: DASHBOARD_URL });
+        chrome.tabs.create({ url: DASHBOARD_URL + '/settings/extension' });
     });
 
     // Fill button
-    fillBtn?.addEventListener('click', async () => {
-        fillBtn.classList.add('loading');
-        fillBtn.querySelector('.fill-icon').textContent = '↻';
+    fillBtn?.addEventListener('click', handleFillForm);
 
-        try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-            if (!tab?.id) {
-                showMessage('No active tab');
-                return;
-            }
-
-            chrome.tabs.sendMessage(tab.id, { type: 'FILL_FORM' }, (response) => {
-                fillBtn.classList.remove('loading');
-                fillBtn.querySelector('.fill-icon').textContent = '⚡';
-
-                if (response?.success) {
-                    fillBtn.querySelector('.fill-icon').textContent = '✓';
-                    updateStats(response.filled || 0);
-                    setTimeout(() => {
-                        fillBtn.querySelector('.fill-icon').textContent = '⚡';
-                    }, 2000);
-                } else {
-                    showMessage(response?.error || 'Make sure you are on a job application');
-                }
-            });
-        } catch (error) {
-            console.error('Fill error:', error);
-            fillBtn.classList.remove('loading');
-            fillBtn.querySelector('.fill-icon').textContent = '⚡';
-        }
-    });
-
-    // Refresh button
+    // Refresh/Sync button
     refreshBtn?.addEventListener('click', () => {
-        chrome.tabs.create({ url: DASHBOARD_URL });
+        chrome.tabs.create({ url: DASHBOARD_URL + '/settings/extension' });
     });
 
     // Settings button
     settingsBtn?.addEventListener('click', () => {
-        // TODO: Settings page
+        chrome.tabs.create({ url: DASHBOARD_URL + '/settings/extension' });
     });
+
+    // Dashboard button
+    dashboardBtn?.addEventListener('click', () => {
+        chrome.tabs.create({ url: DASHBOARD_URL + '/dashboard' });
+    });
+}
+
+/**
+ * Handle form fill
+ */
+async function handleFillForm() {
+    const btnTitle = fillBtn.querySelector('.btn-title');
+    const btnIcon = fillBtn.querySelector('.btn-icon');
+    const originalTitle = btnTitle.textContent;
+    const originalIcon = btnIcon.textContent;
+
+    // Loading state
+    fillBtn.classList.add('loading');
+    btnTitle.textContent = 'Filling...';
+    btnIcon.textContent = '↻';
+
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+        if (!tab?.id) {
+            showMessage('No active tab found');
+            resetButton();
+            return;
+        }
+
+        chrome.tabs.sendMessage(tab.id, { type: 'FILL_FORM' }, (response) => {
+            fillBtn.classList.remove('loading');
+
+            if (response?.success) {
+                // Success state
+                fillBtn.classList.add('success');
+                btnTitle.textContent = 'Filled ' + (response.filled || 0) + ' Fields';
+                btnIcon.textContent = '✓';
+
+                // Update stats
+                updateStats(response.filled || 0);
+
+                setTimeout(() => {
+                    fillBtn.classList.remove('success');
+                    btnTitle.textContent = originalTitle;
+                    btnIcon.textContent = originalIcon;
+                }, 3000);
+            } else {
+                // Error
+                btnTitle.textContent = 'Try Again';
+                btnIcon.textContent = '⚠';
+                showMessage(response?.error || 'Navigate to a job application page first');
+
+                setTimeout(() => {
+                    btnTitle.textContent = originalTitle;
+                    btnIcon.textContent = originalIcon;
+                }, 2000);
+            }
+        });
+    } catch (error) {
+        console.error('Fill error:', error);
+        resetButton();
+        showMessage('Unable to fill form');
+    }
+
+    function resetButton() {
+        fillBtn.classList.remove('loading');
+        btnTitle.textContent = originalTitle;
+        btnIcon.textContent = originalIcon;
+    }
 }
 
 /**
@@ -136,7 +183,7 @@ function setupEventListeners() {
 async function updateStats(filled) {
     try {
         const result = await chrome.storage.local.get(['stats']);
-        const stats = result.stats || { filledToday: 0 };
+        const stats = result.stats || { filledToday: 0, totalApplications: 0 };
         stats.filledToday = (stats.filledToday || 0) + filled;
         await chrome.storage.local.set({ stats });
         statFilled.textContent = stats.filledToday;
@@ -149,7 +196,8 @@ async function updateStats(filled) {
  * Show temporary message
  */
 function showMessage(msg) {
-    alert(msg);
+    // For now, just log - could add toast later
+    console.log('[JobFiller]', msg);
 }
 
 // Initialize

@@ -18,12 +18,12 @@
     "isEntry": true
   },
   "src/ui/popup/popup.html": {
-    "file": "assets/popup-C2bR7HQA.js",
+    "file": "assets/popup-DUVS88eY.js",
     "name": "popup",
     "src": "src/ui/popup/popup.html",
     "isEntry": true,
     "css": [
-      "assets/popup-CpY6XCWD.css"
+      "assets/popup-DZnW-BTr.css"
     ]
   }
 }
