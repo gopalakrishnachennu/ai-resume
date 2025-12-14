@@ -15,13 +15,14 @@ const GroqClient = {
         defaultMaxTokens: 800
     },
 
-    // Load API keys from storage (with flashSession fallback)
+    // Load API keys from storage (with Firebase fallback)
     loadKeys: async () => {
         try {
             const result = await chrome.storage.local.get([
                 'groqApiKeys',
                 'groqSettings',
-                'flashSession'  // Also check flashSession
+                'flashSession',
+                'firebaseProjectId'
             ]);
 
             // First, try direct groqApiKeys array
@@ -29,20 +30,58 @@ const GroqClient = {
                 GroqClient.apiKeys = result.groqApiKeys.filter(k => k && k.trim());
             }
 
-            // Fallback: Check flashSession.extensionSettings for Groq API key
+            // Fallback 1: Check flashSession.extensionSettings for Groq API key
             if (GroqClient.apiKeys.length === 0 && result.flashSession?.extensionSettings) {
                 const es = result.flashSession.extensionSettings;
                 const flashKey = es.groqApiKey || es.groqApiKeys;
                 if (flashKey) {
-                    // Could be a single key or multiple keys (newline separated)
                     const keys = String(flashKey).split('\n').map(k => k.trim()).filter(k => k.length > 0);
                     if (keys.length > 0) {
                         GroqClient.apiKeys = keys;
                         console.log(`[Groq] Loaded ${keys.length} API key(s) from flashSession.extensionSettings`);
-
-                        // Also store them for future use
                         await chrome.storage.local.set({ groqApiKeys: keys });
                     }
+                }
+            }
+
+            // Fallback 2: Fetch from Firebase adminSettings/extension
+            if (GroqClient.apiKeys.length === 0) {
+                const projectId = result.firebaseProjectId || 'ai-resume-builder-app';
+                try {
+                    console.log('[Groq] Fetching settings from Firebase...');
+                    const firebaseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/adminSettings/extension`;
+                    const response = await fetch(firebaseUrl);
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const fields = data.fields || {};
+
+                        // Extract groqApiKeys from Firestore format
+                        const groqApiKeysField = fields.groqApiKeys?.stringValue || '';
+                        const groqEnabled = fields.groqEnabled?.booleanValue !== false;
+                        const groqModel = fields.groqModel?.stringValue || 'llama-3.1-8b-instant';
+
+                        if (groqEnabled && groqApiKeysField) {
+                            const keys = String(groqApiKeysField).split('\n').map(k => k.trim()).filter(k => k.length > 0);
+                            if (keys.length > 0) {
+                                GroqClient.apiKeys = keys;
+                                GroqClient.model = groqModel;
+                                console.log(`[Groq] Loaded ${keys.length} API key(s) from Firebase adminSettings`);
+
+                                // Store for future use
+                                await chrome.storage.local.set({
+                                    groqApiKeys: keys,
+                                    groqSettings: {
+                                        model: groqModel,
+                                        temperature: fields.groqTemperature?.doubleValue || 0.3,
+                                        enabled: groqEnabled
+                                    }
+                                });
+                            }
+                        }
+                    }
+                } catch (firebaseError) {
+                    console.log('[Groq] Firebase fetch failed:', firebaseError.message);
                 }
             }
 
