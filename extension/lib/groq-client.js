@@ -170,8 +170,8 @@ const GroqClient = {
                             content: prompt
                         }
                     ],
-                    max_tokens: maxTokens,
-                    temperature: GroqClient.config.temperature,
+                    max_tokens: parseInt(maxTokens) || 800,  // MUST be integer
+                    temperature: parseFloat(GroqClient.config.temperature) || 0.3,
                     top_p: 0.9
                 }),
                 signal: controller.signal
