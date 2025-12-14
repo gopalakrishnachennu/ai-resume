@@ -64,6 +64,13 @@ class GreenhouseAdapter extends PlatformAdapter {
         } else if (block.querySelector(this.selectors.radio)) {
             type = 'radio';
             options = this.extractRadioOptions(block);
+        } else if (block.querySelectorAll(this.selectors.checkbox).length > 1) {
+            // CHECKBOX GROUP (like ethnicity with multiple options)
+            type = 'checkbox-group';
+            options = Array.from(block.querySelectorAll(this.selectors.checkbox)).map(cb => {
+                const lbl = cb.closest('label') || document.querySelector(`label[for="${cb.id}"]`);
+                return { value: cb.value, text: lbl?.textContent?.trim() || cb.value, element: cb };
+            });
         } else if (block.querySelector(this.selectors.checkbox)) {
             type = 'checkbox';
             inputElement = block.querySelector(this.selectors.checkbox);
@@ -109,7 +116,7 @@ class GreenhouseAdapter extends PlatformAdapter {
         const question = this.extractQuestion(block);
         const input = question.metadata.inputElement;
 
-        console.log(`[Greenhouse] Filling "${question.text.substring(0, 30)}..." type:${question.type}`);
+        console.log(`[Greenhouse] Filling "${question.text.substring(0, 30)}..." type:${question.type} answer:${String(answer).substring(0, 20)}`);
 
         try {
             switch (question.type) {
@@ -122,6 +129,9 @@ class GreenhouseAdapter extends PlatformAdapter {
 
                 case 'radio':
                     return this.fillRadio(block, answer, question.options);
+
+                case 'checkbox-group':
+                    return this.fillCheckboxGroup(block, answer, question.options);
 
                 case 'checkbox':
                     return this.fillCheckbox(input, answer);
@@ -172,35 +182,66 @@ class GreenhouseAdapter extends PlatformAdapter {
     }
 
     fillRadio(block, value, options) {
-        const normalizedValue = String(value).toLowerCase().trim();
+        const normalized = String(value).toLowerCase().trim();
+        console.log(`[Greenhouse] fillRadio looking for: "${normalized}" in ${options?.length || 0} options`);
 
+        // EXACT MATCH FIRST (critical for gender: "Male" should not match "Female")
         for (const opt of (options || [])) {
             const optText = opt.text.toLowerCase().trim();
+            if (optText === normalized) {
+                console.log(`[Greenhouse] EXACT match: "${opt.text}"`);
+                opt.element?.click();
+                opt.element?.dispatchEvent(new Event('change', { bubbles: true }));
+                return true;
+            }
+        }
 
-            if (optText.includes(normalizedValue) ||
-                normalizedValue.includes(optText) ||
-                opt.value.toLowerCase() === normalizedValue) {
-
-                if (opt.element) {
-                    opt.element.click();
-                    opt.element.dispatchEvent(new Event('change', { bubbles: true }));
-                    return true;
-                }
+        // Word-boundary match
+        for (const opt of (options || [])) {
+            const optText = opt.text.toLowerCase();
+            const regex = new RegExp(`\\b${normalized}\\b`, 'i');
+            if (regex.test(optText)) {
+                console.log(`[Greenhouse] Word-boundary match: "${opt.text}"`);
+                opt.element?.click();
+                return true;
             }
         }
 
         // Special handling for yes/no
-        if (/yes|true|1/i.test(normalizedValue)) {
+        if (/yes|true|1/i.test(normalized)) {
             const yesOpt = (options || []).find(o => /yes|true/i.test(o.text));
             if (yesOpt?.element) {
                 yesOpt.element.click();
                 return true;
             }
-        } else if (/no|false|0/i.test(normalizedValue)) {
+        } else if (/no|false|0/i.test(normalized)) {
             const noOpt = (options || []).find(o => /no|false/i.test(o.text));
             if (noOpt?.element) {
                 noOpt.element.click();
                 return true;
+            }
+        }
+
+        console.log(`[Greenhouse] No match found for: "${normalized}"`);
+        return false;
+    }
+
+    /**
+     * Fill checkbox group (like ethnicity - select multiple)
+     */
+    fillCheckboxGroup(block, value, options) {
+        const normalized = String(value).toLowerCase().trim();
+        console.log(`[Greenhouse] fillCheckboxGroup looking for: "${normalized}"`);
+
+        for (const opt of (options || [])) {
+            const optText = opt.text.toLowerCase().trim();
+
+            if (optText.includes(normalized) || normalized.includes(optText)) {
+                if (opt.element && !opt.element.checked) {
+                    opt.element.click();
+                    console.log(`[Greenhouse] Checked: "${opt.text}"`);
+                    return true;
+                }
             }
         }
 

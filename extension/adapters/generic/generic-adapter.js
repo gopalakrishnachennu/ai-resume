@@ -92,6 +92,13 @@ class GenericAdapter extends PlatformAdapter {
                 text: (r.closest('label') || document.querySelector(`label[for="${r.id}"]`))?.textContent?.trim() || r.value,
                 element: r
             }));
+        } else if (block.querySelectorAll('input[type="checkbox"]').length > 1) {
+            // CHECKBOX GROUP (like ethnicity with multiple options)
+            type = 'checkbox-group';
+            options = Array.from(block.querySelectorAll('input[type="checkbox"]')).map(cb => {
+                const lbl = cb.closest('label') || document.querySelector(`label[for="${cb.id}"]`);
+                return { value: cb.value, text: lbl?.textContent?.trim() || cb.value, element: cb };
+            });
         } else if (block.querySelector('input[type="checkbox"]')) {
             type = 'checkbox';
             inputElement = block.querySelector('input[type="checkbox"]');
@@ -120,6 +127,8 @@ class GenericAdapter extends PlatformAdapter {
         const q = this.extractQuestion(block);
         const input = q.metadata.inputElement;
 
+        console.log(`[Generic] Filling "${q.text.substring(0, 30)}..." type:${q.type} answer:${String(answer).substring(0, 20)}`);
+
         try {
             switch (q.type) {
                 case 'text':
@@ -132,8 +141,11 @@ class GenericAdapter extends PlatformAdapter {
                 case 'radio':
                     return this.fillRadio(block, answer, q.options);
 
+                case 'checkbox-group':
+                    return this.fillCheckboxGroup(block, answer, q.options);
+
                 case 'checkbox':
-                    const shouldCheck = answer === true || answer === 'yes';
+                    const shouldCheck = answer === true || answer === 'yes' || answer === 'Yes';
                     if (input?.checked !== shouldCheck) input?.click();
                     return true;
 
@@ -163,14 +175,63 @@ class GenericAdapter extends PlatformAdapter {
     }
 
     fillRadio(block, value, options) {
-        const normalized = String(value).toLowerCase();
+        const normalized = String(value).toLowerCase().trim();
+        console.log(`[Generic] fillRadio looking for: "${normalized}" in ${options?.length || 0} options`);
 
+        // EXACT MATCH FIRST
         for (const opt of (options || [])) {
-            if (opt.text.toLowerCase().includes(normalized)) {
+            const optText = opt.text.toLowerCase().trim();
+            if (optText === normalized) {
+                console.log(`[Generic] EXACT match: "${opt.text}"`);
                 opt.element?.click();
                 return true;
             }
         }
+
+        // Word-boundary match
+        for (const opt of (options || [])) {
+            const optText = opt.text.toLowerCase();
+            const regex = new RegExp(`\\b${normalized}\\b`, 'i');
+            if (regex.test(optText)) {
+                console.log(`[Generic] Word-boundary match: "${opt.text}"`);
+                opt.element?.click();
+                return true;
+            }
+        }
+
+        // Contains match (only if short options)
+        for (const opt of (options || [])) {
+            const optText = opt.text.toLowerCase();
+            if (optText.length < 20 && optText.includes(normalized)) {
+                console.log(`[Generic] Contains match: "${opt.text}"`);
+                opt.element?.click();
+                return true;
+            }
+        }
+
+        console.log(`[Generic] No match found for: "${normalized}"`);
+        return false;
+    }
+
+    /**
+     * Fill checkbox group (like ethnicity - select multiple)
+     */
+    fillCheckboxGroup(block, value, options) {
+        const normalized = String(value).toLowerCase().trim();
+        console.log(`[Generic] fillCheckboxGroup looking for: "${normalized}"`);
+
+        for (const opt of (options || [])) {
+            const optText = opt.text.toLowerCase().trim();
+
+            if (optText.includes(normalized) || normalized.includes(optText)) {
+                if (opt.element && !opt.element.checked) {
+                    opt.element.click();
+                    console.log(`[Generic] Checked: "${opt.text}"`);
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 

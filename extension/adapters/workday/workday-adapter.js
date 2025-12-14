@@ -97,16 +97,24 @@ class WorkdayAdapter extends PlatformAdapter {
                 text: o.textContent.trim()
             }));
         }
-        // Checkbox
-        else if (block.querySelector(this.selectors.checkbox)) {
-            type = 'checkbox';
-            inputElement = block.querySelector(this.selectors.checkbox);
-        }
         // Radio
         else if (block.querySelector(this.selectors.radio)) {
             type = 'radio';
             inputElement = block.querySelector(this.selectors.radio);
             options = this.extractRadioOptions(block);
+        }
+        // CHECKBOX GROUP (multiple checkboxes like ethnicity)
+        else if (block.querySelectorAll(this.selectors.checkbox).length > 1) {
+            type = 'checkbox-group';
+            options = Array.from(block.querySelectorAll(this.selectors.checkbox)).map(cb => {
+                const lbl = cb.closest('label') || document.querySelector(`label[for="${cb.id}"]`);
+                return { value: cb.value, text: lbl?.textContent?.trim() || cb.value, element: cb };
+            });
+        }
+        // Single Checkbox
+        else if (block.querySelector(this.selectors.checkbox)) {
+            type = 'checkbox';
+            inputElement = block.querySelector(this.selectors.checkbox);
         }
         // Textarea
         else if (block.querySelector(this.selectors.textarea)) {
@@ -166,7 +174,7 @@ class WorkdayAdapter extends PlatformAdapter {
         const { type, metadata } = question;
         const input = metadata.inputElement;
 
-        console.log(`[Workday] Filling "${question.text.substring(0, 30)}..." with "${String(answer).substring(0, 20)}"`);
+        console.log(`[Workday] Filling "${question.text.substring(0, 30)}..." type:${type} answer:"${String(answer).substring(0, 20)}"`);
 
         try {
             switch (type) {
@@ -184,6 +192,9 @@ class WorkdayAdapter extends PlatformAdapter {
 
                 case 'radio':
                     return await this.fillRadio(block, answer, question.options);
+
+                case 'checkbox-group':
+                    return await this.fillCheckboxGroup(block, answer, question.options);
 
                 case 'checkbox':
                     return await this.fillCheckbox(input, answer);
@@ -273,15 +284,14 @@ class WorkdayAdapter extends PlatformAdapter {
      * Fill radio button
      */
     async fillRadio(block, value, options) {
-        const normalizedValue = String(value).toLowerCase().trim();
+        const normalized = String(value).toLowerCase().trim();
+        console.log(`[Workday] fillRadio looking for: "${normalized}" in ${options?.length || 0} options`);
 
+        // EXACT MATCH FIRST (critical for gender: "Male" should not match "Female")
         for (const opt of (options || [])) {
             const optText = opt.text.toLowerCase().trim();
-
-            if (optText.includes(normalizedValue) ||
-                normalizedValue.includes(optText) ||
-                opt.value.toLowerCase() === normalizedValue) {
-
+            if (optText === normalized) {
+                console.log(`[Workday] EXACT match: "${opt.text}"`);
                 if (opt.element) {
                     await this.simulateClick(opt.element);
                     opt.element.dispatchEvent(new Event('change', { bubbles: true }));
@@ -289,6 +299,55 @@ class WorkdayAdapter extends PlatformAdapter {
                 }
             }
         }
+
+        // Word-boundary match
+        for (const opt of (options || [])) {
+            const optText = opt.text.toLowerCase();
+            const regex = new RegExp(`\\b${normalized}\\b`, 'i');
+            if (regex.test(optText)) {
+                console.log(`[Workday] Word-boundary match: "${opt.text}"`);
+                if (opt.element) {
+                    await this.simulateClick(opt.element);
+                    return true;
+                }
+            }
+        }
+
+        // Contains match (only short options)
+        for (const opt of (options || [])) {
+            const optText = opt.text.toLowerCase().trim();
+            if (optText.length < 30 && (optText.includes(normalized) || normalized.includes(optText))) {
+                console.log(`[Workday] Contains match: "${opt.text}"`);
+                if (opt.element) {
+                    await this.simulateClick(opt.element);
+                    return true;
+                }
+            }
+        }
+
+        console.log(`[Workday] No match found for: "${normalized}"`);
+        return false;
+    }
+
+    /**
+     * Fill checkbox group (like ethnicity - select multiple)
+     */
+    async fillCheckboxGroup(block, value, options) {
+        const normalized = String(value).toLowerCase().trim();
+        console.log(`[Workday] fillCheckboxGroup looking for: "${normalized}"`);
+
+        for (const opt of (options || [])) {
+            const optText = opt.text.toLowerCase().trim();
+
+            if (optText.includes(normalized) || normalized.includes(optText)) {
+                if (opt.element && !opt.element.checked) {
+                    await this.simulateClick(opt.element);
+                    console.log(`[Workday] Checked: "${opt.text}"`);
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
