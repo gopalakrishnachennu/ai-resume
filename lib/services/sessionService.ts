@@ -299,6 +299,11 @@ export class SessionService {
                 gender: extensionSettings.gender || '',
                 ethnicity: extensionSettings.ethnicity || '',
                 disabilityStatus: extensionSettings.disabilityStatus || '',
+
+                // AI Settings
+                groqApiKeys: extensionSettings.groqApiKeys || '',
+                groqModel: extensionSettings.groqModel || '',
+                groqEnabled: extensionSettings.groqEnabled || 'true',
             },
 
             createdAt: serverTimestamp(),

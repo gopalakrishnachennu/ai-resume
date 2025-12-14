@@ -90,30 +90,35 @@ async function loadSessionFromFirebase(userId) {
         }
 
         // 2. Load Settings (Groq Keys) - Critical for AI
-        // First try user-specific settings
-        let settings = {};
-        const userSettingsDoc = await getDoc(doc(db, 'users', userId, 'settings', 'extension'));
+        // Priority 1: From Active Session (Most reliable - set by webapp)
+        let sessionSettings = currentSession?.extensionSettings || {};
+        let apiKey = sessionSettings.groqApiKeys || sessionSettings.groqApiKey;
 
-        if (userSettingsDoc.exists()) {
-            settings = userSettingsDoc.data();
-            console.log('[Popup] Loaded user settings');
+        // Priority 2: User Settings (Fallback)
+        let settings = {};
+        if (!apiKey) {
+            const userSettingsDoc = await getDoc(doc(db, 'users', userId, 'settings', 'extension'));
+            if (userSettingsDoc.exists()) {
+                settings = userSettingsDoc.data();
+                apiKey = settings.groqApiKeys || settings.groqApiKey;
+                console.log('[Popup] Loaded user settings');
+            }
         }
 
-        // Then try admin settings (global keys) if no user key
-        if (!settings.groqApiKeys) {
+        // Priority 3: Admin Settings (Global Fallback)
+        if (!apiKey) {
             const adminSettingsDoc = await getDoc(doc(db, 'adminSettings', 'extension'));
             if (adminSettingsDoc.exists()) {
                 const adminSettings = adminSettingsDoc.data();
                 settings = { ...settings, ...adminSettings };
+                apiKey = settings.groqApiKeys || settings.groqApiKey;
                 console.log('[Popup] Loaded admin settings (Global Keys)');
             }
         }
 
-        // Parse keys if string
-        let apiKey = settings.groqApiKey;
-        if (!apiKey && settings.groqApiKeys) {
-            // Pick first key from multiline string
-            apiKey = settings.groqApiKeys.split('\n')[0]?.trim();
+        // Parse key if multiline
+        if (apiKey && apiKey.includes('\n')) {
+            apiKey = apiKey.split('\n')[0].trim();
         }
 
         // Save to storage for groq.ts
@@ -121,7 +126,8 @@ async function loadSessionFromFirebase(userId) {
             await chrome.storage.local.set({
                 settings: {
                     ...settings,
-                    groqApiKey: apiKey // groq.ts looks for this specific field
+                    groqApiKey: apiKey, // groq.ts looks for this specific field
+                    groqModel: sessionSettings.groqModel || settings.groqModel || 'llama3-8b-8192'
                 }
             });
             console.log('[Popup] ✅ Groq API Key cached');
