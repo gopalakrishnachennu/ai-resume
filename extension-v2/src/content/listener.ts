@@ -235,6 +235,13 @@ async function handleSessionSync(payload: any): Promise<void> {
     try {
         const { uid, projectId, session, resume, resumePdf, resumeDocx } = payload || {};
 
+        console.log("[Sync] Session sync received:", {
+            hasSession: !!session,
+            hasResume: !!resume,
+            hasResumePdf: !!resumePdf,
+            hasResumeDocx: !!resumeDocx
+        });
+
         if (session) {
             await chrome.storage.local.set({
                 auth: {
@@ -249,39 +256,95 @@ async function handleSessionSync(payload: any): Promise<void> {
             console.log("[Sync] Session stored from flash");
         }
 
+        // Helper to convert buffer-like object to ArrayBuffer (postMessage can break ArrayBuffer)
+        const toArrayBuffer = (bufferLike: any): ArrayBuffer | null => {
+            if (!bufferLike) return null;
+
+            // Already an ArrayBuffer
+            if (bufferLike instanceof ArrayBuffer) {
+                return bufferLike;
+            }
+
+            // It's a typed array view (Uint8Array etc.)
+            if (bufferLike.buffer instanceof ArrayBuffer) {
+                return bufferLike.buffer;
+            }
+
+            // It's an object with numeric keys (postMessage converted it)
+            if (typeof bufferLike === 'object' && bufferLike !== null) {
+                const keys = Object.keys(bufferLike);
+                if (keys.length > 0 && keys.every(k => !isNaN(parseInt(k)))) {
+                    const arr = new Uint8Array(keys.length);
+                    for (let i = 0; i < keys.length; i++) {
+                        arr[i] = bufferLike[i];
+                    }
+                    return arr.buffer;
+                }
+            }
+
+            console.warn("[Sync] Could not convert buffer:", typeof bufferLike);
+            return null;
+        };
+
         // Store PDF resume (primary - used for PDF-accepting inputs)
         const pdfData = resumePdf || resume; // fallback to legacy 'resume' field
-        if (pdfData && pdfData.buffer) {
-            await storeFileFromBuffer(
-                "resume", // Primary ID for PDF (most common)
-                pdfData.buffer,
-                pdfData.name || "resume.pdf",
-                pdfData.type || "application/pdf"
-            );
-            console.log("[Sync] PDF resume stored:", pdfData.name);
+        if (pdfData) {
+            console.log("[Sync] PDF data received:", {
+                name: pdfData.name,
+                type: pdfData.type,
+                bufferType: typeof pdfData.buffer,
+                bufferSize: pdfData.buffer?.byteLength || Object.keys(pdfData.buffer || {}).length
+            });
+
+            const buffer = toArrayBuffer(pdfData.buffer);
+            if (buffer) {
+                await storeFileFromBuffer(
+                    "resume", // Primary ID for PDF (most common)
+                    buffer,
+                    pdfData.name || "resume.pdf",
+                    pdfData.type || "application/pdf"
+                );
+                console.log("[Sync] PDF resume stored:", pdfData.name, buffer.byteLength, "bytes");
+            } else {
+                console.error("[Sync] Failed to convert PDF buffer");
+            }
         }
 
         // Store DOCX resume (for DOCX-accepting inputs)
-        if (resumeDocx && resumeDocx.buffer) {
-            await storeFileFromBuffer(
-                "resume-docx",
-                resumeDocx.buffer,
-                resumeDocx.name || "resume.docx",
-                resumeDocx.type || "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            );
-            console.log("[Sync] DOCX resume stored:", resumeDocx.name);
+        if (resumeDocx) {
+            console.log("[Sync] DOCX data received:", {
+                name: resumeDocx.name,
+                type: resumeDocx.type,
+                bufferType: typeof resumeDocx.buffer
+            });
+
+            const buffer = toArrayBuffer(resumeDocx.buffer);
+            if (buffer) {
+                await storeFileFromBuffer(
+                    "resume-docx",
+                    buffer,
+                    resumeDocx.name || "resume.docx",
+                    resumeDocx.type || "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                );
+                console.log("[Sync] DOCX resume stored:", resumeDocx.name, buffer.byteLength, "bytes");
+            } else {
+                console.error("[Sync] Failed to convert DOCX buffer");
+            }
         }
 
         // Save resume info for popup (show both if available)
         const resumeInfo: any = {};
         if (pdfData?.buffer) {
-            resumeInfo.pdf = { name: pdfData.name, size: pdfData.buffer.byteLength, type: pdfData.type };
+            const buf = toArrayBuffer(pdfData.buffer);
+            resumeInfo.pdf = { name: pdfData.name, size: buf?.byteLength || 0, type: pdfData.type };
         }
         if (resumeDocx?.buffer) {
-            resumeInfo.docx = { name: resumeDocx.name, size: resumeDocx.buffer.byteLength, type: resumeDocx.type };
+            const buf = toArrayBuffer(resumeDocx.buffer);
+            resumeInfo.docx = { name: resumeDocx.name, size: buf?.byteLength || 0, type: resumeDocx.type };
         }
         if (Object.keys(resumeInfo).length > 0) {
             await chrome.storage.local.set({ resumeInfo });
+            console.log("[Sync] Resume info stored:", resumeInfo);
         }
 
         window.postMessage({ type: "JOBFILLER_SESSION_SUCCESS" }, "*");
