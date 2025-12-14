@@ -265,10 +265,56 @@ function setupEventListeners() {
         chrome.tabs.create({ url: DASHBOARD_URL + '/settings/extension' });
     });
 
-    // Dashboard button
-    dashboardBtn?.addEventListener('click', () => {
-        chrome.tabs.create({ url: DASHBOARD_URL + '/dashboard' });
+    // Dashboard Button
+    document.getElementById('dashboard-btn')?.addEventListener('click', () => {
+        const dashboardUrl = config.webappUrl + '/dashboard';
+        chrome.tabs.create({ url: dashboardUrl });
     });
+
+    // Data Button (Debug View)
+    const dataBtn = document.getElementById('data-btn');
+    const dataModal = document.getElementById('data-modal');
+    const closeDataBtn = document.getElementById('close-data');
+    const dataContent = document.getElementById('data-content');
+
+    if (dataBtn) {
+        dataBtn.addEventListener('click', () => {
+            if (dataModal) dataModal.style.display = 'block';
+
+            if (currentSession && dataContent) {
+                // effectiveProfile is what the Filler actually uses
+                chrome.storage.local.get(['profile'], (res) => {
+                    const viewData = {
+                        STATUS: "✅ Ready to Fill",
+                        SESSION_SOURCE: "Firebase Active Session",
+                        JOB_CONTEXT: {
+                            title: currentSession.jobTitle,
+                            company: currentSession.jobCompany
+                        },
+                        IDENTITY_PREVIEW: {
+                            name: currentSession.personalInfo?.fullName,
+                            email: currentSession.personalInfo?.email
+                        },
+                        AI_CONFIG: {
+                            groq_enabled: currentSession.extensionSettings?.groqEnabled,
+                            model: currentSession.extensionSettings?.groqModel
+                        },
+                        // This is the transformed data used by Matcher
+                        matcher_profile_structure: res.profile ? "✅ Valid (Mapped)" : "❌ Missing"
+                    };
+                    dataContent.textContent = JSON.stringify(viewData, null, 2);
+                });
+            } else if (dataContent) {
+                dataContent.textContent = "⚠️ No Active Session Data.\n\nPlease go to Dashboard and click ⚡ Flash on a resume.";
+            }
+        });
+    }
+
+    if (closeDataBtn) {
+        closeDataBtn.addEventListener('click', () => {
+            if (dataModal) dataModal.style.display = 'none';
+        });
+    }
 }
 
 /**
