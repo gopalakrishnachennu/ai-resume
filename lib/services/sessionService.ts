@@ -86,6 +86,10 @@ export interface ActiveSession {
         gender: string;
         ethnicity: string;
         disabilityStatus: string;
+        // AI Settings
+        groqApiKeys: string;
+        groqModel: string;
+        groqEnabled: string;
     };
 
     // Files
