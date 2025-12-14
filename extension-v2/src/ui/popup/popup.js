@@ -282,34 +282,62 @@ function setupEventListeners() {
             if (dataModal) dataModal.style.display = 'block';
 
             if (currentSession && dataContent) {
-                // effectiveProfile is what the Filler actually uses
-                chrome.storage.local.get(['profile'], (res) => {
-                    const viewData = {
-                        STATUS: "✅ Ready to Fill",
-                        SESSION_SOURCE: "Firebase Active Session",
-                        JOB_CONTEXT: {
-                            title: currentSession.jobTitle,
-                            company: currentSession.jobCompany
-                        },
-                        IDENTITY_PREVIEW: {
-                            name: currentSession.personalInfo?.fullName,
-                            email: currentSession.personalInfo?.email
-                        },
-                        AI_CONFIG: {
-                            groq_enabled: currentSession.extensionSettings?.groqEnabled,
-                            model: currentSession.extensionSettings?.groqModel
-                        },
-                        // This is the transformed data used by Matcher
-                        matcher_profile_structure: res.profile ? "✅ Valid (Mapped)" : "❌ Missing"
-                    };
-                    dataContent.textContent = JSON.stringify(viewData, null, 2);
-                });
+                // Formatting helper
+                const formatList = (items) => {
+                    if (!items || items.length === 0) return '<span class="empty">None</span>';
+                    return items.map(i => {
+                        const title = i.title || i.degree || i.name || 'Unknown';
+                        const subtitle = i.company || i.school || i.issuer || '';
+                        return `<div class="data-item"><strong>${title}</strong> <span>${subtitle}</span></div>`;
+                    }).join('');
+                };
+
+                // Build HTML View
+                const html = `
+                    <div class="data-section">
+                        <h4>🎯 Job Context</h4>
+                        <div class="data-row">
+                            <span>Role:</span> <strong>${currentSession.jobTitle || 'N/A'}</strong>
+                        </div>
+                        <div class="data-row">
+                            <span>Company:</span> <strong>${currentSession.jobCompany || 'N/A'}</strong>
+                        </div>
+                    </div>
+
+                    <div class="data-section">
+                        <h4>👤 Identity</h4>
+                        <div class="data-row"><span>Name:</span> <strong>${currentSession.personalInfo?.fullName || 'N/A'}</strong></div>
+                        <div class="data-row"><span>Email:</span> <strong>${currentSession.personalInfo?.email || 'N/A'}</strong></div>
+                        <div class="data-row"><span>Phone:</span> <strong>${currentSession.personalInfo?.phone || 'N/A'}</strong></div>
+                        <div class="data-row"><span>Loc:</span> <strong>${currentSession.personalInfo?.location || 'N/A'}</strong></div>
+                    </div>
+
+                    <div class="data-section">
+                        <h4>💼 Experience (${currentSession.experience?.length || 0})</h4>
+                        ${formatList(currentSession.experience)}
+                    </div>
+
+                    <div class="data-section">
+                        <h4>🎓 Education (${currentSession.education?.length || 0})</h4>
+                        ${formatList(currentSession.education)}
+                    </div>
+
+                    <div class="data-section">
+                        <h4>🛠 Skills</h4>
+                        <div class="data-row">
+                            <span style="font-size:10px; color:#666;">${Object.values(currentSession.skills || {}).flat().join(', ') || 'None'}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Clear previous JSON text
+                dataContent.innerHTML = html;
+                dataContent.style.whiteSpace = 'normal'; // Reset pre-wrap
             } else if (dataContent) {
-                dataContent.textContent = "⚠️ No Active Session Data.\n\nPlease go to Dashboard and click ⚡ Flash on a resume.";
+                dataContent.innerHTML = `<div class="empty-state-small">⚠️ No Active Session Data.<br>Please go to Dashboard and click ⚡ Flash on a resume.</div>`;
             }
         });
     }
-
     if (closeDataBtn) {
         closeDataBtn.addEventListener('click', () => {
             if (dataModal) dataModal.style.display = 'none';
