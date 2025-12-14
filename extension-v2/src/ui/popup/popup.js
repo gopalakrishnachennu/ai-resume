@@ -81,9 +81,58 @@ async function loadSessionFromFirebase(userId) {
             currentSession = sessionDoc.data();
             console.log('[Popup] ✅ Sess loaded:', currentSession.jobCompany);
 
+            // Transform Session to Matcher Profile Structure
+            // Matcher expects nested 'identity', 'role', etc. matching canonical.ts
+            const profile = {
+                identity: {
+                    firstName: currentSession.personalInfo?.firstName || '',
+                    lastName: currentSession.personalInfo?.lastName || '',
+                    fullName: currentSession.personalInfo?.fullName || '',
+                    email: currentSession.personalInfo?.email || '',
+                    phone: currentSession.personalInfo?.phone || '',
+                    location: {
+                        address: currentSession.personalInfo?.location || '',
+                        city: currentSession.personalInfo?.city || '',
+                        state: currentSession.personalInfo?.state || '',
+                        country: currentSession.personalInfo?.country || '',
+                        zip: ''
+                    },
+                    linkedin: currentSession.personalInfo?.linkedin || '',
+                    github: currentSession.personalInfo?.github || '',
+                    portfolio: currentSession.personalInfo?.portfolio || '',
+                    website: currentSession.personalInfo?.otherUrl || ''
+                },
+                authorization: {
+                    workAuth: currentSession.extensionSettings?.workAuthorization || 'citizen',
+                    needSponsor: currentSession.extensionSettings?.requireSponsorship === 'true',
+                    willingToRelocate: currentSession.extensionSettings?.willingToRelocate === 'true',
+                    securityClearance: currentSession.extensionSettings?.securityClearance || ''
+                },
+                role: {
+                    salaryMin: currentSession.extensionSettings?.salaryMin || 0,
+                    startDate: currentSession.extensionSettings?.expectedJoiningDate || '',
+                    noticePeriod: currentSession.extensionSettings?.noticePeriod || ''
+                },
+                compliance: {
+                    gender: currentSession.extensionSettings?.gender || '',
+                    ethnicity: currentSession.extensionSettings?.ethnicity || '',
+                    veteran: currentSession.extensionSettings?.veteranStatus || '',
+                    disability: currentSession.extensionSettings?.disabilityStatus || ''
+                },
+                education: {
+                    history: currentSession.education || []
+                },
+                experience: {
+                    history: currentSession.experience || [],
+                    currentCompany: currentSession.experience?.[0]?.current ? currentSession.experience[0].company : '',
+                    currentTitle: currentSession.experience?.[0]?.current ? currentSession.experience[0].title : ''
+                },
+                skills: currentSession.skills || {}
+            };
+
             await chrome.storage.local.set({
                 session: currentSession,
-                profile: currentSession
+                profile: profile // Now matches Profile interface!
             });
         } else {
             console.log('[Popup] No active session');
