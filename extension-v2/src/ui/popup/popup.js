@@ -296,20 +296,33 @@ function setupEventListeners() {
                 const html = `
                     <div class="data-section">
                         <h4>🎯 Job Context</h4>
-                        <div class="data-row">
-                            <span>Role:</span> <strong>${currentSession.jobTitle || 'N/A'}</strong>
-                        </div>
-                        <div class="data-row">
-                            <span>Company:</span> <strong>${currentSession.jobCompany || 'N/A'}</strong>
-                        </div>
+                        <div class="data-row"><span>Role:</span> <strong>${currentSession.jobTitle || 'N/A'}</strong></div>
+                        <div class="data-row"><span>Company:</span> <strong>${currentSession.jobCompany || 'N/A'}</strong></div>
                     </div>
 
                     <div class="data-section">
                         <h4>👤 Identity</h4>
-                        <div class="data-row"><span>Name:</span> <strong>${currentSession.personalInfo?.fullName || 'N/A'}</strong></div>
+                        <div class="data-row"><span>Full Name:</span> <strong>${currentSession.personalInfo?.fullName || 'N/A'}</strong></div>
+                        <div class="data-row"><span>First Name:</span> <strong>${currentSession.personalInfo?.firstName || 'N/A'}</strong></div>
+                        <div class="data-row"><span>Last Name:</span> <strong>${currentSession.personalInfo?.lastName || 'N/A'}</strong></div>
                         <div class="data-row"><span>Email:</span> <strong>${currentSession.personalInfo?.email || 'N/A'}</strong></div>
                         <div class="data-row"><span>Phone:</span> <strong>${currentSession.personalInfo?.phone || 'N/A'}</strong></div>
-                        <div class="data-row"><span>Loc:</span> <strong>${currentSession.personalInfo?.location || 'N/A'}</strong></div>
+                        <div class="data-row"><span>Location:</span> <strong>${currentSession.personalInfo?.location || 'N/A'}</strong></div>
+                    </div>
+
+                    <div class="data-section">
+                        <h4>🔗 Social & Web</h4>
+                        <div class="data-row"><span>LinkedIn:</span> <strong>${currentSession.personalInfo?.linkedin || '-'}</strong></div>
+                        <div class="data-row"><span>GitHub:</span> <strong>${currentSession.personalInfo?.github || '-'}</strong></div>
+                        <div class="data-row"><span>Portfolio:</span> <strong>${currentSession.personalInfo?.portfolio || '-'}</strong></div>
+                        <div class="data-row"><span>Other:</span> <strong>${currentSession.personalInfo?.otherUrl || '-'}</strong></div>
+                    </div>
+
+                    <div class="data-section">
+                        <h4>📝 Professional Summary</h4>
+                        <div style="font-size:11px; line-height:1.4; color:var(--text-secondary); background:rgba(255,255,255,0.03); padding:8px; border-radius:4px;">
+                            ${currentSession.professionalSummary || 'No summary available.'}
+                        </div>
                     </div>
 
                     <div class="data-section">
@@ -323,9 +336,25 @@ function setupEventListeners() {
                     </div>
 
                     <div class="data-section">
+                        <h4>🔐 Authorization & Compliance</h4>
+                        <div class="data-row"><span>Work Auth:</span> <strong>${currentSession.extensionSettings?.workAuthorization || 'citizen'}</strong></div>
+                        <div class="data-row"><span>Sponsorship:</span> <strong>${currentSession.extensionSettings?.requireSponsorship === 'true' ? 'Yes' : 'No'}</strong></div>
+                        <div class="data-row"><span>Relocate:</span> <strong>${currentSession.extensionSettings?.willingToRelocate === 'true' ? 'Yes' : 'No'}</strong></div>
+                        <div class="data-row"><span>Security Clearance:</span> <strong>${currentSession.extensionSettings?.securityClearance || 'None'}</strong></div>
+                    </div>
+
+                    <div class="data-section">
+                        <h4>ℹ️ Demographics (Voluntary)</h4>
+                        <div class="data-row"><span>Gender:</span> <strong>${currentSession.extensionSettings?.gender || '-'}</strong></div>
+                        <div class="data-row"><span>Ethnicity:</span> <strong>${currentSession.extensionSettings?.ethnicity || '-'}</strong></div>
+                        <div class="data-row"><span>Veteran:</span> <strong>${currentSession.extensionSettings?.veteranStatus || '-'}</strong></div>
+                        <div class="data-row"><span>Disability:</span> <strong>${currentSession.extensionSettings?.disabilityStatus || '-'}</strong></div>
+                    </div>
+
+                    <div class="data-section">
                         <h4>🛠 Skills</h4>
                         <div class="data-row">
-                            <span style="font-size:10px; color:#666;">${Object.values(currentSession.skills || {}).flat().join(', ') || 'None'}</span>
+                            <span style="font-size:10px; color:#aaa;">${Object.values(currentSession.skills || {}).flat().join(', ') || 'None'}</span>
                         </div>
                     </div>
                 `;
