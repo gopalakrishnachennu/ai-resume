@@ -315,12 +315,12 @@ async function handleFillForm() {
             fillBtn.classList.remove('loading');
 
             if (chrome.runtime.lastError) {
-                btnTitle.textContent = 'Navigate to job page first';
-                btnIcon.textContent = '📋';
+                btnTitle.textContent = 'Please Refresh Page';
+                btnIcon.textContent = '↻';
                 setTimeout(() => {
                     btnTitle.textContent = originalTitle;
                     btnIcon.textContent = originalIcon;
-                }, 2000);
+                }, 3000);
                 return;
             }
 
