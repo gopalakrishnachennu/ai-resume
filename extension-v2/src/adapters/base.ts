@@ -41,6 +41,21 @@ export abstract class BaseAdapter {
         return el.value === expectedValue || el.value.includes(expectedValue);
     }
 
+    /**
+     * Refresh a field element if it has become stale (detached from DOM)
+     * Default implementation simply looks up by ID or Name again.
+     */
+    async refreshElement(field: FieldInfo): Promise<HTMLElement | null> {
+        if (field.id) {
+            return document.getElementById(field.id);
+        }
+        if (field.name) {
+            return document.querySelector(`[name="${field.name}"]`) as HTMLElement;
+        }
+        return null; // Specialized adapters can implement smarter lookup
+    }
+
+
     // --- Utility Methods ---
 
     /**

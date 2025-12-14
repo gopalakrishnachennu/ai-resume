@@ -71,6 +71,22 @@ export class SequentialFiller {
             // Update progress
             this.onProgress?.(i + 1, fields.length, field, 'filling');
 
+            // Check for STALE element (DOM updated by previous field?)
+            if (!field.element.isConnected) {
+                console.log(`[Filler] Field ${field.label} detached. Refreshing...`);
+                await this.delay(1000); // Wait for DOM to settle
+
+                const newEl = await adapter.refreshElement(field);
+                if (newEl) {
+                    field.element = newEl;
+                    console.log(`[Filler] Refreshed field ${field.label}`);
+                } else {
+                    console.warn(`[Filler] Could not refresh field ${field.label}`);
+                    results.push({ field, status: 'failed', reason: 'element-detached' });
+                    continue;
+                }
+            }
+
             // Highlight active field
             this.highlightField(field.element, 'active');
 

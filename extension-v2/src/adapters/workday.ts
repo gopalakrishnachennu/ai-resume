@@ -177,6 +177,37 @@ export class WorkdayAdapter extends BaseAdapter {
     }
 
     /**
+     * Re-find Workday element if it was detached (e.g. after section refresh)
+     */
+    async refreshElement(field: FieldInfo): Promise<HTMLElement | null> {
+        // Try standard ID first
+        if (field.id) {
+            const el = document.getElementById(field.id);
+            if (el) return el;
+        }
+
+        // Try data-automation-id / name
+        if (field.name) {
+            // Check direct automation-id on input
+            const direct = document.querySelector(`[data-automation-id="${field.name}"]`);
+            if (direct) return direct as HTMLElement;
+
+            // Check container automation-id
+            const container = document.querySelector(`[data-automation-id="${field.name}"]`);
+            if (container) {
+                const input = container.querySelector('input, select, textarea');
+                if (input) return input as HTMLElement;
+            }
+
+            // Fallback: Name attribute
+            const byName = document.querySelector(`[name="${field.name}"]`);
+            if (byName) return byName as HTMLElement;
+        }
+
+        return null;
+    }
+
+    /**
      * Handle Workday's custom dropdown components
      */
     private async fillWorkdayDropdown(el: HTMLElement, value: string): Promise<boolean> {
