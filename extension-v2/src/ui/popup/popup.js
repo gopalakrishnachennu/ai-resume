@@ -35,9 +35,10 @@ const userName = document.getElementById('user-name');
 const userEmail = document.getElementById('user-email');
 const userAvatar = document.getElementById('user-avatar');
 const avatarLetter = document.getElementById('avatar-letter');
-const statFilled = document.getElementById('stat-filled');
-const statAccuracy = document.getElementById('stat-accuracy');
-const statApps = document.getElementById('stat-apps');
+// Resume status elements
+const pdfStatus = document.getElementById('pdf-status');
+const docxStatus = document.getElementById('docx-status');
+const resumeHint = document.getElementById('resume-hint');
 
 // Current session data
 let currentSession = null;
@@ -210,11 +211,8 @@ function showConnectedState(auth, session, stats) {
         avatarLetter.textContent = (displayName || email || 'U')[0].toUpperCase();
     }
 
-    // Stats
-    if (stats) {
-        statFilled.textContent = stats.filledToday || 0;
-        statApps.textContent = stats.totalFilled || 0;
-    }
+    // Update Resume Status from storage
+    updateResumeStatus();
 
     // Update button text if we have an active session
     if (session?.jobTitle) {
@@ -222,6 +220,58 @@ function showConnectedState(auth, session, stats) {
         if (btnSubtitle) {
             btnSubtitle.textContent = `${session.jobTitle} @ ${session.jobCompany}`;
         }
+    }
+}
+
+/**
+ * Update resume status UI from storage
+ */
+async function updateResumeStatus() {
+    try {
+        const stored = await chrome.storage.local.get(['resumeInfo']);
+        const resumeInfo = stored.resumeInfo || {};
+
+        // Update PDF status
+        if (pdfStatus) {
+            const pdfStatusEl = pdfStatus.querySelector('.file-status');
+            if (pdfStatusEl) {
+                if (resumeInfo.pdf?.name) {
+                    pdfStatusEl.textContent = '✓ Ready';
+                    pdfStatusEl.classList.remove('no-file');
+                    pdfStatusEl.classList.add('has-file');
+                } else {
+                    pdfStatusEl.textContent = 'Not loaded';
+                    pdfStatusEl.classList.remove('has-file');
+                    pdfStatusEl.classList.add('no-file');
+                }
+            }
+        }
+
+        // Update DOCX status
+        if (docxStatus) {
+            const docxStatusEl = docxStatus.querySelector('.file-status');
+            if (docxStatusEl) {
+                if (resumeInfo.docx?.name) {
+                    docxStatusEl.textContent = '✓ Ready';
+                    docxStatusEl.classList.remove('no-file');
+                    docxStatusEl.classList.add('has-file');
+                } else {
+                    docxStatusEl.textContent = 'Not loaded';
+                    docxStatusEl.classList.remove('has-file');
+                    docxStatusEl.classList.add('no-file');
+                }
+            }
+        }
+
+        // Update hint visibility
+        if (resumeHint) {
+            const hasFiles = resumeInfo.pdf?.name || resumeInfo.docx?.name;
+            resumeHint.classList.toggle('hidden', hasFiles);
+        }
+
+        console.log('[Popup] Resume status updated:', resumeInfo);
+    } catch (error) {
+        console.error('[Popup] Error updating resume status:', error);
     }
 }
 

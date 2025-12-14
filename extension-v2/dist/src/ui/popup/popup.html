@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JobFiller Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/popup-TusPIXQI.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/popup-DuCxQSjD.css">
+  <script type="module" crossorigin src="/assets/popup-B5Nm4fRC.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/popup-9OG8iRgA.css">
 </head>
 
 <body>
@@ -80,23 +80,24 @@
                 </svg>
             </button>
 
-            <!-- Stats Grid -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">📝</div>
-                    <span class="stat-value" id="stat-filled">0</span>
-                    <span class="stat-label">Fields Filled</span>
+            <!-- Resume Status -->
+            <div class="resume-status" id="resume-status">
+                <div class="resume-header">
+                    <span class="resume-title">📄 Resume Files</span>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon">✨</div>
-                    <span class="stat-value" id="stat-accuracy">99%</span>
-                    <span class="stat-label">Accuracy</span>
+                <div class="resume-files">
+                    <div class="resume-file" id="pdf-status">
+                        <span class="file-icon">📕</span>
+                        <span class="file-label">PDF</span>
+                        <span class="file-status no-file">Not loaded</span>
+                    </div>
+                    <div class="resume-file" id="docx-status">
+                        <span class="file-icon">📘</span>
+                        <span class="file-label">DOCX</span>
+                        <span class="file-status no-file">Not loaded</span>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🎯</div>
-                    <span class="stat-value" id="stat-apps">12</span>
-                    <span class="stat-label">Applications</span>
-                </div>
+                <p class="resume-hint" id="resume-hint">Use Flash button on dashboard to load resume</p>
             </div>
 
             <!-- Quick Actions -->

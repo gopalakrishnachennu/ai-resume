@@ -326,47 +326,80 @@ body {
     opacity: 1;
 }
 
-/* Stats Grid */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-}
-
-.stat-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    padding: 14px 8px;
+/* Resume Status */
+.resume-status {
     background: var(--bg-card);
     border-radius: var(--radius-md);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    transition: all 0.15s ease;
+    padding: 12px;
 }
 
-.stat-card:hover {
-    background: var(--bg-hover);
-    border-color: rgba(255, 255, 255, 0.1);
+.resume-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
 }
 
-.stat-icon {
-    font-size: 18px;
+.resume-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
-.stat-value {
-    font-size: 18px;
-    font-weight: 700;
-    background: var(--accent-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+.resume-files {
+    display: flex;
+    gap: 10px;
 }
 
-.stat-label {
+.resume-file {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--bg-main);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.file-icon {
+    font-size: 16px;
+}
+
+.file-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.file-status {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 10px;
+}
+
+.file-status.no-file {
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.file-status.has-file {
+    color: var(--success);
+    background: var(--success-bg);
+}
+
+.resume-hint {
     font-size: 10px;
     color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    margin-top: 10px;
+    text-align: center;
+}
+
+.resume-hint.hidden {
+    display: none;
 }
 
 /* Quick Actions */
