@@ -185,7 +185,50 @@ export function setupAutoSync(
 
 // Alias exports for backward compatibility
 export const isExtensionAvailable = isExtensionInstalled;
-export const pushFlashSession = createFlashSession;
+
+/**
+ * Push flash session to extension
+ * Used by dashboard to send resume session data
+ */
+export async function pushFlashSession(
+    uid: string,
+    projectId: string,
+    session: any
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const installed = await isExtensionInstalled();
+        if (!installed) {
+            return { success: false, error: "Extension not installed" };
+        }
+
+        return new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+                window.removeEventListener("message", handler);
+                resolve({ success: false, error: "Timeout" });
+            }, 3000);
+
+            const handler = (event: MessageEvent) => {
+                if (event.data?.type === "JOBFILLER_SESSION_SUCCESS") {
+                    clearTimeout(timeout);
+                    window.removeEventListener("message", handler);
+                    resolve({ success: true });
+                } else if (event.data?.type === "JOBFILLER_SESSION_ERROR") {
+                    clearTimeout(timeout);
+                    window.removeEventListener("message", handler);
+                    resolve({ success: false, error: event.data.error });
+                }
+            };
+
+            window.addEventListener("message", handler);
+            window.postMessage({
+                type: "JOBFILLER_SESSION",
+                payload: { uid, projectId, session }
+            }, "*");
+        });
+    } catch (error) {
+        return { success: false, error: String(error) };
+    }
+}
 
 /**
  * Sync profile data to extension (standalone, no user required)
