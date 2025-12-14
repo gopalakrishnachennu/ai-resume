@@ -76,6 +76,7 @@
         "adapters/generic/generic-adapter.js",
         "core/intent-classifier.js",
         "core/tiered-resolver.js",
+        "core/question-templates.js",
         "core/platform-filler.js",
         "content-scripts/utils.js",
         "content-scripts/platform-detector.js",

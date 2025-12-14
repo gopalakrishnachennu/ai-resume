@@ -144,26 +144,71 @@ const TieredResolver = {
      * Resolve Tier 3: EEO/Demographic
      */
     resolveEEO(intent, es, question) {
-        const mappings = {
-            gender: es.gender,
-            ethnicity: es.ethnicity || es.race,
-            veteranStatus: this.formatVeteran(es.veteranStatus),
-            disabilityStatus: this.formatDisability(es.disabilityStatus),
-            sexualOrientation: es.sexualOrientation || 'Prefer not to say'
+        console.log(`[TieredResolver] resolveEEO intent:${intent} es.gender:${es.gender} es.ethnicity:${es.ethnicity}`);
+
+        // Direct mappings from extensionSettings
+        const rawMappings = {
+            gender: es.gender,           // "Male", "Female", etc.
+            ethnicity: es.ethnicity || es.race,  // "Asian", "White", etc.
+            veteranStatus: es.veteranStatus,
+            disabilityStatus: es.disabilityStatus,
+            sexualOrientation: es.sexualOrientation
         };
 
-        let answer = mappings[intent];
+        let answer = rawMappings[intent];
 
-        // If question has options, try to match
+        // If we have a value, try to match it to available options
+        if (answer && question.options && question.options.length > 0) {
+            const normalizedAnswer = String(answer).toLowerCase().trim();
+
+            // Find exact or close match in options
+            for (const opt of question.options) {
+                const optText = (typeof opt === 'string' ? opt : opt.text || '').toLowerCase().trim();
+
+                // Exact match
+                if (optText === normalizedAnswer) {
+                    answer = typeof opt === 'string' ? opt : opt.text;
+                    console.log(`[TieredResolver] EEO exact match: ${answer}`);
+                    break;
+                }
+
+                // Partial match (e.g., "Male" in "Male")
+                if (optText.includes(normalizedAnswer) || normalizedAnswer.includes(optText)) {
+                    // Avoid false positives: "Male" should not match "Female"
+                    if (intent === 'gender') {
+                        // Special gender handling: exact word match only
+                        const regex = new RegExp(`\\b${normalizedAnswer}\\b`, 'i');
+                        if (regex.test(optText)) {
+                            answer = typeof opt === 'string' ? opt : opt.text;
+                            console.log(`[TieredResolver] EEO gender word match: ${answer}`);
+                            break;
+                        }
+                    } else {
+                        answer = typeof opt === 'string' ? opt : opt.text;
+                        console.log(`[TieredResolver] EEO partial match: ${answer}`);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Format veteran and disability if not already formatted
+        if (intent === 'veteranStatus' && answer) {
+            answer = this.formatVeteran(answer);
+        }
+        if (intent === 'disabilityStatus' && answer) {
+            answer = this.formatDisability(answer);
+        }
+
+        // Fallback: "prefer not to say" if no answer but options available
         if (!answer && question.options && question.options.length > 0) {
-            // Look for "prefer not to" or "decline" option
             const declineOption = question.options.find(o => {
                 const text = (typeof o === 'string' ? o : o.text || '').toLowerCase();
                 return /prefer\s*not|decline|not\s*dis|rather\s*not/i.test(text);
             });
-
             if (declineOption) {
                 answer = typeof declineOption === 'string' ? declineOption : declineOption.text;
+                console.log(`[TieredResolver] EEO fallback to decline: ${answer}`);
             }
         }
 

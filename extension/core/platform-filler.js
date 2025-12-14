@@ -78,27 +78,43 @@ const PlatformFiller = {
             }
         }
 
-        // Phase 3: Separate deterministic vs AI
+        // Phase 3: Separate deterministic vs templates vs AI
         const deterministic = [];
+        const tryTemplates = [];
         const needsAI = [];
 
         for (const item of classified) {
             const { question, classification } = item;
 
             if (classification.resolver === 'ai') {
+                // Check if it matches a template first
+                if (window.QuestionTemplates) {
+                    const templateName = QuestionTemplates.findTemplate(question.rawText || question.text);
+                    if (templateName) {
+                        tryTemplates.push({ ...item, templateName });
+                        continue;
+                    }
+                }
                 needsAI.push(item);
             } else {
                 const resolved = TieredResolver.resolve(question, classification);
                 if (resolved.answer !== null && resolved.confidence > 0.5) {
                     deterministic.push({ ...item, resolved });
                 } else {
-                    // Couldn't resolve, send to AI
+                    // Couldn't resolve, try templates then AI
+                    if (window.QuestionTemplates) {
+                        const templateName = QuestionTemplates.findTemplate(question.rawText || question.text);
+                        if (templateName) {
+                            tryTemplates.push({ ...item, templateName });
+                            continue;
+                        }
+                    }
                     needsAI.push(item);
                 }
             }
         }
 
-        console.log(`[PlatformFiller] Deterministic: ${deterministic.length}, AI needed: ${needsAI.length}`);
+        console.log(`[PlatformFiller] Deterministic: ${deterministic.length}, Templates: ${tryTemplates.length}, AI: ${needsAI.length}`);
 
         // Phase 4: Fill deterministic fields
         for (const item of deterministic) {
@@ -106,7 +122,19 @@ const PlatformFiller = {
             await this.wait(200); // Small delay between fields
         }
 
-        // Phase 5: Fill AI fields (if GroqClient available)
+        // Phase 5: Fill template-based fields
+        for (const item of tryTemplates) {
+            const answer = QuestionTemplates.generateAnswer(item.templateName, this.profile);
+            if (answer) {
+                await this.fillField(item.block, item.question, answer, 'template');
+                await this.wait(200);
+            } else {
+                // Template failed, send to AI
+                needsAI.push(item);
+            }
+        }
+
+        // Phase 6: Fill AI fields (if GroqClient available)
         if (needsAI.length > 0) {
             await this.fillWithAI(needsAI);
         }
