@@ -100,5 +100,53 @@ export const TRANSFORMS: Record<string, TransformFunction> = {
         }
 
         return preferred;
+    },
+
+    // Check if user is located in the United States
+    // Uses country field, or infers from state if state is a US state
+    isUsLocation: (options: string[], country: string, profile?: any): string => {
+        const c = (country || '').toLowerCase().trim();
+
+        // US state abbreviations and names
+        const usStates = [
+            'al', 'ak', 'az', 'ar', 'ca', 'co', 'ct', 'de', 'fl', 'ga',
+            'hi', 'id', 'il', 'in', 'ia', 'ks', 'ky', 'la', 'me', 'md',
+            'ma', 'mi', 'mn', 'ms', 'mo', 'mt', 'ne', 'nv', 'nh', 'nj',
+            'nm', 'ny', 'nc', 'nd', 'oh', 'ok', 'or', 'pa', 'ri', 'sc',
+            'sd', 'tn', 'tx', 'ut', 'vt', 'va', 'wa', 'wv', 'wi', 'wy',
+            'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado',
+            'connecticut', 'delaware', 'florida', 'georgia', 'hawaii', 'idaho',
+            'illinois', 'indiana', 'iowa', 'kansas', 'kentucky', 'louisiana',
+            'maine', 'maryland', 'massachusetts', 'michigan', 'minnesota',
+            'mississippi', 'missouri', 'montana', 'nebraska', 'nevada',
+            'new hampshire', 'new jersey', 'new mexico', 'new york',
+            'north carolina', 'north dakota', 'ohio', 'oklahoma', 'oregon',
+            'pennsylvania', 'rhode island', 'south carolina', 'south dakota',
+            'tennessee', 'texas', 'utah', 'vermont', 'virginia', 'washington',
+            'west virginia', 'wisconsin', 'wyoming', 'dc', 'district of columbia'
+        ];
+
+        // Check if country indicates USA
+        const isUs =
+            c === 'usa' ||
+            c === 'us' ||
+            c === 'united states' ||
+            c === 'united states of america' ||
+            c === 'america' ||
+            c.includes('united states');
+
+        // Also check state if provided (profile might have state even if country empty)
+        let stateIsUs = false;
+        if (profile?.identity?.location?.state) {
+            const state = profile.identity.location.state.toLowerCase().trim();
+            stateIsUs = usStates.includes(state);
+        }
+
+        const located = isUs || stateIsUs;
+
+        console.log(`[Transform] isUsLocation: country="${country}", state="${profile?.identity?.location?.state}", result=${located}`);
+
+        // Use boolToYesNo to format the answer
+        return TRANSFORMS.boolToYesNo(options, located);
     }
 };

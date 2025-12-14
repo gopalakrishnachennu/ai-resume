@@ -53,6 +53,15 @@ export const CANONICAL: Record<string, CanonicalMapping> = {
     "willing to relocate": { path: "authorization.willingToRelocate", transform: "boolToYesNo" },
     "relocation": { path: "authorization.willingToRelocate", transform: "boolToYesNo" },
 
+    // --- LOCATION-BASED QUESTIONS ---
+    "are you located in the united states?": { path: "identity.location.country", transform: "isUsLocation" },
+    "are you located in the us?": { path: "identity.location.country", transform: "isUsLocation" },
+    "are you located in the usa?": { path: "identity.location.country", transform: "isUsLocation" },
+    "are you currently located in the united states?": { path: "identity.location.country", transform: "isUsLocation" },
+    "do you reside in the united states?": { path: "identity.location.country", transform: "isUsLocation" },
+    "are you based in the united states?": { path: "identity.location.country", transform: "isUsLocation" },
+    "are you a us resident?": { path: "identity.location.country", transform: "isUsLocation" },
+
     // --- ROLE PREFERENCES ---
     "desired salary": { path: "role.salaryMin", transform: "formatSalary" },
     "expected salary": { path: "role.salaryMin", transform: "formatSalary" },

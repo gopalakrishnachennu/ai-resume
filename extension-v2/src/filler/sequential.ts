@@ -223,7 +223,7 @@ export class SequentialFiller {
         // Transform value if needed
         let value = match.value;
         if (match.transform && TRANSFORMS[match.transform]) {
-            value = TRANSFORMS[match.transform](field.options || [], match.value);
+            value = TRANSFORMS[match.transform](field.options || [], match.value, this.profile);
         }
 
         // Ensure string
