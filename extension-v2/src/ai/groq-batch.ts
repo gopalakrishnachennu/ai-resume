@@ -35,9 +35,42 @@ export async function batchAskGroq(
     questions: BatchQuestion[],
     profile: Profile
 ): Promise<BatchAnswer[]> {
-    // 1. Get API Key (check both field names)
+    // 1. Get API Key - Try local storage first, then Firebase
     const { settings } = await chrome.storage.local.get("settings");
     let apiKey = settings?.groqApiKey || settings?.groqApiKeys;
+    let model = settings?.groqModel || DEFAULT_MODEL;
+
+    // If no key in local storage, try to get from Firebase (via stored auth)
+    if (!apiKey) {
+        console.log("[Groq Batch] No key in local storage, checking Firebase...");
+        try {
+            // Get auth from storage
+            const { auth } = await chrome.storage.local.get("auth");
+            if (auth?.uid) {
+                // Try to get from admin settings via fetch (adminSettings/extension in Firestore)
+                const projectId = "ai-resume-f9b01"; // Firebase project ID
+                const adminUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/adminSettings/extension`;
+
+                const response = await fetch(adminUrl);
+                if (response.ok) {
+                    const data = await response.json();
+                    const fields = data.fields || {};
+                    apiKey = fields.groqApiKeys?.stringValue || fields.groqApiKey?.stringValue;
+                    model = fields.groqModel?.stringValue || model;
+
+                    if (apiKey) {
+                        console.log("[Groq Batch] ✅ Got API key from Firebase admin settings");
+                        // Cache it for next time
+                        await chrome.storage.local.set({
+                            settings: { ...settings, groqApiKey: apiKey, groqModel: model }
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("[Groq Batch] Firebase fallback failed:", e);
+        }
+    }
 
     // If apiKey is multiline (multiple keys), use the first one
     if (apiKey && apiKey.includes('\n')) {
@@ -48,12 +81,12 @@ export async function batchAskGroq(
         hasSettings: !!settings,
         hasApiKey: !!apiKey,
         apiKeyLength: apiKey?.length || 0,
-        model: settings?.groqModel || DEFAULT_MODEL
+        model: model
     });
 
     if (!apiKey) {
-        console.warn("[Groq Batch] No API key configured - falling back to free tries or skip");
-        throw new Error("Groq API Key missing. Add your API key in extension settings.");
+        console.warn("[Groq Batch] No API key configured");
+        throw new Error("Groq API Key missing. Open extension popup to sync settings, or add key in admin.");
     }
 
     if (questions.length === 0) {
