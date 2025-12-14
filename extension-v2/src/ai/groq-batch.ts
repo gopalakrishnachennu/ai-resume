@@ -35,13 +35,25 @@ export async function batchAskGroq(
     questions: BatchQuestion[],
     profile: Profile
 ): Promise<BatchAnswer[]> {
-    // 1. Get API Key
+    // 1. Get API Key (check both field names)
     const { settings } = await chrome.storage.local.get("settings");
-    const apiKey = settings?.groqApiKey;
+    let apiKey = settings?.groqApiKey || settings?.groqApiKeys;
+
+    // If apiKey is multiline (multiple keys), use the first one
+    if (apiKey && apiKey.includes('\n')) {
+        apiKey = apiKey.split('\n')[0].trim();
+    }
+
+    console.log(`[Groq Batch] Settings loaded:`, {
+        hasSettings: !!settings,
+        hasApiKey: !!apiKey,
+        apiKeyLength: apiKey?.length || 0,
+        model: settings?.groqModel || DEFAULT_MODEL
+    });
 
     if (!apiKey) {
-        console.warn("[Groq Batch] No API key configured");
-        throw new Error("Groq API Key missing");
+        console.warn("[Groq Batch] No API key configured - falling back to free tries or skip");
+        throw new Error("Groq API Key missing. Add your API key in extension settings.");
     }
 
     if (questions.length === 0) {
@@ -61,19 +73,24 @@ export async function batchAskGroq(
         return `${i + 1}. [ID:${q.id}] ${q.question}${optionsText}`;
     }).join('\n\n');
 
-    const systemPrompt = `You are a job application assistant helping fill out forms.
+    const systemPrompt = `You are a job application assistant helping fill out forms for a candidate.
 
 CANDIDATE PROFILE:
 ${profileInfo}
 
 RULES:
-1. Answer ONLY based on the profile data provided
-2. If info not in profile, respond with "N/A"
-3. For Yes/No questions, respond with just "Yes" or "No"
-4. For dropdowns with options, pick the CLOSEST matching option
-5. For salary questions, respond just the number like "$140,000"
-6. Keep answers SHORT and DIRECT - no explanations
-7. For pronouns: Male→"He/him", Female→"She/her"
+1. Use the profile data to craft relevant answers
+2. For Yes/No questions, respond with just "Yes" or "No"
+3. For dropdowns with options, pick the CLOSEST matching option exactly as written
+4. For salary questions, respond just the number like "$140,000"
+5. For short text fields (name, email, etc), keep answers SHORT
+6. For LONG-FORM questions (describe, explain, tell us about, etc):
+   - Write 2-4 sentences using the candidate's skills and experience
+   - Be professional and specific
+   - Reference actual technologies/tools from their profile
+7. For rating/scale questions (1-5, etc), give a specific number based on their experience level
+8. For pronouns: Male→"He/him", Female→"She/her"
+9. NEVER say "N/A" for open-ended questions - always provide a relevant answer using the profile
 
 OUTPUT FORMAT:
 Respond with EXACTLY one answer per line in format:
@@ -82,7 +99,8 @@ Respond with EXACTLY one answer per line in format:
 Example:
 [ID:first_name] John
 [ID:sponsorship] No
-[ID:salary] $140,000`;
+[ID:technical_tools] I am most comfortable with Python, Apache Airflow, and dbt for building reliable data workflows. I have used these tools extensively to create ETL pipelines and data quality frameworks.
+[ID:experience_rating] 4`;
 
     const userPrompt = `Answer ALL these job application questions based on the candidate profile:
 
