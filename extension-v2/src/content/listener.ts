@@ -233,7 +233,7 @@ async function handleProfileSync(payload: any): Promise<void> {
  */
 async function handleSessionSync(payload: any): Promise<void> {
     try {
-        const { uid, projectId, session, resume } = payload || {};
+        const { uid, projectId, session, resume, resumePdf, resumeDocx } = payload || {};
 
         if (session) {
             await chrome.storage.local.set({
@@ -249,24 +249,39 @@ async function handleSessionSync(payload: any): Promise<void> {
             console.log("[Sync] Session stored from flash");
         }
 
-        // Store resume file if provided
-        if (resume && resume.buffer) {
+        // Store PDF resume (primary - used for PDF-accepting inputs)
+        const pdfData = resumePdf || resume; // fallback to legacy 'resume' field
+        if (pdfData && pdfData.buffer) {
             await storeFileFromBuffer(
-                "resume",
-                resume.buffer,
-                resume.name || "resume.pdf",
-                resume.type || "application/pdf"
+                "resume", // Primary ID for PDF (most common)
+                pdfData.buffer,
+                pdfData.name || "resume.pdf",
+                pdfData.type || "application/pdf"
             );
+            console.log("[Sync] PDF resume stored:", pdfData.name);
+        }
 
-            // Save resume info for popup
-            await chrome.storage.local.set({
-                resumeInfo: {
-                    name: resume.name,
-                    size: resume.buffer.byteLength,
-                    type: resume.type
-                }
-            });
-            console.log("[Sync] Resume stored from flash:", resume.name);
+        // Store DOCX resume (for DOCX-accepting inputs)
+        if (resumeDocx && resumeDocx.buffer) {
+            await storeFileFromBuffer(
+                "resume-docx",
+                resumeDocx.buffer,
+                resumeDocx.name || "resume.docx",
+                resumeDocx.type || "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            );
+            console.log("[Sync] DOCX resume stored:", resumeDocx.name);
+        }
+
+        // Save resume info for popup (show both if available)
+        const resumeInfo: any = {};
+        if (pdfData?.buffer) {
+            resumeInfo.pdf = { name: pdfData.name, size: pdfData.buffer.byteLength, type: pdfData.type };
+        }
+        if (resumeDocx?.buffer) {
+            resumeInfo.docx = { name: resumeDocx.name, size: resumeDocx.buffer.byteLength, type: resumeDocx.type };
+        }
+        if (Object.keys(resumeInfo).length > 0) {
+            await chrome.storage.local.set({ resumeInfo });
         }
 
         window.postMessage({ type: "JOBFILLER_SESSION_SUCCESS" }, "*");

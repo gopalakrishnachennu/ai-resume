@@ -2,16 +2,62 @@ import { getFile } from "./storage";
 
 /**
  * Resume handling - attach stored resume to file input
+ * Supports both PDF and DOCX formats
  */
 
-const RESUME_ID = 'resume';
+const RESUME_PDF_ID = 'resume';
+const RESUME_DOCX_ID = 'resume-docx';
+
+/**
+ * Determine which file format to use based on input's accept attribute
+ */
+function getPreferredFormat(fileInput: HTMLInputElement): 'pdf' | 'docx' | 'any' {
+    const accept = (fileInput.accept || '').toLowerCase();
+
+    // Check explicit preferences
+    if (accept.includes('.docx') || accept.includes('word') || accept.includes('openxmlformats')) {
+        // If ONLY docx is accepted (no PDF)
+        if (!accept.includes('pdf') && !accept.includes('.pdf')) {
+            return 'docx';
+        }
+    }
+
+    // PDF is explicitly required
+    if ((accept.includes('pdf') || accept.includes('.pdf')) &&
+        !accept.includes('doc') && !accept.includes('word')) {
+        return 'pdf';
+    }
+
+    // Accept both or no specific constraint - PDF is preferred
+    return 'any';
+}
 
 /**
  * Attach stored resume to a file input element
+ * Automatically uses PDF or DOCX based on input's accept attribute
  */
 export async function attachResume(fileInput: HTMLInputElement): Promise<boolean> {
     try {
-        const stored = await getFile(RESUME_ID);
+        const format = getPreferredFormat(fileInput);
+        console.log(`[Resume] Detected format preference: ${format}`);
+
+        let stored = null;
+
+        // Try to get the preferred format first
+        if (format === 'docx') {
+            stored = await getFile(RESUME_DOCX_ID);
+            if (!stored) {
+                console.log('[Resume] No DOCX stored, falling back to PDF');
+                stored = await getFile(RESUME_PDF_ID);
+            }
+        } else {
+            // PDF or any - try PDF first (most common)
+            stored = await getFile(RESUME_PDF_ID);
+            if (!stored && format === 'any') {
+                console.log('[Resume] No PDF stored, trying DOCX');
+                stored = await getFile(RESUME_DOCX_ID);
+            }
+        }
 
         if (!stored) {
             console.log('[Resume] No resume stored');
@@ -33,7 +79,7 @@ export async function attachResume(fileInput: HTMLInputElement): Promise<boolean
         fileInput.dispatchEvent(new Event('change', { bubbles: true }));
         fileInput.dispatchEvent(new Event('input', { bubbles: true }));
 
-        console.log(`[Resume] Attached: ${stored.name} (${stored.size} bytes)`);
+        console.log(`[Resume] Attached: ${stored.name} (${stored.size} bytes, ${stored.type})`);
         return true;
 
     } catch (error) {

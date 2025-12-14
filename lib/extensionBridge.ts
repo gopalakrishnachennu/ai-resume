@@ -325,13 +325,14 @@ export async function syncGroqSettingsToExtension(settings: {
 }
 
 /**
- * Push flash session + resume file to extension
+ * Push flash session + resume files (PDF & DOCX) to extension
  * Used by dashboard flash button - simplified flow
  */
 export async function pushFlashSessionWithResume(
     uid: string,
     session: any,
-    resumeFile?: File | Blob
+    pdfFile?: File | Blob,
+    docxFile?: File | Blob
 ): Promise<{ success: boolean; error?: string }> {
     try {
         const installed = await isExtensionInstalled();
@@ -339,14 +340,25 @@ export async function pushFlashSessionWithResume(
             return { success: false, error: "Extension not installed" };
         }
 
-        // Prepare resume if provided
-        let resume: { buffer: ArrayBuffer; name: string; type: string } | undefined;
-        if (resumeFile) {
-            const buffer = await resumeFile.arrayBuffer();
-            resume = {
+        // Prepare PDF resume if provided
+        let resumePdf: { buffer: ArrayBuffer; name: string; type: string } | undefined;
+        if (pdfFile) {
+            const buffer = await pdfFile.arrayBuffer();
+            resumePdf = {
                 buffer,
-                name: (resumeFile as File).name || "resume.pdf",
-                type: resumeFile.type || "application/pdf"
+                name: (pdfFile as File).name || "resume.pdf",
+                type: pdfFile.type || "application/pdf"
+            };
+        }
+
+        // Prepare DOCX resume if provided
+        let resumeDocx: { buffer: ArrayBuffer; name: string; type: string } | undefined;
+        if (docxFile) {
+            const buffer = await docxFile.arrayBuffer();
+            resumeDocx = {
+                buffer,
+                name: (docxFile as File).name || "resume.docx",
+                type: docxFile.type || "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             };
         }
 
@@ -354,7 +366,7 @@ export async function pushFlashSessionWithResume(
             const timeout = setTimeout(() => {
                 window.removeEventListener("message", handler);
                 resolve({ success: false, error: "Timeout" });
-            }, 5000); // Longer timeout for file transfer
+            }, 8000); // Longer timeout for two files
 
             const handler = (event: MessageEvent) => {
                 if (event.data?.type === "JOBFILLER_SESSION_SUCCESS") {
@@ -371,11 +383,12 @@ export async function pushFlashSessionWithResume(
             window.addEventListener("message", handler);
             window.postMessage({
                 type: "JOBFILLER_SESSION",
-                payload: { uid, session, resume }
+                payload: { uid, session, resumePdf, resumeDocx }
             }, "*");
         });
     } catch (error) {
         return { success: false, error: String(error) };
     }
 }
+
 

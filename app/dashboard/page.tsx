@@ -1015,9 +1015,10 @@ export default function DashboardPage() {
                 const pushResult = await pushFlashSessionWithResume(
                     user.uid,
                     sessionForExtension,
-                    pdfBlob || undefined // Send PDF to extension IndexedDB
+                    pdfBlob || undefined,  // Send PDF to extension IndexedDB
+                    docxBlob || undefined  // Send DOCX to extension IndexedDB
                 );
-                console.log('[Flash] Session + Resume pushed to extension:', pushResult);
+                console.log('[Flash] Session + Resume (PDF & DOCX) pushed to extension:', pushResult);
             } else {
                 console.log('[Flash] Extension not available - using Firebase fallback');
             }
