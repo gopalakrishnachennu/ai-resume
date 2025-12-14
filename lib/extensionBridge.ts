@@ -182,3 +182,7 @@ export function setupAutoSync(
         });
     }
 }
+
+// Alias exports for backward compatibility
+export const isExtensionAvailable = isExtensionInstalled;
+export const pushFlashSession = createFlashSession;
