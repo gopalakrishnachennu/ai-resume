@@ -92,11 +92,47 @@ export class LeverAdapter extends BaseAdapter {
     }
 
     async fill(field: FieldInfo, value: string): Promise<boolean> {
+        const el = field.element;
+
         try {
-            if (field.type === 'radio') {
-                return await this.clickLeverRadio(field.name!, value);
+            switch (field.type) {
+                case "text":
+                case "email":
+                case "tel":
+                case "url":
+                case "textarea":
+                    await this.typeValue(el as HTMLInputElement, value);
+                    return true;
+
+                case "select":
+                    return await this.selectOption(el as HTMLSelectElement, value);
+
+                case "radio":
+                    return await this.clickLeverRadio(field.name!, value);
+
+                case "checkbox":
+                    // For checkboxes, match value to label text
+                    const checkbox = el as HTMLInputElement;
+                    const checkboxLabel = this.getLeverLabel(checkbox).toLowerCase();
+                    const valueNorm = value.toLowerCase();
+
+                    // Check if this checkbox matches the expected value
+                    if (checkboxLabel.includes(valueNorm) || valueNorm.includes(checkboxLabel)) {
+                        if (!checkbox.checked) checkbox.click();
+                        return true;
+                    } else if (valueNorm === "yes" || valueNorm === "true") {
+                        if (!checkbox.checked) checkbox.click();
+                        return true;
+                    } else if (valueNorm === "no" || valueNorm === "false") {
+                        if (checkbox.checked) checkbox.click();
+                        return true;
+                    }
+                    return false;
+
+                default:
+                    console.warn(`[Lever] Unknown field type: ${field.type}`);
+                    return false;
             }
-            return await super.fill(field, value);
         } catch (e) {
             console.error(`[Lever] Fill failed for ${field.label}`, e);
             return false;
