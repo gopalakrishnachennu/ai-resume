@@ -12,6 +12,32 @@ export interface JobContext {
 }
 
 /**
+ * Helper to safely get skills as array (handles both string and object formats)
+ */
+function getSkillsList(profile: Profile, type: 'technical' | 'soft' | 'all' = 'all', limit: number = 5): string[] {
+    const skills = (profile as any)?.skills;
+
+    if (!skills) return [];
+
+    // If skills is a string (comma-separated)
+    if (typeof skills === 'string') {
+        return (skills as string).split(',').map((s: string) => s.trim()).filter(Boolean).slice(0, limit);
+    }
+
+    // If skills is an object with technical/soft arrays
+    if (typeof skills === 'object') {
+        const technical = Array.isArray(skills.technical) ? skills.technical : [];
+        const soft = Array.isArray(skills.soft) ? skills.soft : [];
+
+        if (type === 'technical') return technical.slice(0, limit);
+        if (type === 'soft') return soft.slice(0, limit);
+        return [...technical, ...soft].slice(0, limit);
+    }
+
+    return [];
+}
+
+/**
  * Templates for open-ended questions (Tier 5)
  * These handle questions that can't be mapped to simple profile fields
  */
@@ -26,9 +52,9 @@ export const TEMPLATES: TemplateConfig[] = [
             /why.*join.*us/i
         ],
         generate: (profile, job) => {
-            const role = job?.jobTitle || profile.role.targetTitle || "this role";
+            const role = job?.jobTitle || profile.role?.targetTitle || "this role";
             const company = job?.company || "your organization";
-            const skills = profile.skills.technical.slice(0, 3).join(", ");
+            const skills = getSkillsList(profile, 'technical', 3).join(", ") || "my technical expertise";
 
             return `I am excited about the opportunity to bring my expertise in ${skills} to ${company}. ` +
                 `The ${role} position aligns perfectly with my career goals, and I am drawn to the ` +
@@ -47,9 +73,9 @@ export const TEMPLATES: TemplateConfig[] = [
             /introduce.*yourself/i
         ],
         generate: (profile) => {
-            const years = profile.experience.totalYears || "several";
-            const title = profile.role.targetTitle || profile.experience.currentTitle || "professional";
-            const skills = profile.skills.technical.slice(0, 4).join(", ");
+            const years = profile.experience?.totalYears || "several";
+            const title = profile.role?.targetTitle || profile.experience?.currentTitle || "professional";
+            const skills = getSkillsList(profile, 'technical', 4).join(", ") || "various technologies";
 
             return `I am a ${title} with ${years} years of experience. ` +
                 `My core competencies include ${skills}. ` +
@@ -66,9 +92,9 @@ export const TEMPLATES: TemplateConfig[] = [
             /top.*skill/i
         ],
         generate: (profile) => {
-            const tech = profile.skills.technical.slice(0, 3);
-            const soft = profile.skills.soft.slice(0, 2);
-            const combined = [...tech, ...soft].join(", ");
+            const tech = getSkillsList(profile, 'technical', 3);
+            const soft = getSkillsList(profile, 'soft', 2);
+            const combined = [...tech, ...soft].join(", ") || "problem-solving and technical expertise";
 
             return `My key strengths include ${combined}. ` +
                 `I excel at problem-solving and collaborating with cross-functional teams to deliver results.`;
@@ -151,7 +177,7 @@ export const TEMPLATES: TemplateConfig[] = [
         ],
         generate: (profile, job) => {
             const company = job?.company || "your organization";
-            const skills = profile.skills.technical.slice(0, 3).join(", ");
+            const skills = getSkillsList(profile, 'technical', 3).join(", ") || "my technical expertise";
 
             return `I am enthusiastic about the opportunity to join ${company}. ` +
                 `With my background in ${skills} and proven track record of delivering results, ` +
