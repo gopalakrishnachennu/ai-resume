@@ -92,7 +92,7 @@ export async function attachResume(fileInput: HTMLInputElement): Promise<boolean
  * Check if resume is stored
  */
 export async function hasResume(): Promise<boolean> {
-    const stored = await getFile(RESUME_ID);
+    const stored = await getFile(RESUME_PDF_ID);
     return stored !== null;
 }
 
@@ -100,7 +100,7 @@ export async function hasResume(): Promise<boolean> {
  * Get resume info without blob
  */
 export async function getResumeInfo(): Promise<{ name: string; size: number; type: string } | null> {
-    const stored = await getFile(RESUME_ID);
+    const stored = await getFile(RESUME_PDF_ID);
     if (!stored) return null;
 
     return {
@@ -112,38 +112,112 @@ export async function getResumeInfo(): Promise<{ name: string; size: number; typ
 
 /**
  * Detect resume file inputs on page
+ * Improved detection for various job portals (Lever, Workday, Greenhouse, etc.)
  */
 export function findResumeInputs(): HTMLInputElement[] {
     const inputs = document.querySelectorAll<HTMLInputElement>('input[type="file"]');
 
-    return Array.from(inputs).filter(input => {
+    console.log(`[Resume] Found ${inputs.length} file inputs on page`);
+
+    const resumeInputs = Array.from(inputs).filter(input => {
         const accept = input.accept?.toLowerCase() || '';
-        const label = (input.getAttribute('aria-label') ||
-            input.closest('label')?.textContent ||
-            '').toLowerCase();
+        const id = input.id?.toLowerCase() || '';
+        const name = input.name?.toLowerCase() || '';
+        const className = input.className?.toLowerCase() || '';
+
+        // Get label text from various sources
+        const ariaLabel = input.getAttribute('aria-label')?.toLowerCase() || '';
+        const closestLabel = input.closest('label')?.textContent?.toLowerCase() || '';
+        const forLabel = input.id ? document.querySelector(`label[for="${input.id}"]`)?.textContent?.toLowerCase() || '' : '';
+
+        // Check parent/sibling elements for context clues
+        const parentText = input.parentElement?.textContent?.toLowerCase() || '';
+        const nearbyText = input.closest('[class*="upload"], [class*="resume"], [class*="file"]')?.textContent?.toLowerCase() || '';
+
+        // Combine all text sources
+        const allText = `${ariaLabel} ${closestLabel} ${forLabel} ${parentText} ${nearbyText} ${id} ${name}`;
 
         // Check if it's likely a resume/CV upload
         const isResume =
-            label.includes('resume') ||
-            label.includes('cv') ||
+            allText.includes('resume') ||
+            allText.includes('cv') ||
+            allText.includes('curriculum') ||
+            id.includes('resume') ||
+            name.includes('resume') ||
+            name.includes('cv') ||
+            // Common patterns in job portals
             accept.includes('pdf') ||
             accept.includes('doc');
 
+        if (isResume) {
+            console.log(`[Resume] ✓ Found resume input:`, {
+                id: input.id,
+                name: input.name,
+                accept: input.accept,
+                visible: input.offsetParent !== null
+            });
+        }
+
         return isResume;
     });
+
+    console.log(`[Resume] Matched ${resumeInputs.length} resume inputs`);
+    return resumeInputs;
 }
 
 /**
  * Auto-fill all resume inputs on page
  */
 export async function fillAllResumeInputs(): Promise<number> {
+    console.log('[Resume] === Starting fillAllResumeInputs ===');
+
+    // Check if we have files stored
+    const pdfStored = await getFile(RESUME_PDF_ID);
+    const docxStored = await getFile(RESUME_DOCX_ID);
+
+    console.log('[Resume] Storage status:', {
+        hasPdf: !!pdfStored,
+        pdfName: pdfStored?.name,
+        hasDocx: !!docxStored,
+        docxName: docxStored?.name
+    });
+
+    if (!pdfStored && !docxStored) {
+        console.warn('[Resume] No resume files stored - cannot upload');
+        return 0;
+    }
+
     const inputs = findResumeInputs();
+
+    if (inputs.length === 0) {
+        console.log('[Resume] No resume inputs found on page');
+        // Try a broader search for any file input
+        const allFileInputs = document.querySelectorAll<HTMLInputElement>('input[type="file"]');
+        console.log('[Resume] All file inputs on page:', allFileInputs.length);
+        allFileInputs.forEach((input, i) => {
+            console.log(`[Resume] Input ${i}:`, {
+                id: input.id,
+                name: input.name,
+                accept: input.accept,
+                visible: input.offsetParent !== null
+            });
+        });
+    }
+
     let filled = 0;
 
     for (const input of inputs) {
+        console.log(`[Resume] Attempting to attach to input: ${input.id || input.name || 'unnamed'}`);
         const success = await attachResume(input);
-        if (success) filled++;
+        if (success) {
+            filled++;
+            console.log(`[Resume] ✓ Successfully attached resume!`);
+        } else {
+            console.log(`[Resume] ✗ Failed to attach resume`);
+        }
     }
 
+    console.log(`[Resume] === fillAllResumeInputs complete: ${filled}/${inputs.length} filled ===`);
     return filled;
 }
+

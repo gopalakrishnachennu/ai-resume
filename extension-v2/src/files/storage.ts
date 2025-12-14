@@ -1,123 +1,117 @@
 /**
- * IndexedDB wrapper for storing files (resume, cover letter)
- * No size limits like chrome.storage
+ * File storage using chrome.storage.local
+ * Uses Base64 encoding to store binary data
+ * This ensures files are accessible across all origins
  */
 
-const DB_NAME = 'jobfiller-files';
-const DB_VERSION = 1;
-const STORE_NAME = 'files';
-
-interface StoredFile {
+export interface StoredFile {
     id: string;
-    blob: Blob;
+    data: string; // Base64 encoded data
     name: string;
     type: string;
     size: number;
     updatedAt: number;
 }
 
-let dbInstance: IDBDatabase | null = null;
+/**
+ * Convert ArrayBuffer to Base64
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
 
 /**
- * Open/create the database
+ * Convert Base64 to ArrayBuffer
  */
-async function openDB(): Promise<IDBDatabase> {
-    if (dbInstance) return dbInstance;
-
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onerror = () => reject(request.error);
-
-        request.onsuccess = () => {
-            dbInstance = request.result;
-            resolve(dbInstance);
-        };
-
-        request.onupgradeneeded = (event) => {
-            const db = (event.target as IDBOpenDBRequest).result;
-
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-            }
-        };
-    });
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
 }
 
 /**
  * Store a file
  */
 export async function storeFile(id: string, blob: Blob, name: string): Promise<void> {
-    const db = await openDB();
+    const buffer = await blob.arrayBuffer();
+    const data = arrayBufferToBase64(buffer);
 
     const file: StoredFile = {
         id,
-        blob,
+        data,
         name,
         type: blob.type,
         size: blob.size,
         updatedAt: Date.now()
     };
 
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.put(file);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-            console.log(`[Storage] Stored file: ${id} (${name}, ${blob.size} bytes)`);
-            resolve();
-        };
-    });
+    const key = `file_${id}`;
+    await chrome.storage.local.set({ [key]: file });
+    console.log(`[Storage] Stored file: ${id} (${name}, ${blob.size} bytes)`);
 }
 
 /**
- * Retrieve a file
+ * Retrieve a file with blob reconstructed
  */
-export async function getFile(id: string): Promise<StoredFile | null> {
-    const db = await openDB();
+export async function getFile(id: string): Promise<{ blob: Blob; name: string; type: string; size: number; updatedAt: number } | null> {
+    const key = `file_${id}`;
+    const result = await chrome.storage.local.get([key]);
+    const file: StoredFile = result[key];
 
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.get(id);
+    if (!file) {
+        return null;
+    }
 
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result || null);
-    });
+    // Reconstruct blob from Base64
+    const buffer = base64ToArrayBuffer(file.data);
+    const blob = new Blob([buffer], { type: file.type });
+
+    return {
+        blob,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        updatedAt: file.updatedAt
+    };
 }
 
 /**
  * Delete a file
  */
 export async function deleteFile(id: string): Promise<void> {
-    const db = await openDB();
-
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.delete(id);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
-    });
+    const key = `file_${id}`;
+    await chrome.storage.local.remove([key]);
+    console.log(`[Storage] Deleted file: ${id}`);
 }
 
 /**
- * List all stored files
+ * List all stored files (metadata only)
  */
-export async function listFiles(): Promise<StoredFile[]> {
-    const db = await openDB();
+export async function listFiles(): Promise<{ id: string; name: string; type: string; size: number }[]> {
+    const all = await chrome.storage.local.get(null);
+    const files: { id: string; name: string; type: string; size: number }[] = [];
 
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.getAll();
+    for (const key of Object.keys(all)) {
+        if (key.startsWith('file_')) {
+            const file = all[key] as StoredFile;
+            files.push({
+                id: file.id,
+                name: file.name,
+                type: file.type,
+                size: file.size
+            });
+        }
+    }
 
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-    });
+    return files;
 }
 
 /**
