@@ -74,8 +74,8 @@ async function loadSessionFromFirebase(userId) {
     try {
         console.log('[Popup] Loading session from Firebase for:', userId);
 
-        // Try to get active session
-        const sessionDoc = await getDoc(doc(db, 'users', userId, 'sessions', 'active'));
+        // Webapp stores session in: activeSession/{userId}
+        const sessionDoc = await getDoc(doc(db, 'activeSession', userId));
 
         if (sessionDoc.exists()) {
             currentSession = sessionDoc.data();
@@ -92,7 +92,7 @@ async function loadSessionFromFirebase(userId) {
                 profile: currentSession // Also store as profile for backward compatibility
             });
         } else {
-            console.log('[Popup] No active session in Firebase');
+            console.log('[Popup] No active session in Firebase for user:', userId);
 
             // Try to load extension settings as fallback
             const settingsDoc = await getDoc(doc(db, 'users', userId, 'settings', 'extension'));
