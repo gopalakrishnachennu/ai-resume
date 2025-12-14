@@ -186,3 +186,55 @@ export function setupAutoSync(
 // Alias exports for backward compatibility
 export const isExtensionAvailable = isExtensionInstalled;
 export const pushFlashSession = createFlashSession;
+
+/**
+ * Sync Groq settings to extension (for admin panel)
+ */
+export async function syncGroqSettingsToExtension(settings: {
+    groqApiKeys?: string;
+    groqModel?: string;
+    groqEnabled?: boolean;
+    groqTemperature?: number;
+    groqMaxTokensPerField?: number;
+}): Promise<{ success: boolean; keyCount?: number }> {
+    try {
+        const installed = await isExtensionInstalled();
+        if (!installed) {
+            return { success: false };
+        }
+
+        // Parse API keys (comma-separated)
+        const keys = settings.groqApiKeys?.split(',').map(k => k.trim()).filter(Boolean) || [];
+
+        // Send to extension
+        return new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+                window.removeEventListener("message", handler);
+                resolve({ success: false });
+            }, 3000);
+
+            const handler = (event: MessageEvent) => {
+                if (event.data?.type === "JOBFILLER_SETTINGS_SUCCESS") {
+                    clearTimeout(timeout);
+                    window.removeEventListener("message", handler);
+                    resolve({ success: true, keyCount: keys.length });
+                }
+            };
+
+            window.addEventListener("message", handler);
+            window.postMessage({
+                type: "JOBFILLER_SETTINGS",
+                payload: {
+                    groqApiKeys: keys,
+                    groqModel: settings.groqModel || "llama3-8b-8192",
+                    groqEnabled: settings.groqEnabled ?? true,
+                    groqTemperature: settings.groqTemperature ?? 0.3,
+                    groqMaxTokensPerField: settings.groqMaxTokensPerField ?? 200,
+                }
+            }, "*");
+        });
+    } catch (error) {
+        console.error("[ExtensionBridge] Groq settings sync failed:", error);
+        return { success: false };
+    }
+}
