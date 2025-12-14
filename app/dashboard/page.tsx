@@ -1047,11 +1047,16 @@ export default function DashboardPage() {
                 }
             }
 
-            toast.success('Session ready! Opening job portal...', { id: 'flash-gen' });
+            // Success!
+            if (jobUrl) {
+                toast.success('Session ready! Opening job portal...', { id: 'flash-gen' });
+                window.open(jobUrl, '_blank');
+            } else {
+                toast.success('Session activated! Visit any job portal and click Auto-Fill', { id: 'flash-gen' });
+            }
 
-            // Close modal and open job link
+            // Close modal
             setFlashModal({ show: false, app: null, jobUrl: '', loading: false });
-            window.open(jobUrl, '_blank');
         } catch (error) {
             console.error('Error creating flash session:', error);
             toast.error('Failed to create session', { id: 'flash-gen' });
@@ -1941,9 +1946,10 @@ export default function DashboardPage() {
                             </p>
                         </div>
                         <div className="p-6 space-y-4">
+                            {/* Job URL - Optional */}
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                                    Job Application URL
+                                    Job Application URL <span className="text-slate-400 font-normal">(optional)</span>
                                 </label>
                                 <input
                                     type="url"
@@ -1951,10 +1957,11 @@ export default function DashboardPage() {
                                     onChange={(e) => setFlashModal(prev => ({ ...prev, jobUrl: e.target.value }))}
                                     placeholder="https://careers.company.com/apply/..."
                                     className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                                    autoFocus
                                 />
                                 <p className="text-xs text-slate-500 mt-2">
-                                    Paste the job portal URL where you want to apply
+                                    {flashModal.jobUrl.trim()
+                                        ? '✓ Job portal will open automatically'
+                                        : '💡 Leave empty to set active session only - visit job portal manually'}
                                 </p>
                             </div>
                             {/* Preview Downloads */}
@@ -1982,7 +1989,7 @@ export default function DashboardPage() {
                             </div>
                             <div className="bg-violet-50 border border-violet-200 rounded-xl p-3">
                                 <p className="text-xs text-violet-700">
-                                    <strong>How it works:</strong> Clicking &quot;Go &amp; Fill&quot; will prepare your resume data and open the job portal. The browser extension will detect the session and auto-fill the form.
+                                    <strong>How it works:</strong> Your resume data &amp; files (PDF/DOCX) will be sent to the extension. When you visit any job portal and click Auto-Fill, the extension will use this data.
                                 </p>
                             </div>
                         </div>
@@ -1995,7 +2002,7 @@ export default function DashboardPage() {
                             </button>
                             <button
                                 onClick={handleFlash}
-                                disabled={flashModal.loading || !flashModal.jobUrl.trim()}
+                                disabled={flashModal.loading}
                                 className="flex-1 px-4 py-2.5 text-white font-medium bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg hover:from-amber-600 hover:to-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {flashModal.loading ? (
@@ -2011,7 +2018,7 @@ export default function DashboardPage() {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                         </svg>
-                                        Go &amp; Fill ⚡
+                                        {flashModal.jobUrl.trim() ? 'Go & Fill ⚡' : 'Set Active ⚡'}
                                     </>
                                 )}
                             </button>

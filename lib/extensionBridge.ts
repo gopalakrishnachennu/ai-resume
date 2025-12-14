@@ -323,7 +323,6 @@ export async function syncGroqSettingsToExtension(settings: {
         return { success: false };
     }
 }
-
 /**
  * Push flash session + resume files (PDF & DOCX) to extension
  * Used by dashboard flash button - simplified flow
@@ -335,10 +334,21 @@ export async function pushFlashSessionWithResume(
     docxFile?: File | Blob
 ): Promise<{ success: boolean; error?: string }> {
     try {
+        console.log('[ExtBridge] pushFlashSessionWithResume called:', {
+            hasUid: !!uid,
+            hasSession: !!session,
+            hasPdfFile: !!pdfFile,
+            pdfFileSize: pdfFile?.size,
+            hasDocxFile: !!docxFile,
+            docxFileSize: docxFile?.size
+        });
+
         const installed = await isExtensionInstalled();
         if (!installed) {
+            console.warn('[ExtBridge] Extension not installed');
             return { success: false, error: "Extension not installed" };
         }
+        console.log('[ExtBridge] Extension detected ✓');
 
         // Prepare PDF resume if provided
         let resumePdf: { buffer: ArrayBuffer; name: string; type: string } | undefined;
@@ -349,6 +359,12 @@ export async function pushFlashSessionWithResume(
                 name: (pdfFile as File).name || "resume.pdf",
                 type: pdfFile.type || "application/pdf"
             };
+            console.log('[ExtBridge] PDF prepared:', {
+                name: resumePdf.name,
+                type: resumePdf.type,
+                bufferByteLength: buffer.byteLength,
+                bufferType: buffer.constructor.name
+            });
         }
 
         // Prepare DOCX resume if provided
@@ -360,20 +376,30 @@ export async function pushFlashSessionWithResume(
                 name: (docxFile as File).name || "resume.docx",
                 type: docxFile.type || "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             };
+            console.log('[ExtBridge] DOCX prepared:', {
+                name: resumeDocx.name,
+                type: resumeDocx.type,
+                bufferByteLength: buffer.byteLength
+            });
         }
+
+        console.log('[ExtBridge] Sending JOBFILLER_SESSION message...');
 
         return new Promise((resolve) => {
             const timeout = setTimeout(() => {
+                console.error('[ExtBridge] TIMEOUT - No response from extension after 8s');
                 window.removeEventListener("message", handler);
-                resolve({ success: false, error: "Timeout" });
-            }, 8000); // Longer timeout for two files
+                resolve({ success: false, error: "Timeout - extension didn't respond" });
+            }, 8000);
 
             const handler = (event: MessageEvent) => {
                 if (event.data?.type === "JOBFILLER_SESSION_SUCCESS") {
+                    console.log('[ExtBridge] SUCCESS - Extension received session!');
                     clearTimeout(timeout);
                     window.removeEventListener("message", handler);
                     resolve({ success: true });
                 } else if (event.data?.type === "JOBFILLER_SESSION_ERROR") {
+                    console.error('[ExtBridge] ERROR from extension:', event.data.error);
                     clearTimeout(timeout);
                     window.removeEventListener("message", handler);
                     resolve({ success: false, error: event.data.error });
@@ -385,8 +411,11 @@ export async function pushFlashSessionWithResume(
                 type: "JOBFILLER_SESSION",
                 payload: { uid, session, resumePdf, resumeDocx }
             }, "*");
+
+            console.log('[ExtBridge] postMessage sent');
         });
     } catch (error) {
+        console.error('[ExtBridge] Exception:', error);
         return { success: false, error: String(error) };
     }
 }
