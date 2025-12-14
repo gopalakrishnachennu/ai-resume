@@ -53,6 +53,21 @@ window.addEventListener("message", async (event) => {
             await handleSync(data);
             break;
 
+        case "JOBFILLER_PROFILE":
+            // Handle profile-only sync from dashboard
+            await handleProfileSync(data.payload);
+            break;
+
+        case "JOBFILLER_SESSION":
+            // Handle session push from flash
+            await handleSessionSync(data.payload);
+            break;
+
+        case "JOBFILLER_SETTINGS":
+            // Handle settings sync from admin
+            await handleSettingsSync(data.payload);
+            break;
+
         case "JOBFILLER_PING":
             // Respond to webapp to confirm extension is installed
             window.postMessage({ type: "JOBFILLER_PONG", installed: true }, "*");
@@ -192,4 +207,68 @@ async function updateFillStats(filled: number): Promise<void> {
     stats.totalFilled = (stats.totalFilled || 0) + filled;
 
     await chrome.storage.local.set({ stats });
+}
+
+/**
+ * Handle profile-only sync from dashboard
+ */
+async function handleProfileSync(payload: any): Promise<void> {
+    try {
+        const { profile } = payload || {};
+
+        if (profile) {
+            await chrome.storage.local.set({ profile });
+            console.log("[Sync] Profile stored from dashboard");
+        }
+
+        window.postMessage({ type: "JOBFILLER_PROFILE_SUCCESS" }, "*");
+    } catch (error) {
+        console.error("[Sync] Profile error:", error);
+        window.postMessage({ type: "JOBFILLER_PROFILE_ERROR", error: String(error) }, "*");
+    }
+}
+
+/**
+ * Handle session push from flash
+ */
+async function handleSessionSync(payload: any): Promise<void> {
+    try {
+        const { uid, projectId, session } = payload || {};
+
+        if (session) {
+            await chrome.storage.local.set({
+                auth: {
+                    uid: uid || session.uid,
+                    email: session.personalInfo?.email || session.email || '',
+                    displayName: session.personalInfo?.name || session.displayName || '',
+                    syncedAt: Date.now()
+                },
+                session,
+                profile: session // Store session as profile too for form filling
+            });
+            console.log("[Sync] Session stored from flash");
+        }
+
+        window.postMessage({ type: "JOBFILLER_SESSION_SUCCESS" }, "*");
+    } catch (error) {
+        console.error("[Sync] Session error:", error);
+        window.postMessage({ type: "JOBFILLER_SESSION_ERROR", error: String(error) }, "*");
+    }
+}
+
+/**
+ * Handle settings sync from admin
+ */
+async function handleSettingsSync(payload: any): Promise<void> {
+    try {
+        const settings = payload || {};
+
+        await chrome.storage.local.set({ settings });
+        console.log("[Sync] Settings stored from admin");
+
+        window.postMessage({ type: "JOBFILLER_SETTINGS_SUCCESS" }, "*");
+    } catch (error) {
+        console.error("[Sync] Settings error:", error);
+        window.postMessage({ type: "JOBFILLER_SETTINGS_ERROR", error: String(error) }, "*");
+    }
 }
