@@ -143,13 +143,19 @@ export class WorkdayAdapter extends BaseAdapter {
      * Fill React-controlled input (triggers proper state updates)
      */
     private async fillReactInput(el: HTMLInputElement | HTMLTextAreaElement, value: string): Promise<void> {
-        el.focus();
+        // Human-like typing simulation
+        // Workday crashes if we force the value too fast without proper events
 
-        // Get React's internal instance to set value properly
+        el.focus();
+        await new Promise(r => setTimeout(r, 50));
+
+        // Method 1: React State Hack (Better for long text)
+        // We do this S-L-O-W-L-Y
+
         const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-            HTMLInputElement.prototype, 'value'
+            window.HTMLInputElement.prototype, 'value'
         )?.set || Object.getOwnPropertyDescriptor(
-            HTMLTextAreaElement.prototype, 'value'
+            window.HTMLTextAreaElement.prototype, 'value'
         )?.set;
 
         if (nativeInputValueSetter) {
@@ -158,15 +164,15 @@ export class WorkdayAdapter extends BaseAdapter {
             el.value = value;
         }
 
-        // Dispatch events React listens to
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
+        // Dispatch events with explicitly distinct timing
+        // This gives React time to run effects/validation between events
+        el.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
 
-        // Removed keydown/keyup as they can trigger validation logic that crashes 
-        // if event properties are missing/unexpected
+        await new Promise(r => setTimeout(r, 100)); // Wait for validation
 
-        // Small delay to let React process the change before blurring
-        await new Promise(r => setTimeout(r, 50));
+        el.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+
+        await new Promise(r => setTimeout(r, 100)); // Wait before blur
         el.blur();
     }
 
