@@ -3,6 +3,8 @@ import { TRANSFORMS } from "../core/transforms";
 import { Matcher, FieldInfo, MatchResult } from "../matcher";
 import { getAdapter } from "../adapters";
 import { JobContext } from "../core/templates";
+import { batchAskGroq } from "../ai/groq-batch";
+import { saveToCache } from "../matcher/cache";
 
 export interface FillResult {
     field: FieldInfo;
@@ -47,7 +49,7 @@ export class SequentialFiller {
     }
 
     /**
-     * Fill all fields on the current page
+     * Fill all fields on the current page using LLM Box batch approach
      */
     async fillForm(): Promise<FillSummary> {
         const startTime = Date.now();
@@ -64,58 +66,122 @@ export class SequentialFiller {
         const fields = await adapter.getFields();
         console.log(`[Filler] Found ${fields.length} fields`);
 
-        // 4. Fill each field SEQUENTIALLY
+        // ====== PASS 1: Quick Match (No AI) ======
+        console.log(`[Filler] Pass 1: Quick matching all fields...`);
+        const quickResults: Map<number, MatchResult & { needsAi?: boolean }> = new Map();
+        const unmatchedFields: { index: number; field: FieldInfo }[] = [];
+
         for (let i = 0; i < fields.length; i++) {
             const field = fields[i];
+            this.onProgress?.(i + 1, fields.length, field, 'scanning');
 
-            // Update progress
+            try {
+                const match = await this.matcher.resolveQuick(field);
+                quickResults.set(i, match);
+
+                if (match.needsAi) {
+                    unmatchedFields.push({ index: i, field });
+                }
+            } catch (e) {
+                console.error(`[Filler] Quick match failed for ${field.label}`, e);
+                quickResults.set(i, { tier: 9, value: null, confidence: 0, strategy: 'error', needsAi: true });
+                unmatchedFields.push({ index: i, field });
+            }
+        }
+
+        console.log(`[Filler] Pass 1 complete: ${fields.length - unmatchedFields.length} matched, ${unmatchedFields.length} need AI`);
+
+        // ====== PASS 2: Batch LLM (Single API Call) ======
+        const batchAnswers: Map<number, string> = new Map();
+
+        if (unmatchedFields.length > 0) {
+            console.log(`[Filler] Pass 2: Sending ${unmatchedFields.length} questions to LLM Box...`);
+            this.onProgress?.(0, unmatchedFields.length, unmatchedFields[0].field, 'ai-processing');
+
+            try {
+                const questions = unmatchedFields.map(({ index, field }) => ({
+                    id: `field_${index}`,
+                    question: field.label,
+                    options: field.options
+                }));
+
+                const answers = await batchAskGroq(questions, this.matcher.getProfile());
+
+                // Store answers and cache them
+                for (const answer of answers) {
+                    const indexMatch = answer.id.match(/field_(\d+)/);
+                    if (indexMatch) {
+                        const index = parseInt(indexMatch[1]);
+                        batchAnswers.set(index, answer.answer);
+
+                        // Cache the answer for future use
+                        const field = fields[index];
+                        if (field && answer.answer !== "N/A") {
+                            await saveToCache(field.label.toLowerCase().trim(), answer.answer);
+                        }
+                    }
+                }
+
+                console.log(`[Filler] Pass 2 complete: Got ${batchAnswers.size} answers from LLM Box`);
+            } catch (e) {
+                console.error(`[Filler] LLM Box failed:`, e);
+                // Continue with what we have - some fields will fail
+            }
+        }
+
+        // ====== PASS 3: Apply Values & Fill ======
+        console.log(`[Filler] Pass 3: Applying values...`);
+
+        for (let i = 0; i < fields.length; i++) {
+            const field = fields[i];
             this.onProgress?.(i + 1, fields.length, field, 'filling');
 
-            // Check for STALE element (DOM updated by previous field?)
+            // Check for STALE element
             if (!field.element.isConnected) {
                 console.log(`[Filler] Field ${field.label} detached. Refreshing...`);
-                await this.delay(1000); // Wait for DOM to settle
+                await this.delay(1000);
 
                 const newEl = await adapter.refreshElement(field);
                 if (newEl) {
                     field.element = newEl;
-                    console.log(`[Filler] Refreshed field ${field.label}`);
                 } else {
-                    console.warn(`[Filler] Could not refresh field ${field.label}`);
                     results.push({ field, status: 'failed', reason: 'element-detached' });
                     continue;
                 }
             }
 
-            // Highlight active field
             this.highlightField(field.element, 'active');
 
             try {
-                // 5. Resolve value using 8-tier matcher
-                const match = await this.matcher.resolve(field);
+                let match = quickResults.get(i)!;
 
-                // 6. Handle result
+                // If quick match failed but we have an LLM answer
+                if (match.needsAi && batchAnswers.has(i)) {
+                    const aiAnswer = batchAnswers.get(i)!;
+                    if (aiAnswer && aiAnswer !== "N/A") {
+                        match = {
+                            tier: 7,
+                            value: aiAnswer,
+                            confidence: 0.7,
+                            strategy: "llm-box-batch"
+                        };
+                    }
+                }
+
                 const result = await this.handleMatch(field, match, adapter);
                 results.push(result);
-
-                // Update highlight based on result
                 this.highlightField(field.element, result.status);
 
             } catch (error) {
                 console.error(`[Filler] Error on field: ${field.label}`, error);
-                results.push({
-                    field,
-                    status: 'failed',
-                    reason: 'exception'
-                });
+                results.push({ field, status: 'failed', reason: 'exception' });
                 this.highlightField(field.element, 'failed');
             }
 
-            // 7. Human-like delay
             await this.delay(FILL_DELAY);
         }
 
-        // 8. Build summary
+        // Build summary
         const summary: FillSummary = {
             total: fields.length,
             filled: results.filter(r => r.status === 'filled').length,

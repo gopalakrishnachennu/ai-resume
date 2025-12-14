@@ -147,4 +147,90 @@ export class Matcher {
     private getValueByPath(path: string): any {
         return path.split('.').reduce((o, i) => (o ? (o as any)[i] : null), this.profile);
     }
+
+    /**
+     * Quick resolve - Only Tiers 0-5 (no AI calls)
+     * Returns 'needs-ai': true if no match found - for batch processing
+     */
+    async resolveQuick(field: FieldInfo): Promise<MatchResult & { needsAi?: boolean }> {
+        const label = field.label.toLowerCase().trim();
+
+        // TIER 0: Security & Safety
+        if (NEVER_FILL.some(r => r.test(label))) {
+            return { tier: 0, value: null, confidence: 1, strategy: "security-block", action: "skip", reason: "sensitive-data" };
+        }
+        if (ASK_USER.some(r => r.test(label))) {
+            return { tier: 0, value: null, confidence: 1, strategy: "user-consent", action: "ask", reason: "requires-consent" };
+        }
+
+        // TIER 2: Exact Canonical Match
+        if (CANONICAL[label]) {
+            const config = CANONICAL[label];
+            let value = this.getValueByPath(config.path);
+            if (!value && config.inferFrom) {
+                value = this.getValueByPath(config.inferFrom);
+            }
+            if (value) {
+                return { tier: 2, value, confidence: 1.0, strategy: "canonical-exact", transform: config.transform };
+            }
+        }
+
+        // TIER 3: Fuzzy Canonical Match
+        for (const [key, config] of Object.entries(CANONICAL)) {
+            if (Math.abs(label.length - key.length) > 3) continue;
+            const dist = levenshtein(label, key);
+            if (dist <= 2) {
+                let value = this.getValueByPath(config.path);
+                if (!value && config.inferFrom) {
+                    value = this.getValueByPath(config.inferFrom);
+                }
+                if (value) {
+                    return { tier: 3, value, confidence: 0.9, strategy: `fuzzy-canonical(${key})`, transform: config.transform };
+                }
+            }
+        }
+
+        // TIER 4: Pattern Match
+        for (const pattern of PATTERNS) {
+            if (pattern.regex.test(label)) {
+                const value = this.getValueByPath(pattern.path);
+                if (value) {
+                    return { tier: 4, value, confidence: 0.85, strategy: "regex-pattern", transform: pattern.transform };
+                }
+            }
+        }
+
+        // TIER 5: Templates
+        const template = findTemplate(field.label);
+        if (template) {
+            const value = generateFromTemplate(template, this.profile, this.jobContext);
+            return { tier: 5, value, confidence: 0.8, strategy: "template-match" };
+        }
+
+        // TIER 6: Cache Lookup (quick, no API calls)
+        if (label.length > 2) {
+            const cached = await getFromCache(label);
+            if (cached) {
+                return { tier: 6, value: cached, confidence: 0.8, strategy: "ai-cache" };
+            }
+        }
+
+        // NO MATCH - Needs AI processing
+        return {
+            tier: 9,
+            value: null,
+            confidence: 0,
+            strategy: "needs-ai",
+            action: "manual",
+            needsAi: true
+        };
+    }
+
+    /**
+     * Get profile for external use (batch processing)
+     */
+    getProfile(): Profile {
+        return this.profile;
+    }
 }
+
