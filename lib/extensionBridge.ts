@@ -323,3 +323,59 @@ export async function syncGroqSettingsToExtension(settings: {
         return { success: false };
     }
 }
+
+/**
+ * Push flash session + resume file to extension
+ * Used by dashboard flash button - simplified flow
+ */
+export async function pushFlashSessionWithResume(
+    uid: string,
+    session: any,
+    resumeFile?: File | Blob
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const installed = await isExtensionInstalled();
+        if (!installed) {
+            return { success: false, error: "Extension not installed" };
+        }
+
+        // Prepare resume if provided
+        let resume: { buffer: ArrayBuffer; name: string; type: string } | undefined;
+        if (resumeFile) {
+            const buffer = await resumeFile.arrayBuffer();
+            resume = {
+                buffer,
+                name: (resumeFile as File).name || "resume.pdf",
+                type: resumeFile.type || "application/pdf"
+            };
+        }
+
+        return new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+                window.removeEventListener("message", handler);
+                resolve({ success: false, error: "Timeout" });
+            }, 5000); // Longer timeout for file transfer
+
+            const handler = (event: MessageEvent) => {
+                if (event.data?.type === "JOBFILLER_SESSION_SUCCESS") {
+                    clearTimeout(timeout);
+                    window.removeEventListener("message", handler);
+                    resolve({ success: true });
+                } else if (event.data?.type === "JOBFILLER_SESSION_ERROR") {
+                    clearTimeout(timeout);
+                    window.removeEventListener("message", handler);
+                    resolve({ success: false, error: event.data.error });
+                }
+            };
+
+            window.addEventListener("message", handler);
+            window.postMessage({
+                type: "JOBFILLER_SESSION",
+                payload: { uid, session, resume }
+            }, "*");
+        });
+    } catch (error) {
+        return { success: false, error: String(error) };
+    }
+}
+

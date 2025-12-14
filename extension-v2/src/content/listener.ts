@@ -233,7 +233,7 @@ async function handleProfileSync(payload: any): Promise<void> {
  */
 async function handleSessionSync(payload: any): Promise<void> {
     try {
-        const { uid, projectId, session } = payload || {};
+        const { uid, projectId, session, resume } = payload || {};
 
         if (session) {
             await chrome.storage.local.set({
@@ -247,6 +247,26 @@ async function handleSessionSync(payload: any): Promise<void> {
                 profile: session // Store session as profile too for form filling
             });
             console.log("[Sync] Session stored from flash");
+        }
+
+        // Store resume file if provided
+        if (resume && resume.buffer) {
+            await storeFileFromBuffer(
+                "resume",
+                resume.buffer,
+                resume.name || "resume.pdf",
+                resume.type || "application/pdf"
+            );
+
+            // Save resume info for popup
+            await chrome.storage.local.set({
+                resumeInfo: {
+                    name: resume.name,
+                    size: resume.buffer.byteLength,
+                    type: resume.type
+                }
+            });
+            console.log("[Sync] Resume stored from flash:", resume.name);
         }
 
         window.postMessage({ type: "JOBFILLER_SESSION_SUCCESS" }, "*");

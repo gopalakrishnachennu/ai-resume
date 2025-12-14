@@ -18,7 +18,7 @@ import {
 } from '@/lib/services/applicationService';
 import { SessionService } from '@/lib/services/sessionService';
 import { ResumeExportService } from '@/lib/services/resumeExportService';
-import { pushFlashSession, isExtensionAvailable } from '@/lib/extensionBridge';
+import { pushFlashSession, pushFlashSessionWithResume, isExtensionAvailable } from '@/lib/extensionBridge';
 
 // Animated counter component
 function AnimatedCounter({ value, duration = 1000 }: { value: number; duration?: number }) {
@@ -889,10 +889,13 @@ export default function DashboardPage() {
 
     // Handle Flash button - create session for job portal auto-fill
     const handleFlash = async () => {
-        if (!flashModal.app || !flashModal.jobUrl.trim() || !user) {
-            toast.error('Please enter a job URL');
+        if (!flashModal.app || !user) {
+            toast.error('Please select a resume');
             return;
         }
+
+        // JobUrl is now optional - user can visit job portal manually
+        const jobUrl = flashModal.jobUrl.trim() || '';
 
         // Check extension availability (non-blocking - Firebase fallback)
         const extensionAvailable = await isExtensionAvailable();
@@ -1009,12 +1012,12 @@ export default function DashboardPage() {
                     extensionSettings: extensionSettings || {},
                 };
 
-                const pushResult = await pushFlashSession(
+                const pushResult = await pushFlashSessionWithResume(
                     user.uid,
-                    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
-                    sessionForExtension
+                    sessionForExtension,
+                    pdfBlob || undefined // Send PDF to extension IndexedDB
                 );
-                console.log('[Flash] Session pushed to extension:', pushResult);
+                console.log('[Flash] Session + Resume pushed to extension:', pushResult);
             } else {
                 console.log('[Flash] Extension not available - using Firebase fallback');
             }
