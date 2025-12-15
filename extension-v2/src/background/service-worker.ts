@@ -9,6 +9,13 @@ import { CONFIG } from "../core/config";
 chrome.runtime.onInstalled.addListener((details: chrome.runtime.InstalledDetails) => {
     console.log("[ServiceWorker] Installed:", details.reason);
 
+    // IMPORTANT: Clear AI answer cache on update to wipe any bad cached answers
+    if (details.reason === "update" || details.reason === "install") {
+        chrome.storage.local.remove("jobfiller_ai_cache", () => {
+            console.log("[ServiceWorker] ✓ AI cache cleared on update - fresh answers will be generated");
+        });
+    }
+
     // Initialize storage with defaults from config
     chrome.storage.local.get(["settings", "stats"], (result: any) => {
         if (!result.settings) {
