@@ -35,9 +35,16 @@ function getPreferredFormat(fileInput: HTMLInputElement): 'pdf' | 'docx' | 'any'
 /**
  * Attach stored resume to a file input element
  * Automatically uses PDF or DOCX based on input's accept attribute
+ * Skips if input already has a file attached
  */
 export async function attachResume(fileInput: HTMLInputElement): Promise<boolean> {
     try {
+        // Skip if already has a file attached
+        if (fileInput.files && fileInput.files.length > 0) {
+            console.log(`[Resume] Skipping (already has file): ${fileInput.files[0].name}`);
+            return true; // Return true so we don't count as failure
+        }
+
         const format = getPreferredFormat(fileInput);
         console.log(`[Resume] Detected format preference: ${format}`);
 
@@ -154,9 +161,16 @@ export async function attachResumeWithFormat(format: 'pdf' | 'docx'): Promise<{ 
 
 /**
  * Helper to attach file to a specific input
+ * Skips if input already has a file attached
  */
 async function attachToInput(input: HTMLInputElement, stored: { blob: Blob; name: string; type: string; updatedAt: number }): Promise<boolean> {
     try {
+        // Skip if already has a file attached
+        if (input.files && input.files.length > 0) {
+            console.log(`[Resume] Skipping input (already has file): ${input.files[0].name}`);
+            return false; // Not an error, just skipped
+        }
+
         const file = new File([stored.blob], stored.name, {
             type: stored.type,
             lastModified: stored.updatedAt

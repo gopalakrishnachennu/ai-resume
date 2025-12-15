@@ -21,7 +21,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-Dt8xbaxw.js"
+        "assets/index.ts-DEx2o5QQ.js"
       ],
       "matches": [
         "<all_urls>"
@@ -50,7 +50,7 @@
       "resources": [
         "assets/*",
         "public/*",
-        "assets/index.ts-Dt8xbaxw.js"
+        "assets/index.ts-DEx2o5QQ.js"
       ],
       "use_dynamic_url": false
     }
