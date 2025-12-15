@@ -96,48 +96,72 @@ export async function batchAskGroq(
     console.log(`[Groq Batch] Processing ${questions.length} questions in one call`);
 
     // 2. Build the batch prompt
-    const profileInfo = JSON.stringify(profile, null, 2);
+    // Extract key skills and experience for the prompt
+    const skills = profile.skills?.technical?.join(', ') || 'Python, SQL, JavaScript';
+    const experience = profile.experience?.history?.[0] || {};
+    const education = profile.education?.history?.[0] || {};
 
-    // Format questions as numbered list with options
+    // Create a focused profile summary instead of dumping entire JSON
+    const profileSummary = `
+CANDIDATE SUMMARY:
+- Name: ${profile.identity?.fullName || 'Candidate'}
+- Current Role: ${experience.title || profile.experience?.currentTitle || 'Software Engineer'}
+- Current Company: ${experience.company || profile.experience?.currentCompany || 'Tech Company'}
+- Technical Skills: ${skills}
+- Education: ${education.degree || ''} from ${education.school || 'University'}
+- Years of Experience: ${profile.experience?.history?.length || 3}+ years
+- Location: ${profile.identity?.location?.city || ''}, ${profile.identity?.location?.state || ''}
+`;
+
+    // Format questions with clear type hints
     const questionsFormatted = questions.map((q, i) => {
+        const question = q.question.toLowerCase();
+        let typeHint = '';
+
+        // Detect question type
+        if (question.includes('rate') && (question.includes('1') || question.includes('5') || question.includes('scale'))) {
+            typeHint = '(RESPOND WITH A NUMBER 1-5 ONLY)';
+        } else if (question.includes('describe') || question.includes('explain') || question.includes('tell us') || question.includes('how have you')) {
+            typeHint = '(WRITE 2-3 SENTENCES ABOUT RELEVANT EXPERIENCE)';
+        } else if (question.includes('what technical tools') || question.includes('comfortable with')) {
+            typeHint = '(LIST SPECIFIC TOOLS/TECHNOLOGIES)';
+        }
+
         const optionsText = q.options?.length
             ? `\n   Options: ${JSON.stringify(q.options)}`
             : '';
-        return `${i + 1}. [ID:${q.id}] ${q.question}${optionsText}`;
+        return `${i + 1}. [ID:${q.id}] ${q.question} ${typeHint}${optionsText}`;
     }).join('\n\n');
 
-    const systemPrompt = `You are a job application assistant helping fill out forms for a candidate.
+    const systemPrompt = `You are filling out a job application form. Read each question carefully and provide an appropriate answer.
 
-CANDIDATE PROFILE:
-${profileInfo}
+${profileSummary}
 
-RULES:
-1. Use the profile data to craft relevant answers
-2. For Yes/No questions, respond with just "Yes" or "No"
-3. For dropdowns with options, pick the CLOSEST matching option exactly as written
-4. For salary questions, respond just the number like "$140,000"
-5. For short text fields (name, email, etc), keep answers SHORT
-6. For LONG-FORM questions (describe, explain, tell us about, etc):
-   - Write 2-4 sentences using the candidate's skills and experience
-   - Be professional and specific
-   - Reference actual technologies/tools from their profile
-7. For rating/scale questions (1-5, etc), give a specific number based on their experience level
-8. For pronouns: Male→"He/him", Female→"She/her"
-9. NEVER say "N/A" for open-ended questions - always provide a relevant answer using the profile
+CRITICAL RULES - FOLLOW EXACTLY:
 
-OUTPUT FORMAT:
-Respond with EXACTLY one answer per line in format:
-[ID:xxx] Your Answer
+1. READ THE QUESTION CAREFULLY before answering
+   - "What technical tools" = Answer with TOOLS like "Python, Apache Airflow, dbt, SQL, Kubernetes"
+   - "Rate your experience 1-5" = Answer with JUST A NUMBER like "4" or "5"
+   - "Describe how you" = Answer with 2-3 sentences about relevant experience
 
-Example:
-[ID:first_name] John
-[ID:sponsorship] No
-[ID:technical_tools] I am most comfortable with Python, Apache Airflow, and dbt for building reliable data workflows. I have used these tools extensively to create ETL pipelines and data quality frameworks.
-[ID:experience_rating] 4`;
+2. NEVER put education info (degree, university) in a tools/experience question
+3. NEVER put dates in a description question
+4. For rating questions (1-5 scale), ONLY respond with a single number (e.g., "4")
+5. For description questions, write complete sentences about relevant experience
 
-    const userPrompt = `Answer ALL these job application questions based on the candidate profile:
+OUTPUT FORMAT - EXACTLY LIKE THIS:
+[ID:field_0] Python, Apache Airflow, dbt, SQL, Kubernetes
+[ID:field_1] 4
+[ID:field_2] I have extensive experience using data quality tools like Great Expectations and dbt tests to implement automated data validation pipelines. These tools helped catch data anomalies early and maintain data integrity.`;
 
-${questionsFormatted}`;
+    const userPrompt = `Answer each question based on the candidate's profile. Match the answer type to the question type.
+
+${questionsFormatted}
+
+Remember:
+- "tools" questions → list technologies
+- "rate 1-5" questions → single number
+- "describe" questions → 2-3 sentences`;
 
     // 3. Call API with retry logic
     let lastError: Error | null = null;
