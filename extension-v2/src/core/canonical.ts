@@ -62,6 +62,30 @@ export const CANONICAL: Record<string, CanonicalMapping> = {
     "are you based in the united states?": { path: "identity.location.country", transform: "isUsLocation" },
     "are you a us resident?": { path: "identity.location.country", transform: "isUsLocation" },
 
+    // --- WORK ELIGIBILITY ---
+    "are you currently legally eligible to work in the united states": { path: "authorization.authorized", transform: "boolToYesNo" },
+    "are you legally eligible to work in the united states": { path: "authorization.authorized", transform: "boolToYesNo" },
+    "are you authorized to work in the united states": { path: "authorization.authorized", transform: "boolToYesNo" },
+    "are you authorized to work in the us": { path: "authorization.authorized", transform: "boolToYesNo" },
+    "authorized to work": { path: "authorization.authorized", transform: "boolToYesNo" },
+    "legally authorized to work": { path: "authorization.authorized", transform: "boolToYesNo" },
+
+    // --- VISA SPONSORSHIP ---
+    "will you now or in the future require visa sponsorship": { path: "authorization.needSponsor", transform: "boolToYesNo" },
+    "will you require visa sponsorship": { path: "authorization.needSponsor", transform: "boolToYesNo" },
+    "do you require visa sponsorship": { path: "authorization.needSponsor", transform: "boolToYesNo" },
+    "require sponsorship": { path: "authorization.needSponsor", transform: "boolToYesNo" },
+    "need sponsorship": { path: "authorization.needSponsor", transform: "boolToYesNo" },
+    "visa sponsorship": { path: "authorization.needSponsor", transform: "boolToYesNo" },
+
+    // --- CITY/STATE LOCATION ---
+    "what city & state do you currently reside in": { path: "identity.location.full" },
+    "what city and state do you currently reside in": { path: "identity.location.full" },
+    "city and state": { path: "identity.location.full" },
+    "city & state": { path: "identity.location.full" },
+    "current city": { path: "identity.location.city" },
+    "current state": { path: "identity.location.state" },
+
     // --- ROLE PREFERENCES ---
     "desired salary": { path: "role.salaryMin", transform: "formatSalary" },
     "expected salary": { path: "role.salaryMin", transform: "formatSalary" },
