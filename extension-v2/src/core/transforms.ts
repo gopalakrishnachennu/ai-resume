@@ -80,26 +80,44 @@ export const TRANSFORMS: Record<string, TransformFunction> = {
     // Infer pronouns from gender
     genderToPronouns: (options: string[], gender: string): string => {
         const g = (gender || '').toLowerCase();
+        console.log(`[Transform] genderToPronouns: gender="${gender}", options=`, options);
 
-        // Default mappings
-        let preferred = 'He/him'; // Default
+        // Default mappings - determine preferred pronouns based on gender
+        let preferred = 'he'; // Default to he/him for male (most common default)
         if (g.includes('female') || g.includes('woman')) {
-            preferred = 'She/her';
+            preferred = 'she';
         } else if (g.includes('non-binary') || g.includes('other') || g.includes('prefer not')) {
-            preferred = 'They/them';
+            preferred = 'they';
         } else if (g.includes('male') || g.includes('man')) {
-            preferred = 'He/him';
+            preferred = 'he';
         }
+        // Note: if g is empty, we default to 'he' which was set above
 
-        // If options provided (checkbox/radio), find matching
+        console.log(`[Transform] Preferred pronoun keyword: "${preferred}"`);
+
+        // If options provided (radio buttons), find matching option
         if (options && options.length > 0) {
-            const match = options.find(o =>
-                o.toLowerCase().includes(preferred.toLowerCase().split('/')[0])
-            );
-            if (match) return match;
+            // Look for option that starts with or contains the preferred pronoun
+            const match = options.find(o => {
+                const optLower = o.toLowerCase();
+                // Match "He/Him/His" for "he", "She/Her/Hers" for "she", etc.
+                return optLower.startsWith(preferred) ||
+                    optLower.includes(`${preferred}/`) ||
+                    optLower.includes(`/${preferred}`);
+            });
+
+            if (match) {
+                console.log(`[Transform] Matched option: "${match}"`);
+                return match;
+            }
+
+            console.warn(`[Transform] No match found in options for "${preferred}"`);
         }
 
-        return preferred;
+        // Fallback to full pronoun string
+        if (preferred === 'he') return 'He/Him/His';
+        if (preferred === 'she') return 'She/Her/Hers';
+        return 'They/Them/Theirs';
     },
 
     // Check if user is located in the United States

@@ -89,18 +89,48 @@ export class LeverAdapter extends BaseAdapter {
 
         // 5. Lever Custom Dropdowns (div-based, not native select)
         // These show "Select..." and open a dropdown panel when clicked
-        const customDropdowns = document.querySelectorAll<HTMLElement>(
-            '.application-form .application-dropdown, ' +
-            '.application-form [data-qa="dropdown"], ' +
-            '.application-form .lever-dropdown, ' +
-            '.application-form .select-dropdown'
-        );
+        // Multiple possible selectors for different Lever implementations
+        const customDropdownSelectors = [
+            '.application-form .application-dropdown',
+            '.application-form [data-qa="dropdown"]',
+            '.application-form [role="listbox"]',
+            '.application-form [role="combobox"]',
+            '.application-form .lever-dropdown',
+            '.application-form .select-dropdown',
+            '.application-form .custom-select',
+            '.application-form [class*="dropdown"]',
+            '.application-form [class*="select"]'
+        ];
 
-        for (const dropdown of customDropdowns) {
+        const customDropdowns = document.querySelectorAll<HTMLElement>(customDropdownSelectors.join(', '));
+
+        // Also look for divs that contain "Select..." text (fallback)
+        const allDivs = document.querySelectorAll<HTMLElement>('.application-form div');
+        const selectTextDivs: HTMLElement[] = [];
+
+        for (const div of allDivs) {
+            // Check if this div shows "Select..." and is likely a dropdown trigger
+            const text = div.textContent?.trim() || '';
+            if (text === 'Select...' || text === 'Select' || text.startsWith('Select...')) {
+                // Make sure it's not inside another already-matched dropdown
+                if (!div.closest('[role="listbox"], [role="combobox"], .application-dropdown')) {
+                    selectTextDivs.push(div);
+                }
+            }
+        }
+
+        // Combine both detection methods
+        const allDropdowns = new Set([...customDropdowns, ...selectTextDivs]);
+
+        console.log(`[Lever] Found ${allDropdowns.size} potential custom dropdowns`);
+
+        for (const dropdown of allDropdowns) {
             const label = this.getLeverLabel(dropdown);
+            if (!label) continue; // Skip if we can't determine what this dropdown is for
+
             // Get options from dropdown items if visible
-            const optionEls = dropdown.querySelectorAll<HTMLElement>('[data-qa="dropdown-option"], .dropdown-option, li');
-            const options = Array.from(optionEls).map(o => o.textContent?.trim() || '').filter(o => o);
+            const optionEls = dropdown.querySelectorAll<HTMLElement>('[data-qa="dropdown-option"], .dropdown-option, li, [role="option"]');
+            const options = Array.from(optionEls).map(o => o.textContent?.trim() || '').filter(o => o && o !== 'Select...');
 
             fields.push({
                 label: label,
@@ -110,9 +140,10 @@ export class LeverAdapter extends BaseAdapter {
                 options: options.length ? options : undefined,
                 element: dropdown
             });
+            console.log(`[Lever] Detected custom dropdown: "${label}"`);
         }
 
-        console.log(`[Lever] Found ${fields.length} fields`);
+        console.log(`[Lever] Found ${fields.length} fields total`);
         return fields;
     }
 
