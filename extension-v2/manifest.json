@@ -2,17 +2,34 @@
     "manifest_version": 3,
     "name": "JobFiller Pro",
     "version": "2.0.0",
-    "description": "Auto-fill job applications instantly with AI",
+    "description": "Auto-fill job applications instantly with AI-powered suggestions",
     "permissions": [
         "storage",
         "activeTab",
-        "scripting",
-        "contextMenus",
-        "alarms"
+        "scripting"
     ],
     "host_permissions": [
-        "https://*/*",
-        "http://localhost:*/*"
+        "https://www.linkedin.com/*",
+        "https://linkedin.com/*",
+        "https://jobs.lever.co/*",
+        "https://boards.greenhouse.io/*",
+        "https://www.greenhouse.io/*",
+        "https://www.indeed.com/*",
+        "https://indeed.com/*",
+        "https://www.glassdoor.com/*",
+        "https://glassdoor.com/*",
+        "https://www.ziprecruiter.com/*",
+        "https://www.monster.com/*",
+        "https://careers.google.com/*",
+        "https://jobs.ashbyhq.com/*",
+        "https://jobs.smartrecruiters.com/*",
+        "https://apply.workable.com/*",
+        "https://boards.eu.greenhouse.io/*",
+        "https://app.breezy.hr/*",
+        "https://wellfound.com/*",
+        "https://angel.co/*",
+        "https://www.workatastartup.com/*",
+        "https://ai-resume-gopalakrishnachennu-5461s-projects.vercel.app/*"
     ],
     "background": {
         "service_worker": "src/background/service-worker.ts",
@@ -21,7 +38,27 @@
     "content_scripts": [
         {
             "matches": [
-                "<all_urls>"
+                "https://www.linkedin.com/*",
+                "https://linkedin.com/*",
+                "https://jobs.lever.co/*",
+                "https://boards.greenhouse.io/*",
+                "https://www.greenhouse.io/*",
+                "https://www.indeed.com/*",
+                "https://indeed.com/*",
+                "https://www.glassdoor.com/*",
+                "https://glassdoor.com/*",
+                "https://www.ziprecruiter.com/*",
+                "https://www.monster.com/*",
+                "https://careers.google.com/*",
+                "https://jobs.ashbyhq.com/*",
+                "https://jobs.smartrecruiters.com/*",
+                "https://apply.workable.com/*",
+                "https://boards.eu.greenhouse.io/*",
+                "https://app.breezy.hr/*",
+                "https://wellfound.com/*",
+                "https://angel.co/*",
+                "https://www.workatastartup.com/*",
+                "https://ai-resume-gopalakrishnachennu-5461s-projects.vercel.app/*"
             ],
             "js": [
                 "src/content/index.ts"
@@ -49,7 +86,18 @@
                 "public/*"
             ],
             "matches": [
-                "<all_urls>"
+                "https://www.linkedin.com/*",
+                "https://jobs.lever.co/*",
+                "https://boards.greenhouse.io/*",
+                "https://www.indeed.com/*",
+                "https://www.glassdoor.com/*",
+                "https://www.ziprecruiter.com/*",
+                "https://www.monster.com/*",
+                "https://careers.google.com/*",
+                "https://jobs.ashbyhq.com/*",
+                "https://jobs.smartrecruiters.com/*",
+                "https://apply.workable.com/*",
+                "https://ai-resume-gopalakrishnachennu-5461s-projects.vercel.app/*"
             ]
         }
     ]

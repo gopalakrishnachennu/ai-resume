@@ -66,8 +66,7 @@ We may update this policy occasionally. Check this page for the latest version.
 ## Contact
 
 For questions about this privacy policy, contact:
-- Email: [your-email@example.com]
-- Website: [your-website.com]
+- Website: [ai-resume-gopalakrishnachennu-5461s-projects.vercel.app](https://ai-resume-gopalakrishnachennu-5461s-projects.vercel.app)
 
 ---
 

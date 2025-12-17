@@ -1,12 +1,12 @@
 {
   "../../../../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-Dn9IkPo2.js",
+    "file": "assets/crx-manifest.js-Du5AXadc.js",
     "name": "crx-manifest.js",
     "src": "../../../../../../@crx/manifest",
     "isEntry": true
   },
   "src/background/service-worker.ts": {
-    "file": "assets/service-worker.ts-DKnwrkHl.js",
+    "file": "assets/service-worker.ts-DdX6va2b.js",
     "name": "service-worker.ts",
     "src": "src/background/service-worker.ts",
     "isEntry": true
@@ -18,7 +18,7 @@
     "isEntry": true
   },
   "src/ui/popup/popup.html": {
-    "file": "assets/popup-CJKE0Qau.js",
+    "file": "assets/popup-CP1E0_DP.js",
     "name": "popup",
     "src": "src/ui/popup/popup.html",
     "isEntry": true,

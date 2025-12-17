@@ -6,7 +6,7 @@
 // ============================================
 // 🔧 CHANGE YOUR DASHBOARD URL HERE
 // ============================================
-export const DASHBOARD_URL = "https://ai-resume-git-feature-9d1c2b-gopalakrishnachennu-5461s-projects.vercel.app";
+export const DASHBOARD_URL = "https://ai-resume-gopalakrishnachennu-5461s-projects.vercel.app";
 
 // ============================================
 // Other Configuration

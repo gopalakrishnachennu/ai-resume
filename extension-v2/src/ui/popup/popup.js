@@ -21,7 +21,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 const db = getFirestore(app);
 
 // Dashboard URL
-const DASHBOARD_URL = "https://ai-resume-git-feature-9d1c2b-gopalakrishnachennu-5461s-projects.vercel.app";
+const DASHBOARD_URL = "https://ai-resume-gopalakrishnachennu-5461s-projects.vercel.app";
 
 // DOM Elements
 const notConnectedState = document.getElementById('not-connected');
