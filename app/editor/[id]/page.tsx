@@ -108,13 +108,17 @@ export default function EditorPage() {
             );
         };
 
-        // Header
+        // Header - Template-aware (Modern = left-aligned with accent color)
+        const isModern = settings.template === 'modern';
+        const headerAlignment = isModern ? 'left' : settings.alignment;
+        const nameColor = isModern ? settings.fontColor.accent : settings.fontColor.name;
+
         addBlock(
             'header-name',
-            <div className={settings.alignment === 'center' ? 'text-center' : 'text-left'}>
+            <div className={headerAlignment === 'center' ? 'text-center' : 'text-left'}>
                 <h1
                     className="font-bold"
-                    style={{ fontSize: `${settings.fontSize.name}pt`, color: settings.fontColor.name, marginBottom: '4pt' }}
+                    style={{ fontSize: `${settings.fontSize.name}pt`, color: nameColor, marginBottom: '4pt' }}
                 >
                     {resumeData.personalInfo.name || 'Your Name'}
                 </h1>
@@ -125,7 +129,7 @@ export default function EditorPage() {
         addBlock(
             'header-contact',
             <p
-                className={settings.alignment === 'center' ? 'text-center' : 'text-left'}
+                className={headerAlignment === 'center' ? 'text-center' : 'text-left'}
                 style={{ fontSize: `${settings.fontSize.contact}pt`, color: settings.fontColor.contact }}
             >
                 {[
@@ -162,15 +166,18 @@ export default function EditorPage() {
             { marginBottom: gapSection }
         );
 
+        // Section headings - use accent color for modern template
+        const headingColor = isModern ? settings.fontColor.accent : settings.fontColor.headers;
+
         const renderSectionHeading = (section: Section) => (
             <h2
                 className={settings.headerStyle === 'bold' ? 'font-bold' : ''}
                 style={{
                     fontSize: `${settings.fontSize.headers}pt`,
-                    color: settings.fontColor.headers,
+                    color: headingColor,
                     marginBottom: gapParagraph,
                     paddingBottom: settings.sectionDivider ? '2pt' : '0',
-                    borderBottom: settings.sectionDivider ? `${settings.dividerWeight}px solid ${settings.dividerColor}` : 'none',
+                    borderBottom: settings.sectionDivider ? `${settings.dividerWeight}px solid ${isModern ? settings.fontColor.accent : settings.dividerColor}` : 'none',
                 }}
             >
                 {settings.headerCase === 'UPPERCASE' ? section.name.toUpperCase() : section.name}

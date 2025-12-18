@@ -1,5 +1,8 @@
 // Resume formatting settings interface
 export interface ResumeSettings {
+    // Template Selection
+    template: 'classic' | 'modern';
+
     // Font Settings
     fontFamily: 'Calibri' | 'Arial' | 'Times New Roman' | 'Georgia' | 'Helvetica';
     fontSize: {
@@ -13,6 +16,7 @@ export interface ResumeSettings {
         headers: string;
         body: string;
         contact: string;
+        accent: string;      // Dynamic accent color for headings/name
     };
 
     // Layout Settings
@@ -30,7 +34,7 @@ export interface ResumeSettings {
     alignment: 'left' | 'center';  // For name only
     bodyAlignment: 'left';
     dateFormat: 'MMM YYYY' | 'MM/YYYY' | 'Month YYYY';
-    bulletStyle: '•' | '-' | '◦';
+    bulletStyle: '•' | '-' | '◦' | '➤' | '◆' | '★' | '❀' | '■' | '▸' | '›';
 
     // Section Settings
     sectionDivider: boolean;
@@ -49,6 +53,7 @@ export interface ResumeSettings {
 }
 
 export const DEFAULT_ATS_SETTINGS: ResumeSettings = {
+    template: 'classic',
     fontFamily: 'Times New Roman',
     fontSize: {
         name: 24,
@@ -61,6 +66,7 @@ export const DEFAULT_ATS_SETTINGS: ResumeSettings = {
         headers: '#000000',   // Pure black
         body: '#000000',      // Pure black
         contact: '#000000',   // Pure black
+        accent: '#1D4ED8',    // Blue accent color for modern template
     },
     margins: {
         top: 0.5,

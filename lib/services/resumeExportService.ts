@@ -5,9 +5,10 @@
 
 // Default settings for PDF/DOCX generation - ALL BLACK TEXT
 export const defaultExportSettings = {
+    template: 'classic' as 'classic' | 'modern',
     fontSize: { name: 22, contact: 11, headers: 13, body: 11 },
     fontFamily: 'Calibri',
-    fontColor: { name: '#000000', headers: '#000000', body: '#000000', contact: '#000000' },
+    fontColor: { name: '#000000', headers: '#000000', body: '#000000', contact: '#000000', accent: '#1D4ED8' },
     margins: { top: 0.5, bottom: 0.5, left: 0.75, right: 0.75 },
     lineSpacing: 1.0,
     paragraphSpacing: 4, // in pt
@@ -128,10 +129,18 @@ export class ResumeExportService {
         // Calculate page width for divider line (Letter width - margins)
         const pageWidth = 8.5 * 72 - pt(settings.margins.left) - pt(settings.margins.right);
 
+        // Template-aware settings (modern = left-aligned with accent colors)
+        const isModern = (settings as any).template === 'modern';
+        const headerAlignment = isModern ? 'left' : 'center';
+        const nameColor = isModern ? settings.fontColor.accent : settings.fontColor.name;
+        const headingColor = isModern ? settings.fontColor.accent : settings.fontColor.headers;
+        const dividerColorValue = isModern ? settings.fontColor.accent : settings.dividerColor;
+
         const addSectionHeader = (sectionName: string) => {
             content.push({
                 text: headerCase(sectionName),
                 style: 'sectionHeader',
+                color: headingColor,
                 margin: [0, (settings as any).sectionSpacing || 16, 0, settings.sectionDivider ? 2 : 4],
             });
 
@@ -141,7 +150,7 @@ export class ResumeExportService {
                         type: 'line',
                         x1: 0, y1: 0, x2: pageWidth, y2: 0,
                         lineWidth: settings.dividerWeight,
-                        lineColor: settings.dividerColor,
+                        lineColor: dividerColorValue,
                     }],
                     margin: [0, 0, 0, 4],
                 });
@@ -153,7 +162,8 @@ export class ResumeExportService {
         content.push({
             text: name,
             style: 'name',
-            alignment: 'center',
+            color: nameColor,
+            alignment: headerAlignment,
             margin: [0, 0, 0, 6],
         });
 
@@ -170,7 +180,7 @@ export class ResumeExportService {
             content.push({
                 text: contactPieces.join(` ${settings.contactSeparator} `),
                 style: 'contact',
-                alignment: 'center',
+                alignment: headerAlignment,
                 margin: [0, 0, 0, 12],
             });
         }
@@ -313,12 +323,19 @@ export class ResumeExportService {
         const letterHeight = 11 * 1440;
         const rightTabPos = Math.round((8.5 - settings.margins.left - settings.margins.right) * 1440);
 
+        // Template-aware settings (modern = left-aligned with accent colors)
+        const isModern = (settings as any).template === 'modern';
+        const headerAlignment = isModern ? AlignmentType.LEFT : (settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT);
+        const nameColor = isModern ? settings.fontColor.accent.replace('#', '') : settings.fontColor.name.replace('#', '');
+        const headingColor = isModern ? settings.fontColor.accent.replace('#', '') : settings.fontColor.headers.replace('#', '');
+        const dividerColorValue = isModern ? settings.fontColor.accent.replace('#', '') : settings.dividerColor.replace('#', '');
+
         const heading = (text: string) => new Paragraph({
-            children: [new TextRun({ text, bold: settings.headerStyle === 'bold', size: px(settings.fontSize.headers), color: settings.fontColor.headers, font: settings.fontFamily })],
+            children: [new TextRun({ text, bold: settings.headerStyle === 'bold', size: px(settings.fontSize.headers), color: headingColor, font: settings.fontFamily })],
             spacing: { before: 80, after: settings.sectionDivider ? 60 : 60 },
             border: settings.sectionDivider ? {
                 bottom: {
-                    color: settings.dividerColor.replace('#', ''),
+                    color: dividerColorValue,
                     space: 1,
                     style: BorderStyle.SINGLE,
                     size: settings.dividerWeight * 8,
@@ -337,9 +354,9 @@ export class ResumeExportService {
         // Name
         const name = resumeData.personalInfo?.name || resumeData.personalInfo?.fullName || 'Your Name';
         sectionChildren.push(new Paragraph({
-            children: [new TextRun({ text: name, bold: true, size: px(settings.fontSize.name), color: settings.fontColor.name, font: settings.fontFamily })],
+            children: [new TextRun({ text: name, bold: true, size: px(settings.fontSize.name), color: nameColor, font: settings.fontFamily })],
             heading: HeadingLevel.TITLE,
-            alignment: settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT,
+            alignment: headerAlignment,
             spacing: { after: 80 },
         }));
 
@@ -355,7 +372,7 @@ export class ResumeExportService {
         if (contactParts.length) {
             sectionChildren.push(new Paragraph({
                 children: [new TextRun({ text: contactParts.join(` ${settings.contactSeparator} `), size: px(settings.fontSize.contact), color: settings.fontColor.contact, font: settings.fontFamily })],
-                alignment: settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT,
+                alignment: headerAlignment,
                 spacing: { after: 200 },
             }));
         }

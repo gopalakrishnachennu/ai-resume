@@ -44,6 +44,57 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Template Selection */}
+                    <div className="border border-gray-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-indigo-50">
+                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <span className="text-indigo-600">🎨</span> Template Style
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button
+                                onClick={() => updateSetting('template', 'classic')}
+                                className={`p-4 rounded-lg border-2 transition-all ${settings.template === 'classic'
+                                    ? 'border-indigo-600 bg-white shadow-md'
+                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                                    }`}
+                            >
+                                <div className="text-center">
+                                    <p className="font-bold text-gray-900">Classic</p>
+                                    <p className="text-xs text-gray-500 mt-1">Centered header, traditional layout</p>
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => updateSetting('template', 'modern')}
+                                className={`p-4 rounded-lg border-2 transition-all ${settings.template === 'modern'
+                                    ? 'border-indigo-600 bg-white shadow-md'
+                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                                    }`}
+                            >
+                                <div className="text-center">
+                                    <p className="font-bold text-gray-900">Modern</p>
+                                    <p className="text-xs text-gray-500 mt-1">Left-aligned, accent colors</p>
+                                </div>
+                            </button>
+                        </div>
+                        {settings.template === 'modern' && (
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Accent Color
+                                </label>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={settings.fontColor.accent}
+                                        onChange={(e) => updateSetting('fontColor.accent', e.target.value)}
+                                        className="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                                    />
+                                    <span className="text-sm text-gray-600">
+                                        Used for section headings & name
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Font Settings */}
                     <div className="border border-gray-200 rounded-lg p-5">
                         <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -286,6 +337,13 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                                     <option value="•">• Round (Recommended)</option>
                                     <option value="-">- Dash</option>
                                     <option value="◦">◦ Circle</option>
+                                    <option value="➤">➤ Arrow</option>
+                                    <option value="◆">◆ Diamond</option>
+                                    <option value="★">★ Star</option>
+                                    <option value="❀">❀ Flower</option>
+                                    <option value="■">■ Square</option>
+                                    <option value="▸">▸ Triangle</option>
+                                    <option value="›">› Chevron</option>
                                 </select>
                             </div>
 
