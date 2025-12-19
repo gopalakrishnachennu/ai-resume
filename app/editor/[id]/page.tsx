@@ -1285,31 +1285,44 @@ export default function EditorPage() {
 
             const sectionChildren: any[] = [];
 
-            // Name
+            // Name (dynamic style from template)
+            const isNameBold = t.header.nameStyle.includes('bold');
+            const isNameUppercase = t.header.nameStyle.includes('uppercase');
+            const nameText = isNameUppercase
+                ? (resumeData.personalInfo.name || 'Your Name').toUpperCase()
+                : (resumeData.personalInfo.name || 'Your Name');
+
             sectionChildren.push(new Paragraph({
                 children: [
-                    new TextRun({ text: resumeData.personalInfo.name || 'Your Name', bold: true, size: px(t.typography.sizes.name), color: nameColorDocx, font: t.typography.fontFamily }),
+                    new TextRun({ text: nameText, bold: isNameBold, size: px(t.typography.sizes.name), color: nameColorDocx, font: t.typography.fontFamily }),
                 ],
                 heading: HeadingLevel.TITLE,
                 alignment: headerAlignmentDocx,
                 spacing: { after: 80 },
             }));
 
-            // Contact
-            const contactParts = [
-                resumeData.personalInfo.email,
-                resumeData.personalInfo.phone,
-                resumeData.personalInfo.location,
-                resumeData.personalInfo.linkedin,
-                resumeData.personalInfo.github,
-            ].filter(Boolean);
-            if (contactParts.length) {
-                sectionChildren.push(new Paragraph({
-                    children: [new TextRun({ text: contactParts.join(` ${settings.contactSeparator} `), size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily })],
-                    alignment: headerAlignmentDocx,
-                    spacing: { after: 200 },
-                }));
-            }
+            // Contact (dynamic rows from template)
+            const contactData: Record<string, string | undefined> = {
+                email: resumeData.personalInfo.email,
+                phone: resumeData.personalInfo.phone,
+                location: resumeData.personalInfo.location,
+                linkedin: resumeData.personalInfo.linkedin,
+                github: resumeData.personalInfo.github,
+            };
+
+            t.header.contactRows.forEach((row: any) => {
+                const rowParagraph = renderDocxRow(row, contactData, false);
+                if (rowParagraph) {
+                    // Override alignment to match header alignment
+                    rowParagraph.properties = {
+                        ...rowParagraph.properties,
+                        alignment: headerAlignmentDocx,
+                    };
+                    sectionChildren.push(rowParagraph);
+                }
+            });
+            // Add spacing after contact
+            sectionChildren.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
 
 
 
