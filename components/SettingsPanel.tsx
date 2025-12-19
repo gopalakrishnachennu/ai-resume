@@ -50,12 +50,61 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
         onSettingsChange(newSettings);
     };
 
-    const selectCustomTemplate = (templateId: string) => {
-        // Set the custom template ID
-        onSettingsChange({
-            ...settings,
-            selectedTemplateId: templateId,
-        });
+    const selectCustomTemplate = async (templateId: string) => {
+        // Load the template and apply its settings
+        try {
+            const template = customTemplates.find(t => t.id === templateId);
+            if (!template) return;
+
+            // Map template settings to ResumeSettings format
+            const newSettings: ResumeSettings = {
+                ...settings,
+                selectedTemplateId: templateId,
+                // Typography
+                fontFamily: (template.typography?.fontFamily || settings.fontFamily) as any,
+                fontSize: {
+                    name: template.typography?.sizes?.name || settings.fontSize.name,
+                    headers: template.typography?.sizes?.sectionHeader || settings.fontSize.headers,
+                    body: template.typography?.sizes?.body || settings.fontSize.body,
+                    contact: template.typography?.sizes?.body || settings.fontSize.contact,
+                },
+                fontColor: {
+                    name: template.typography?.colors?.name || settings.fontColor.name,
+                    headers: template.typography?.colors?.headers || settings.fontColor.headers,
+                    body: template.typography?.colors?.body || settings.fontColor.body,
+                    contact: template.typography?.colors?.body || settings.fontColor.contact,
+                    accent: template.typography?.colors?.accent || settings.fontColor.accent,
+                },
+                // Margins
+                margins: template.page?.margins || settings.margins,
+                lineSpacing: template.page?.lineSpacing || settings.lineSpacing,
+                // Other settings - map to compatible types
+                bulletStyle: ['•', '-', '◦', '➤', '◆', '★', '❀', '■', '▸', '›'].includes(template.experience?.bulletStyle || '')
+                    ? (template.experience?.bulletStyle as any)
+                    : settings.bulletStyle,
+                sectionDivider: template.sectionHeaders?.divider ?? settings.sectionDivider,
+                headerStyle: template.sectionHeaders?.style?.includes('bold') ? 'bold' : 'regular',
+                headerCase: template.sectionHeaders?.style?.includes('uppercase') ? 'UPPERCASE' : 'Title Case',
+                alignment: (template.header?.nameAlign === 'left' || template.header?.nameAlign === 'center')
+                    ? template.header.nameAlign
+                    : settings.alignment,
+            };
+
+            onSettingsChange(newSettings);
+        } catch (error) {
+            console.error('Error applying template:', error);
+            // Fallback: just set the template ID
+            onSettingsChange({
+                ...settings,
+                selectedTemplateId: templateId,
+            });
+        }
+    };
+
+    const clearCustomTemplate = () => {
+        // Remove custom template selection
+        const { selectedTemplateId, ...rest } = settings;
+        onSettingsChange(rest as ResumeSettings);
     };
 
     return (
@@ -137,8 +186,8 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                                             key={template.id}
                                             onClick={() => selectCustomTemplate(template.id)}
                                             className={`p-3 rounded-lg border-2 transition-all text-left ${settings.selectedTemplateId === template.id
-                                                    ? 'border-indigo-600 bg-indigo-50 shadow-md'
-                                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                                                ? 'border-indigo-600 bg-indigo-50 shadow-md'
+                                                : 'border-gray-200 bg-white hover:border-gray-300'
                                                 }`}
                                         >
                                             <div className="flex items-center justify-between">
