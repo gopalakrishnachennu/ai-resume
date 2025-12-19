@@ -604,7 +604,8 @@ export default function EditorPage() {
                     if (Date.now() - draft.updatedAt < 24 * 60 * 60 * 1000) {
                         // Apply name fallback to draft if empty
                         const draftData = draft.resumeData;
-                        if (!draftData.personalInfo.name || draftData.personalInfo.name.trim() === '') {
+                        if (draftData && (!draftData.personalInfo?.name || draftData.personalInfo?.name?.trim() === '')) {
+                            if (!draftData.personalInfo) draftData.personalInfo = { name: '', email: '', phone: '', location: '', linkedin: '', github: '' };
                             draftData.personalInfo.name = profileName;
                         }
 
