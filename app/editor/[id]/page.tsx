@@ -201,6 +201,8 @@ export default function EditorPage() {
 
     // Wrap handleSave for auto-save (will be defined below, use ref)
     const handleSaveRef = useRef<(() => Promise<void>) | undefined>(undefined);
+    // Silent save for auto-save (no redirect, no toast)
+    const silentSaveRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
     const {
         isSaving: autoSaveInProgress,
@@ -210,8 +212,9 @@ export default function EditorPage() {
     } = useAutoSave(
         autoSaveData,
         async () => {
-            if (handleSaveRef.current) {
-                await handleSaveRef.current();
+            // Use silent save (no redirect, no toast) for auto-save
+            if (silentSaveRef.current) {
+                await silentSaveRef.current();
             }
         },
         {
@@ -962,8 +965,97 @@ export default function EditorPage() {
         }
     };
 
-    // Connect handleSave to auto-save ref
+    // Connect handleSave to manual save ref
     handleSaveRef.current = handleSave;
+
+    // ===== SILENT SAVE FOR AUTO-SAVE (No redirect, no toast) =====
+    const performSilentSave = async () => {
+        if (!user || params.id === 'new') return;
+
+        try {
+            const resumeId = params.id as string;
+            const atsScoreData = {
+                total: atsScore,
+                formatting: 95,
+                content: 85,
+                keywords: atsScore,
+            };
+
+            // Custom sections data
+            const customSectionsData: Record<string, any> = {};
+            sections.filter(s => s.type === 'custom').forEach(s => {
+                if ((resumeData as any)[s.id]) {
+                    customSectionsData[s.id] = (resumeData as any)[s.id];
+                }
+            });
+
+            // Imported resume
+            if (resumeId.startsWith('app_import_')) {
+                const appDocRef = doc(db, 'applications', resumeId);
+                await setDoc(appDocRef, {
+                    updatedResume: {
+                        personalInfo: {
+                            fullName: resumeData.personalInfo.name,
+                            email: resumeData.personalInfo.email,
+                            phone: resumeData.personalInfo.phone,
+                            location: resumeData.personalInfo.location,
+                            linkedin: resumeData.personalInfo.linkedin,
+                            portfolio: resumeData.personalInfo.github,
+                        },
+                        professionalSummary: resumeData.summary,
+                        experience: resumeData.experience,
+                        education: resumeData.education,
+                        skills: resumeData.skills.technical,
+                        technicalSkills: resumeData.technicalSkills,
+                        customSections: customSectionsData,
+                    },
+                    settings,
+                    sections,
+                    updatedAt: serverTimestamp(),
+                }, { merge: true });
+                return;
+            }
+
+            // AI-generated resume
+            const resumeDocRef = doc(db, 'resumes', resumeId);
+            const resumeDoc = await getDoc(resumeDocRef);
+
+            if (resumeDoc.exists()) {
+                await setDoc(resumeDocRef, {
+                    ...resumeDoc.data(),
+                    jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
+                    jobCompany: jobCompany || jobAnalysis?.company || '',
+                    atsScore: atsScoreData,
+                    resumeData,
+                    settings,
+                    sections,
+                    updatedAt: serverTimestamp(),
+                }, { merge: true });
+                return;
+            }
+
+            // Fall back to appliedResumes
+            await setDoc(doc(db, 'appliedResumes', resumeId), {
+                userId: user.uid,
+                jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
+                jobCompany: jobCompany || jobAnalysis?.company || '',
+                company: jobCompany || jobAnalysis?.company || '',
+                resumeData,
+                sections,
+                settings,
+                atsScore: atsScoreData,
+                status: 'draft',
+                updatedAt: serverTimestamp(),
+            }, { merge: true });
+
+        } catch (error) {
+            console.error('Auto-save error:', error);
+            throw error; // Re-throw so useAutoSave can handle it
+        }
+    };
+
+    // Connect silentSave to auto-save ref
+    silentSaveRef.current = performSilentSave;
 
     const generatePDF = async () => {
         if (isGuest) {
