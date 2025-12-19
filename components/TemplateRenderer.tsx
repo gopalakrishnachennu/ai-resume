@@ -127,7 +127,31 @@ export function TemplateRenderer({
         if (dateStr.toLowerCase() === 'present') return 'Present';
 
         try {
+            // Handle YYYY-MM format directly to avoid timezone issues
+            const yyyyMmMatch = dateStr.match(/^(\d{4})-(\d{2})$/);
+            if (yyyyMmMatch) {
+                const year = parseInt(yyyyMmMatch[1]);
+                const month = parseInt(yyyyMmMatch[2]) - 1; // 0-indexed
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const monthNamesFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+                switch (t.dateFormat) {
+                    case 'MM/YYYY':
+                        return `${String(month + 1).padStart(2, '0')}/${year}`;
+                    case 'MMMM YYYY':
+                        return `${monthNamesFull[month]} ${year}`;
+                    case 'YYYY':
+                        return String(year);
+                    case 'MMM YYYY':
+                    default:
+                        return `${monthNames[month]} ${year}`;
+                }
+            }
+
+            // Fallback for other date formats
             const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr;
+
             switch (t.dateFormat) {
                 case 'MM/YYYY':
                     return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
