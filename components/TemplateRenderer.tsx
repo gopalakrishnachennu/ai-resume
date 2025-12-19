@@ -95,10 +95,28 @@ export function TemplateRenderer({
             gap: '4px',
         };
 
-        // For space-between: group all fields except last together on left, last field on right
+        // For space-between: group left fields and ONE right field based on TEMPLATE definition
+        // This ensures that if the 'Right' field (e.g. Dates) is missing, the others (Degree, Field) don't get split.
         if (row.align === 'space-between' && visibleFields.length > 1) {
-            const leftFields = visibleFields.slice(0, -1);
-            const rightField = visibleFields[visibleFields.length - 1];
+            // Find the field that is SUPPOSED to be on the right (the last defined field in the template)
+            const rightMostTemplateFieldName = row.fields[row.fields.length - 1].name;
+
+            // Check if the actual last visible field IS that right-most field
+            const lastVisibleField = visibleFields[visibleFields.length - 1];
+            const isLastVisibleTheRightAnchor = lastVisibleField.name === rightMostTemplateFieldName;
+
+            let leftFields, rightField;
+
+            // Strict Mode: Only push to right if it matches the template's right-most field
+            // Exception: If the template only has 2 fields total (e.g. School, Location) and both are visible, we always split.
+            if (isLastVisibleTheRightAnchor || row.fields.length === 2) {
+                leftFields = visibleFields.slice(0, -1);
+                rightField = visibleFields[visibleFields.length - 1];
+            } else {
+                // The intended right field is missing. Keep everything on the left.
+                leftFields = visibleFields;
+                rightField = null;
+            }
 
             return (
                 <div key={key} style={rowStyle}>
@@ -125,6 +143,7 @@ export function TemplateRenderer({
                     {/* Right field - dates/location */}
                     <span>
                         {(() => {
+                            if (!rightField) return null; // No right field to render
                             const value = fieldData[rightField.name] || '';
                             if (!value) return null;
                             const fieldStyle: CSSProperties = {
