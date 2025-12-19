@@ -134,8 +134,7 @@ export default function EditorPage() {
                         name: settings.fontSize.name,
                         sectionHeader: settings.fontSize.headers,
                         body: settings.fontSize.body,
-                        itemTitle: settings.fontSize.body + 2, // Standard scalar
-                        subtitle: settings.fontSize.body,
+                        itemTitle: settings.fontSize.body + 2,
                     },
                     colors: {
                         name: settings.fontColor.name,
