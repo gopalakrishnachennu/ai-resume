@@ -1914,15 +1914,18 @@ export default function EditorPage() {
                                                                     disabled={exp.current}
                                                                 />
                                                             </div>
-                                                            <label className="flex items-center gap-2 text-xs text-gray-700">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={exp.current}
-                                                                    onChange={(e) => updateExperience(idx, 'current', e.target.checked)}
-                                                                    className="rounded"
-                                                                />
-                                                                Currently working here
-                                                            </label>
+                                                            {/* Only show 'Currently working here' for the first/most recent position */}
+                                                            {idx === 0 && (
+                                                                <label className="flex items-center gap-2 text-xs text-gray-700">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={exp.current}
+                                                                        onChange={(e) => updateExperience(idx, 'current', e.target.checked)}
+                                                                        className="rounded"
+                                                                    />
+                                                                    Currently working here
+                                                                </label>
+                                                            )}
                                                             <textarea
                                                                 value={exp.bullets?.join('\n') || ''}
                                                                 onChange={(e) => updateExperience(idx, 'bullets', e.target.value.split('\n'))}
