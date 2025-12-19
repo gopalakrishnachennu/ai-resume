@@ -141,7 +141,7 @@ export type SectionType = 'summary' | 'skills' | 'experience' | 'education' | 'c
 // === AVAILABLE FIELDS PER SECTION ===
 export const HEADER_FIELDS = ['email', 'phone', 'linkedin', 'github', 'location', 'website'] as const;
 export const EXPERIENCE_FIELDS = ['title', 'company', 'location', 'dates'] as const;
-export const EDUCATION_FIELDS = ['degree', 'field', 'school', 'dates', 'gpa'] as const;
+export const EDUCATION_FIELDS = ['degree', 'field', 'school', 'location', 'dates', 'gpa'] as const;
 export const CUSTOM_FIELDS = ['title', 'description', 'dates'] as const;
 
 export type HeaderFieldName = typeof HEADER_FIELDS[number];

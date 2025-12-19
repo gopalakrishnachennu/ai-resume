@@ -626,6 +626,37 @@ export default function TemplateEditorPage() {
                                         label="Education Item Rows"
                                     />
 
+                                    {/* Reset Education Layout Button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => updateTemplate({
+                                            education: {
+                                                ...template.education,
+                                                rows: [
+                                                    {
+                                                        align: 'space-between',
+                                                        fields: [
+                                                            { name: 'degree', style: 'bold', separator: ' in ' },
+                                                            { name: 'field', style: 'normal', separator: '' },
+                                                            { name: 'dates', style: 'normal', separator: '' },
+                                                        ],
+                                                    },
+                                                    {
+                                                        align: 'space-between',
+                                                        fields: [
+                                                            { name: 'school', style: 'italic', separator: '' },
+                                                            { name: 'location', style: 'normal', separator: '' },
+                                                        ],
+                                                    },
+                                                ],
+                                            }
+                                        })}
+                                        className="text-sm text-blue-600 hover:text-blue-800 underline"
+                                        disabled={isBuiltIn}
+                                    >
+                                        ↻ Reset to Default Layout (Degree, Field, Dates, School, Location)
+                                    </button>
+
                                     <label className="flex items-center gap-2">
                                         <input
                                             type="checkbox"
@@ -655,8 +686,8 @@ export default function TemplateEditorPage() {
                                                     skills: { ...template.skills, layout: 'key-value' as any }
                                                 })}
                                                 className={`p-4 rounded-xl border-2 text-left transition-all ${template.skills.layout === 'key-value'
-                                                        ? 'border-blue-600 bg-blue-50'
-                                                        : 'border-slate-200 hover:border-slate-300'
+                                                    ? 'border-blue-600 bg-blue-50'
+                                                    : 'border-slate-200 hover:border-slate-300'
                                                     }`}
                                                 disabled={isBuiltIn}
                                             >
@@ -676,8 +707,8 @@ export default function TemplateEditorPage() {
                                                     skills: { ...template.skills, layout: 'categories' as any }
                                                 })}
                                                 className={`p-4 rounded-xl border-2 text-left transition-all ${template.skills.layout === 'categories'
-                                                        ? 'border-blue-600 bg-blue-50'
-                                                        : 'border-slate-200 hover:border-slate-300'
+                                                    ? 'border-blue-600 bg-blue-50'
+                                                    : 'border-slate-200 hover:border-slate-300'
                                                     }`}
                                                 disabled={isBuiltIn}
                                             >
@@ -694,8 +725,8 @@ export default function TemplateEditorPage() {
                                                     skills: { ...template.skills, layout: 'bullets' as any }
                                                 })}
                                                 className={`p-4 rounded-xl border-2 text-left transition-all ${template.skills.layout === 'bullets'
-                                                        ? 'border-blue-600 bg-blue-50'
-                                                        : 'border-slate-200 hover:border-slate-300'
+                                                    ? 'border-blue-600 bg-blue-50'
+                                                    : 'border-slate-200 hover:border-slate-300'
                                                     }`}
                                                 disabled={isBuiltIn}
                                             >
@@ -712,8 +743,8 @@ export default function TemplateEditorPage() {
                                                     skills: { ...template.skills, layout: 'inline' as any }
                                                 })}
                                                 className={`p-4 rounded-xl border-2 text-left transition-all ${template.skills.layout === 'inline'
-                                                        ? 'border-blue-600 bg-blue-50'
-                                                        : 'border-slate-200 hover:border-slate-300'
+                                                    ? 'border-blue-600 bg-blue-50'
+                                                    : 'border-slate-200 hover:border-slate-300'
                                                     }`}
                                                 disabled={isBuiltIn}
                                             >
