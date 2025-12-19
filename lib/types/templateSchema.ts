@@ -101,7 +101,7 @@ export interface TemplateSchema {
 
     // === SKILLS ===
     skills: {
-        layout: 'inline' | 'bullets' | 'categories';
+        layout: 'inline' | 'bullets' | 'categories' | 'key-value';
         separator: string;
         showCategoryNames: boolean;
     };
@@ -241,9 +241,9 @@ export const DEFAULT_ATS_TEMPLATE: TemplateSchema = {
     },
 
     skills: {
-        layout: 'bullets',
+        layout: 'key-value',
         separator: ', ',
-        showCategoryNames: false,
+        showCategoryNames: true,
     },
 
     customSections: {

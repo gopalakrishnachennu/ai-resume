@@ -769,10 +769,14 @@ export default function EditorPage() {
                     jobTitle: jobTitle || jobAnalysis?.title || 'Untitled',
                     jobCompany: jobCompany || jobAnalysis?.company || '',
                     atsScore: atsScoreData,
+                    resumeData, // ✅ Save content edits
                     settings,  // Save formatting settings
                     sections,  // Save section order
                     updatedAt: serverTimestamp(),
                 }, { merge: true });
+
+                // Clear local draft to prevent stale data
+                localStorage.removeItem(`draft_resume_${params.id}`);
 
                 toast.success('Resume updated! 🎉');
             } else {
@@ -1388,6 +1392,7 @@ export default function EditorPage() {
                 ...resumeData.skills,
                 technical: [...resumeData.skills.technical, value.trim()],
             },
+            technicalSkills: undefined, // Clear mapped skills to show new list edits
         });
         setTechSkillInput('');
     };
@@ -1399,6 +1404,7 @@ export default function EditorPage() {
                 ...resumeData.skills,
                 technical: resumeData.skills.technical.filter((_, i) => i !== index),
             },
+            technicalSkills: undefined, // Clear mapped skills to show new list edits
         });
     };
 

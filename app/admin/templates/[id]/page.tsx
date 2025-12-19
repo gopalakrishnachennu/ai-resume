@@ -375,8 +375,8 @@ export default function TemplateEditorPage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as any)}
                                     className={`w-full px-4 py-3 text-left font-medium transition-colors ${activeTab === tab.id
-                                            ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
-                                            : 'text-slate-600 hover:bg-slate-50'
+                                        ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
+                                        : 'text-slate-600 hover:bg-slate-50'
                                         }`}
                                 >
                                     {tab.label}
@@ -455,8 +455,8 @@ export default function TemplateEditorPage() {
                                                         header: { ...template.header, nameAlign: align as any }
                                                     })}
                                                     className={`px-4 py-2 rounded-lg capitalize ${template.header.nameAlign === align
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-slate-100 text-slate-700'
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-slate-100 text-slate-700'
                                                         }`}
                                                     disabled={isBuiltIn}
                                                 >
@@ -586,8 +586,8 @@ export default function TemplateEditorPage() {
                                                         experience: { ...template.experience, bulletStyle: bullet as any }
                                                     })}
                                                     className={`w-10 h-10 rounded-lg text-lg ${template.experience.bulletStyle === bullet
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-slate-100 text-slate-700'
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-slate-100 text-slate-700'
                                                         }`}
                                                     disabled={isBuiltIn}
                                                 >
@@ -647,38 +647,108 @@ export default function TemplateEditorPage() {
                                     <h2 className="text-lg font-bold text-slate-900">Skills Layout</h2>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Layout Style</label>
-                                        <div className="flex gap-2">
-                                            {['inline', 'bullets', 'categories'].map(layout => (
-                                                <button
-                                                    key={layout}
-                                                    onClick={() => updateTemplate({
-                                                        skills: { ...template.skills, layout: layout as any }
-                                                    })}
-                                                    className={`px-4 py-2 rounded-lg capitalize ${template.skills.layout === layout
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-slate-100 text-slate-700'
-                                                        }`}
-                                                    disabled={isBuiltIn}
-                                                >
-                                                    {layout}
-                                                </button>
-                                            ))}
+                                        <label className="block text-sm font-medium text-slate-700 mb-3">Layout Style</label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {/* Key-Value (Recommended) */}
+                                            <button
+                                                onClick={() => updateTemplate({
+                                                    skills: { ...template.skills, layout: 'key-value' as any }
+                                                })}
+                                                className={`p-4 rounded-xl border-2 text-left transition-all ${template.skills.layout === 'key-value'
+                                                        ? 'border-blue-600 bg-blue-50'
+                                                        : 'border-slate-200 hover:border-slate-300'
+                                                    }`}
+                                                disabled={isBuiltIn}
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="font-semibold text-slate-900">Key: Value</span>
+                                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">Recommended</span>
+                                                </div>
+                                                <div className="text-xs text-slate-500 space-y-1">
+                                                    <p>• <strong>Security:</strong> IAM, KMS</p>
+                                                    <p>• <strong>DevOps:</strong> Docker, K8s</p>
+                                                </div>
+                                            </button>
+
+                                            {/* Categories */}
+                                            <button
+                                                onClick={() => updateTemplate({
+                                                    skills: { ...template.skills, layout: 'categories' as any }
+                                                })}
+                                                className={`p-4 rounded-xl border-2 text-left transition-all ${template.skills.layout === 'categories'
+                                                        ? 'border-blue-600 bg-blue-50'
+                                                        : 'border-slate-200 hover:border-slate-300'
+                                                    }`}
+                                                disabled={isBuiltIn}
+                                            >
+                                                <span className="font-semibold text-slate-900 block mb-2">Categories</span>
+                                                <div className="text-xs text-slate-500 space-y-1">
+                                                    <p><strong>Languages</strong></p>
+                                                    <p className="pl-2">Python, JavaScript</p>
+                                                </div>
+                                            </button>
+
+                                            {/* Bullets */}
+                                            <button
+                                                onClick={() => updateTemplate({
+                                                    skills: { ...template.skills, layout: 'bullets' as any }
+                                                })}
+                                                className={`p-4 rounded-xl border-2 text-left transition-all ${template.skills.layout === 'bullets'
+                                                        ? 'border-blue-600 bg-blue-50'
+                                                        : 'border-slate-200 hover:border-slate-300'
+                                                    }`}
+                                                disabled={isBuiltIn}
+                                            >
+                                                <span className="font-semibold text-slate-900 block mb-2">Bullets</span>
+                                                <div className="text-xs text-slate-500 space-y-1">
+                                                    <p>• Python</p>
+                                                    <p>• JavaScript</p>
+                                                </div>
+                                            </button>
+
+                                            {/* Inline */}
+                                            <button
+                                                onClick={() => updateTemplate({
+                                                    skills: { ...template.skills, layout: 'inline' as any }
+                                                })}
+                                                className={`p-4 rounded-xl border-2 text-left transition-all ${template.skills.layout === 'inline'
+                                                        ? 'border-blue-600 bg-blue-50'
+                                                        : 'border-slate-200 hover:border-slate-300'
+                                                    }`}
+                                                disabled={isBuiltIn}
+                                            >
+                                                <span className="font-semibold text-slate-900 block mb-2">Inline</span>
+                                                <div className="text-xs text-slate-500">
+                                                    <p>Python, JavaScript, Docker, AWS</p>
+                                                </div>
+                                            </button>
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Separator</label>
-                                        <input
-                                            type="text"
-                                            value={template.skills.separator}
-                                            onChange={e => updateTemplate({
-                                                skills: { ...template.skills, separator: e.target.value }
-                                            })}
-                                            className="w-32 px-4 py-2 border rounded-xl"
-                                            placeholder=", "
-                                            disabled={isBuiltIn}
-                                        />
+                                    {/* Separator (only for inline/key-value) */}
+                                    {(template.skills.layout === 'inline' || template.skills.layout === 'key-value') && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Separator</label>
+                                            <input
+                                                type="text"
+                                                value={template.skills.separator}
+                                                onChange={e => updateTemplate({
+                                                    skills: { ...template.skills, separator: e.target.value }
+                                                })}
+                                                className="w-32 px-4 py-2 border rounded-xl"
+                                                placeholder=", "
+                                                disabled={isBuiltIn}
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1">Used between skills in a category</p>
+                                        </div>
+                                    )}
+
+                                    {/* Info box */}
+                                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                                        <p className="text-sm text-blue-800">
+                                            <strong>💡 Note:</strong> The "Key: Value" format works best with categorized skills data
+                                            (e.g., from AI-generated resumes). Each category becomes a bullet with bold label.
+                                        </p>
                                     </div>
                                 </div>
                             )}

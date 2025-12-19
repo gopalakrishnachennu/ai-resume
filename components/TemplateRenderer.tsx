@@ -28,6 +28,9 @@ interface ResumeData {
         startDate?: string;
         endDate?: string;
         achievements?: string[];
+        bullets?: string[];
+        highlights?: string[];
+        responsibilities?: string[];
     }>;
     education: Array<{
         school: string;
@@ -39,6 +42,7 @@ interface ResumeData {
     skills: {
         technical: string[];
     };
+    technicalSkills?: Record<string, string[] | string>;
 }
 
 interface TemplateRendererProps {
@@ -227,8 +231,12 @@ export function TemplateRenderer({
     };
 
     // === RENDER SKILLS ===
+    // SINGLE FORMAT: Key: Value bullets (e.g., • **Security & Compliance**: IAM, KMS)
     const renderSkills = (): void => {
-        if (!data.skills?.technical?.length) return;
+        const hasTechnicalSkills = data.technicalSkills && Object.keys(data.technicalSkills).length > 0;
+        const hasArraySkills = data.skills?.technical?.length > 0;
+
+        if (!hasTechnicalSkills && !hasArraySkills) return;
 
         blocks.push(
             <div key={`skills-header-${blockIndex++}`} style={{ marginTop: '12px' }}>
@@ -236,33 +244,58 @@ export function TemplateRenderer({
             </div>
         );
 
-        if (t.skills.layout === 'bullets') {
-            data.skills.technical.forEach((skill, i) => {
+        // Primary: Categorized Skills (technicalSkills map)
+        if (hasTechnicalSkills) {
+            Object.entries(data.technicalSkills!).forEach(([category, skills]) => {
+                // Format camelCase to Title Case (e.g., "securityCompliance" -> "Security Compliance")
+                const formattedCategory = category
+                    .replace(/([A-Z])/g, ' $1')
+                    .replace(/^./, str => str.toUpperCase())
+                    .trim();
+                const skillText = Array.isArray(skills) ? skills.join(', ') : skills;
+
                 blocks.push(
                     <div
-                        key={`skill-${blockIndex++}`}
+                        key={`skill-cat-${blockIndex++}`}
                         style={{
                             display: 'flex',
                             gap: '6px',
                             fontSize: `${t.typography.sizes.body}pt`,
                             color: t.typography.colors.body,
+                            marginBottom: '4px',
+                            lineHeight: 1.4,
                         }}
                     >
                         <span>{t.experience.bulletStyle}</span>
-                        <span>{parseFormattedText(skill)}</span>
+                        <span>
+                            <strong>{formattedCategory}:</strong> {parseFormattedText(skillText)}
+                        </span>
                     </div>
                 );
             });
-        } else {
+            return;
+        }
+
+        // Fallback: Convert flat array to single "Technical Skills" category
+        // Still uses Key: Value format for consistency
+        if (hasArraySkills) {
+            const skillText = data.skills.technical.join(', ');
             blocks.push(
                 <div
-                    key={`skills-inline-${blockIndex++}`}
+                    key={`skill-cat-${blockIndex++}`}
                     style={{
+                        display: 'flex',
+                        gap: '6px',
                         fontSize: `${t.typography.sizes.body}pt`,
                         color: t.typography.colors.body,
+                        marginBottom: '4px',
+                        lineHeight: 1.4,
                     }}
                 >
-                    {data.skills.technical.join(t.skills.separator || ', ')}
+                    <span>{t.experience.bulletStyle}</span>
+                    <span>
+                        <strong>Technical Skills:</strong> {parseFormattedText(skillText)}
+                    </span>
                 </div>
             );
         }
@@ -310,8 +343,11 @@ export function TemplateRenderer({
             });
 
             // Render achievements
-            if (exp.achievements?.length) {
-                exp.achievements.forEach((achievement, achIndex) => {
+            // Render achievements/bullets
+            const bullets = exp.achievements || (exp as any).bullets || (exp as any).highlights || (exp as any).responsibilities || [];
+
+            if (bullets.length) {
+                bullets.forEach((achievement: string, achIndex: number) => {
                     blocks.push(
                         <div
                             key={`exp-${expIndex}-ach-${blockIndex++}`}
