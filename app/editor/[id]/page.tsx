@@ -688,12 +688,28 @@ export default function EditorPage() {
                     setJobTitle(resumeData.jobTitle || '');
                     setJobCompany(resumeData.jobCompany || '');
 
-                    // Check if this is AI-generated resume (new format)
+                    // Fetch user profile for name fallback
+                    let profileName = user?.displayName || '';
+                    if (user?.uid) {
+                        try {
+                            const userDoc = await getDoc(doc(db, 'users', user.uid));
+                            if (userDoc.exists()) {
+                                const userData = userDoc.data();
+                                const p = userData.profile;
+                                if (p && p.firstName) {
+                                    profileName = `${p.firstName} ${p.lastName || ''}`.trim();
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Error fetching profile for name:', err);
+                        }
+                    }
+
+                    // CASE 1: AI-Generated Resume (New Format)
                     if (resumeData.professionalSummary || resumeData.technicalSkills) {
-                        // Load AI-generated content
                         setResumeData({
                             personalInfo: resumeData.personalInfo || {
-                                name: user?.displayName || '',
+                                name: profileName,
                                 email: user?.email || '',
                                 phone: '',
                                 location: '',
@@ -701,53 +717,65 @@ export default function EditorPage() {
                                 github: '',
                             },
                             summary: resumeData.professionalSummary || '',
-                            experience: (() => {
-                                let foundCurrent = false;
-                                return (resumeData.experience || []).map((exp: any) => {
-                                    const shouldBeCurrent = !foundCurrent && exp.current;
-                                    if (shouldBeCurrent) foundCurrent = true;
-                                    return {
-                                        company: exp.company,
-                                        title: exp.title,
-                                        location: exp.location,
-                                        startDate: exp.startDate,
-                                        endDate: exp.endDate,
-                                        current: shouldBeCurrent || false,
-                                        bullets: exp.responsibilities || exp.bullets || [],
-                                    };
-                                });
-                            })(),
-                            education: resumeData.education || [],
+                            experience: (resumeData.experience || []).map((exp: any) => ({
+                                company: exp.company || '',
+                                title: exp.position || '',
+                                location: '',
+                                startDate: exp.startDate || '',
+                                endDate: exp.endDate || '',
+                                current: exp.current || false,
+                                bullets: exp.responsibilities || [],
+                            })),
+                            education: (resumeData.education || []).map((edu: any) => ({
+                                school: edu.institution || '',
+                                degree: edu.degree || '',
+                                field: edu.field || '',
+                                location: '',
+                                graduationDate: edu.graduationDate || '',
+                            })),
                             skills: {
-                                // Flatten for editor display
-                                technical: resumeData.technicalSkills ?
-                                    Object.entries(resumeData.technicalSkills)
+                                technical: resumeData.technicalSkills
+                                    ? Object.entries(resumeData.technicalSkills)
                                         .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
                                     : [],
                             },
-                            // PRESERVE the map for TemplateRenderer to render properly!
                             technicalSkills: resumeData.technicalSkills,
                         });
+                        setAtsScore(resumeData.atsScore || 0);
+                        setLoading(false);
+                        return; // Exit early for AI resumes
+                    }
+
+                    // CASE 2: Legacy Nested Format (resumeData.resumeData)
+                    if (resumeData.resumeData) {
+                        const legacyData = resumeData.resumeData;
+                        setResumeData({
+                            ...legacyData,
+                            personalInfo: {
+                                ...legacyData.personalInfo,
+                                name: legacyData.personalInfo?.name || profileName,
+                            }
+                        });
+
+                        // Load aux data
+                        if (resumeData.sections) setSections(resumeData.sections);
+                        if (resumeData.settings) setSettings(resumeData.settings);
 
                         setLoading(false);
-                        toast.success('AI-generated resume loaded!');
                         return;
                     }
 
-                    // Old format - load resume data
-                    if (resumeData.resumeData) {
-                        setResumeData(resumeData.resumeData);
-                    }
+                    // CASE 3: Standard Flat Format
+                    setResumeData({
+                        ...resumeData,
+                        personalInfo: {
+                            ...resumeData.personalInfo,
+                            name: resumeData.personalInfo?.name || profileName,
+                        }
+                    } as any);
 
-                    // Load sections order
-                    if (resumeData.sections) {
-                        setSections(resumeData.sections);
-                    }
-
-                    // Load custom settings
-                    if (resumeData.settings) {
-                        setSettings(resumeData.settings);
-                    }
+                    if (resumeData.sections) setSections(resumeData.sections);
+                    if (resumeData.settings) setSettings(resumeData.settings);
 
                     setLoading(false);
                     return;
@@ -762,7 +790,7 @@ export default function EditorPage() {
 
                 setResumeData({
                     personalInfo: {
-                        name: user?.displayName || '',
+                        name: user?.displayName || (userData.profile?.firstName ? `${userData.profile.firstName} ${userData.profile.lastName || ''}`.trim() : '') || '',
                         email: user?.email || '',
                         phone: userData.profile?.phone || '',
                         location: userData.profile?.location || '',
