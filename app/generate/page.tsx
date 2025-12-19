@@ -359,7 +359,9 @@ export default function GeneratePage() {
                 updatedAt: Timestamp.now(),
                 // Build personalInfo from available data
                 personalInfo: {
-                    fullName: user.displayName || user.email?.split('@')[0] || 'User',
+                    fullName: (userData?.profile?.firstName && userData?.profile?.lastName)
+                        ? `${userData.profile.firstName} ${userData.profile.lastName}`
+                        : user.displayName || user.email?.split('@')[0] || 'User',
                     email: user.email || '',
                     phone: userData?.profile?.phone || '',
                     location: userData?.profile?.location || '',
