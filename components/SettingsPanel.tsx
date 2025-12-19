@@ -139,80 +139,150 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                     {/* Template Selection */}
                     <div className="border border-indigo-100 rounded-xl p-5 bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/50 shadow-sm hover:shadow-md transition-shadow duration-300">
                         <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <span className="text-indigo-600">🎨</span> Template Style
+                            <span className="bg-gradient-to-br from-indigo-500 to-purple-500 p-1.5 rounded-lg text-white text-sm">🎨</span>
+                            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Template Style</span>
                         </h3>
+
+                        {/* Template Cards with Visual Preview */}
                         <div className="grid grid-cols-2 gap-4">
+                            {/* Classic Template Card */}
                             <button
                                 onClick={() => {
-                                    // Clear custom template when selecting Classic
                                     onSettingsChange({ ...settings, template: 'classic', selectedTemplateId: undefined });
                                 }}
-                                className={`p-4 rounded-lg border-2 transition-all ${settings.template === 'classic' && !settings.selectedTemplateId
-                                    ? 'border-indigo-600 bg-white shadow-md'
-                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                                className={`group relative p-4 rounded-xl border-2 transition-all duration-300 overflow-hidden ${settings.template === 'classic' && !settings.selectedTemplateId
+                                    ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-white shadow-lg shadow-indigo-500/20 scale-[1.02]'
+                                    : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md'
                                     }`}
                             >
-                                <div className="text-center">
-                                    <p className="font-bold text-gray-900">Classic</p>
-                                    <p className="text-xs text-gray-500 mt-1">Centered header, traditional layout</p>
+                                {/* Mini Resume Preview */}
+                                <div className="bg-white rounded-lg border border-gray-200 p-3 mb-3 shadow-sm">
+                                    <div className="w-full h-3 bg-gray-800 rounded mx-auto mb-2" style={{ width: '60%' }}></div>
+                                    <div className="flex justify-center gap-1 mb-2">
+                                        <div className="w-8 h-1.5 bg-gray-300 rounded"></div>
+                                        <div className="w-8 h-1.5 bg-gray-300 rounded"></div>
+                                        <div className="w-8 h-1.5 bg-gray-300 rounded"></div>
+                                    </div>
+                                    <div className="w-full h-0.5 bg-gray-200 mb-2"></div>
+                                    <div className="space-y-1">
+                                        <div className="h-1 bg-gray-200 rounded w-full"></div>
+                                        <div className="h-1 bg-gray-200 rounded w-3/4"></div>
+                                    </div>
                                 </div>
+                                <div className="text-center">
+                                    <p className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">Classic</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">Centered • Traditional</p>
+                                </div>
+                                {settings.template === 'classic' && !settings.selectedTemplateId && (
+                                    <div className="absolute top-2 right-2 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center">
+                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                )}
                             </button>
+
+                            {/* Modern Template Card */}
                             <button
                                 onClick={() => {
-                                    // Clear custom template when selecting Modern
                                     onSettingsChange({ ...settings, template: 'modern', selectedTemplateId: undefined });
                                 }}
-                                className={`p-4 rounded-lg border-2 transition-all ${settings.template === 'modern' && !settings.selectedTemplateId
-                                    ? 'border-indigo-600 bg-white shadow-md'
-                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                                className={`group relative p-4 rounded-xl border-2 transition-all duration-300 overflow-hidden ${settings.template === 'modern' && !settings.selectedTemplateId
+                                    ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-white shadow-lg shadow-indigo-500/20 scale-[1.02]'
+                                    : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md'
                                     }`}
                             >
-                                <div className="text-center">
-                                    <p className="font-bold text-gray-900">Modern</p>
-                                    <p className="text-xs text-gray-500 mt-1">Left-aligned, accent colors</p>
+                                {/* Mini Resume Preview */}
+                                <div className="bg-white rounded-lg border border-gray-200 p-3 mb-3 shadow-sm">
+                                    <div className="w-full h-3 bg-indigo-600 rounded mb-2" style={{ width: '50%' }}></div>
+                                    <div className="flex gap-1 mb-2">
+                                        <div className="w-6 h-1.5 bg-gray-300 rounded"></div>
+                                        <div className="w-6 h-1.5 bg-gray-300 rounded"></div>
+                                        <div className="w-6 h-1.5 bg-gray-300 rounded"></div>
+                                    </div>
+                                    <div className="w-1/3 h-2 bg-indigo-600 rounded mb-1.5"></div>
+                                    <div className="space-y-1">
+                                        <div className="h-1 bg-gray-200 rounded w-full"></div>
+                                        <div className="h-1 bg-gray-200 rounded w-3/4"></div>
+                                    </div>
                                 </div>
+                                <div className="text-center">
+                                    <p className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">Modern</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">Left-aligned • Accent colors</p>
+                                </div>
+                                {settings.template === 'modern' && !settings.selectedTemplateId && (
+                                    <div className="absolute top-2 right-2 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center">
+                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                )}
                             </button>
                         </div>
-                        {settings.template === 'modern' && (
-                            <div className="mt-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Accent Color
-                                </label>
-                                <div className="flex items-center gap-3">
+
+                        {/* Accent Color Picker - Show for all templates */}
+                        <div className="mt-5 p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-100">
+                            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                <span className="w-4 h-4 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"></span>
+                                Accent Color
+                            </label>
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
                                     <input
                                         type="color"
                                         value={settings.fontColor.accent}
                                         onChange={(e) => updateSetting('fontColor.accent', e.target.value)}
-                                        className="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                                        className="w-12 h-12 rounded-xl border-2 border-gray-200 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
                                     />
-                                    <span className="text-sm text-gray-600">
-                                        Used for section headings & name
-                                    </span>
+                                </div>
+                                {/* Color Presets */}
+                                <div className="flex gap-2">
+                                    {['#2563eb', '#7c3aed', '#059669', '#dc2626', '#ea580c', '#0891b2'].map(color => (
+                                        <button
+                                            key={color}
+                                            onClick={() => updateSetting('fontColor.accent', color)}
+                                            className={`w-8 h-8 rounded-lg border-2 transition-all hover:scale-110 ${settings.fontColor.accent === color ? 'border-gray-800 scale-110 shadow-md' : 'border-white shadow-sm'}`}
+                                            style={{ backgroundColor: color }}
+                                        />
+                                    ))}
                                 </div>
                             </div>
-                        )}
+                            <p className="text-xs text-gray-500 mt-2">Used for headers, name, and dividers</p>
+                        </div>
 
                         {/* Custom Templates */}
                         {customTemplates.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-gray-200">
-                                <p className="text-sm font-medium text-gray-700 mb-3">Custom Templates</p>
+                            <div className="mt-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="text-sm font-semibold text-gray-700">Custom Templates</span>
+                                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{customTemplates.length}</span>
+                                </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     {customTemplates.map(template => (
                                         <button
                                             key={template.id}
                                             onClick={() => selectCustomTemplate(template.id)}
-                                            className={`p-3 rounded-lg border-2 transition-all text-left ${settings.selectedTemplateId === template.id
-                                                ? 'border-indigo-600 bg-indigo-50 shadow-md'
-                                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                            className={`group relative p-4 rounded-xl border-2 transition-all duration-300 text-left ${settings.selectedTemplateId === template.id
+                                                ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-lg shadow-indigo-500/20'
+                                                : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md hover:bg-gradient-to-br hover:from-gray-50 hover:to-indigo-50/30'
                                                 }`}
                                         >
-                                            <div className="flex items-center justify-between">
-                                                <p className="font-medium text-gray-900 text-sm">{template.name}</p>
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    <p className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">{template.name}</p>
+                                                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{template.description || 'Custom template'}</p>
+                                                </div>
                                                 {template.atsCompatible && (
-                                                    <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">ATS</span>
+                                                    <span className="text-xs bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded-lg font-medium shadow-sm">ATS</span>
                                                 )}
                                             </div>
-                                            <p className="text-xs text-gray-500 mt-1 line-clamp-1">{template.description}</p>
+                                            {settings.selectedTemplateId === template.id && (
+                                                <div className="absolute top-2 right-2 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center">
+                                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </div>
+                                            )}
                                         </button>
                                     ))}
                                 </div>
@@ -220,8 +290,12 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                         )}
 
                         {loadingTemplates && (
-                            <div className="mt-4 text-center text-sm text-gray-500">
-                                Loading custom templates...
+                            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-500">
+                                <svg className="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Loading templates...
                             </div>
                         )}
                     </div>
