@@ -78,6 +78,8 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                 // Margins
                 margins: template.page?.margins || settings.margins,
                 lineSpacing: template.page?.lineSpacing || settings.lineSpacing,
+                sectionSpacing: template.experience?.spacing?.beforeItem || settings.sectionSpacing,
+                paragraphSpacing: template.experience?.spacing?.afterItem || settings.paragraphSpacing,
                 // Other settings - map to compatible types
                 bulletStyle: ['•', '-', '◦', '➤', '◆', '★', '❀', '■', '▸', '›'].includes(template.experience?.bulletStyle || '')
                     ? (template.experience?.bulletStyle as any)
@@ -88,6 +90,8 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                 alignment: (template.header?.nameAlign === 'left' || template.header?.nameAlign === 'center')
                     ? template.header.nameAlign
                     : settings.alignment,
+                bodyAlignment: template.typography?.bodyAlignment || settings.bodyAlignment,
+                dateFormat: (template.dateFormat as any) || settings.dateFormat,
             };
 
             onSettingsChange(newSettings);

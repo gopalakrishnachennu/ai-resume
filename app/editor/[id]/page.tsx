@@ -121,17 +121,65 @@ export default function EditorPage() {
                 template = settings.template === 'modern' ? BUILTIN_MODERN_TEMPLATE : BUILTIN_CLASSIC_TEMPLATE;
             }
 
-            // Apply User Settings Overrides (e.g. Justification)
+            // Apply User Settings Overrides
+            // This ensures manual tweaks in the Settings Panel are reflected in the Active Template
             setActiveTemplate({
                 ...template,
+                dateFormat: settings.dateFormat === 'Month YYYY' ? 'MMMM YYYY' : settings.dateFormat as any,
                 typography: {
                     ...template.typography,
+                    fontFamily: settings.fontFamily,
                     bodyAlignment: settings.bodyAlignment,
+                    sizes: {
+                        name: settings.fontSize.name,
+                        sectionHeader: settings.fontSize.headers,
+                        body: settings.fontSize.body,
+                        itemTitle: settings.fontSize.body + 2, // Standard scalar
+                        subtitle: settings.fontSize.body,
+                    },
+                    colors: {
+                        name: settings.fontColor.name,
+                        headers: settings.fontColor.headers,
+                        body: settings.fontColor.body,
+                        accent: settings.fontColor.accent || template.typography.colors.accent,
+                    },
                 },
+                page: {
+                    ...template.page,
+                    margins: settings.margins,
+                    lineSpacing: settings.lineSpacing,
+                },
+                sectionHeaders: {
+                    ...template.sectionHeaders,
+                    divider: settings.sectionDivider,
+                    style: (settings.headerStyle === 'bold' && settings.headerCase === 'UPPERCASE') ? 'bold uppercase' :
+                        (settings.headerStyle === 'bold') ? 'bold' :
+                            (settings.headerCase === 'UPPERCASE') ? 'uppercase' :
+                                template.sectionHeaders.style,
+                },
+                experience: {
+                    ...template.experience,
+                    bulletStyle: settings.bulletStyle as any,
+                    spacing: {
+                        beforeItem: settings.sectionSpacing,
+                        afterItem: settings.paragraphSpacing,
+                    },
+                },
+                education: {
+                    ...template.education,
+                    spacing: {
+                        beforeItem: settings.sectionSpacing,
+                        afterItem: settings.paragraphSpacing,
+                    },
+                },
+                header: {
+                    ...template.header,
+                    nameAlign: settings.alignment as any,
+                }
             });
         };
         loadTemplate();
-    }, [settings.selectedTemplateId, settings.template, settings.bodyAlignment]);
+    }, [settings]);
 
     const [paginatedPages, setPaginatedPages] = useState<ReactNode[][]>([]);
 
