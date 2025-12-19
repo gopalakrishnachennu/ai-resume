@@ -133,8 +133,11 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                         </h3>
                         <div className="grid grid-cols-2 gap-4">
                             <button
-                                onClick={() => updateSetting('template', 'classic')}
-                                className={`p-4 rounded-lg border-2 transition-all ${settings.template === 'classic'
+                                onClick={() => {
+                                    // Clear custom template when selecting Classic
+                                    onSettingsChange({ ...settings, template: 'classic', selectedTemplateId: undefined });
+                                }}
+                                className={`p-4 rounded-lg border-2 transition-all ${settings.template === 'classic' && !settings.selectedTemplateId
                                     ? 'border-indigo-600 bg-white shadow-md'
                                     : 'border-gray-200 bg-white hover:border-gray-300'
                                     }`}
@@ -145,8 +148,11 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                                 </div>
                             </button>
                             <button
-                                onClick={() => updateSetting('template', 'modern')}
-                                className={`p-4 rounded-lg border-2 transition-all ${settings.template === 'modern'
+                                onClick={() => {
+                                    // Clear custom template when selecting Modern
+                                    onSettingsChange({ ...settings, template: 'modern', selectedTemplateId: undefined });
+                                }}
+                                className={`p-4 rounded-lg border-2 transition-all ${settings.template === 'modern' && !settings.selectedTemplateId
                                     ? 'border-indigo-600 bg-white shadow-md'
                                     : 'border-gray-200 bg-white hover:border-gray-300'
                                     }`}
