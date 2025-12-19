@@ -95,6 +95,51 @@ export function TemplateRenderer({
             gap: '4px',
         };
 
+        // For space-between: group all fields except last together on left, last field on right
+        if (row.align === 'space-between' && visibleFields.length > 1) {
+            const leftFields = visibleFields.slice(0, -1);
+            const rightField = visibleFields[visibleFields.length - 1];
+
+            return (
+                <div key={key} style={rowStyle}>
+                    {/* Left group - fields together */}
+                    <span>
+                        {leftFields.map((field, i) => {
+                            const value = fieldData[field.name] || '';
+                            if (!value) return null;
+                            const isLast = i === leftFields.length - 1;
+                            const separator = isLast ? '' : field.separator;
+                            const fieldStyle: CSSProperties = {
+                                fontWeight: field.style === 'bold' ? 'bold' : 'normal',
+                                fontStyle: field.style === 'italic' ? 'italic' : 'normal',
+                                fontSize: field.fontSize === 'small' ? `${t.typography.sizes.body - 1}pt` : 'inherit',
+                            };
+                            return (
+                                <span key={`${key}-${field.name}`}>
+                                    <span style={fieldStyle}>{value}</span>
+                                    {separator && <span style={{ color: t.typography.colors.body }}>{separator}</span>}
+                                </span>
+                            );
+                        })}
+                    </span>
+                    {/* Right field - dates/location */}
+                    <span>
+                        {(() => {
+                            const value = fieldData[rightField.name] || '';
+                            if (!value) return null;
+                            const fieldStyle: CSSProperties = {
+                                fontWeight: rightField.style === 'bold' ? 'bold' : 'normal',
+                                fontStyle: rightField.style === 'italic' ? 'italic' : 'normal',
+                                fontSize: rightField.fontSize === 'small' ? `${t.typography.sizes.body - 1}pt` : 'inherit',
+                            };
+                            return <span style={fieldStyle}>{value}</span>;
+                        })()}
+                    </span>
+                </div>
+            );
+        }
+
+        // Default rendering for non-space-between rows
         return (
             <div key={key} style={rowStyle}>
                 {visibleFields.map((field, i) => {
