@@ -294,6 +294,34 @@ export default function EditorPage() {
                     );
                 });
             }
+
+            if (section.type === 'custom') {
+                const customData = (resumeData as any)[section.id];
+                if (customData && customData.items && customData.items.length > 0) {
+                    addBlock(`heading-${section.id}`, renderSectionHeading(section), { marginBottom: gapTight, marginTop: gapTight });
+
+                    customData.items.forEach((item: any, idx: number) => {
+                        if (item.title) {
+                            addBlock(
+                                `custom-title-${section.id}-${idx}`,
+                                <h3 className="font-bold" style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>
+                                    {item.title}
+                                </h3>,
+                                { marginBottom: item.description ? '2pt' : gapTight }
+                            );
+                        }
+                        if (item.description) {
+                            addBlock(
+                                `custom-desc-${section.id}-${idx}`,
+                                <p style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>
+                                    {parseFormattedText(item.description)}
+                                </p>,
+                                { marginBottom: idx === customData.items.length - 1 ? gapSection : gapTight }
+                            );
+                        }
+                    });
+                }
+            }
         });
 
         return blocks;
@@ -915,6 +943,21 @@ export default function EditorPage() {
                         content.push({ text: formatPdfText(`${settings.bulletStyle} ${skillLine}`), style: 'body', margin: [0, 0, 0, idx === resumeData.skills.technical.length - 1 ? 8 : 4] });
                     });
                 }
+
+                if (section.type === 'custom') {
+                    const customData = (resumeData as any)[section.id];
+                    if (customData && customData.items && customData.items.length > 0) {
+                        addSectionHeader(section.name);
+                        customData.items.forEach((item: any, idx: number) => {
+                            if (item.title) {
+                                content.push({ text: item.title, style: 'bodyBold', margin: [0, 0, 0, 2] });
+                            }
+                            if (item.description) {
+                                content.push({ text: formatPdfText(item.description), style: 'body', margin: [0, 0, 0, idx === customData.items.length - 1 ? 8 : 4] });
+                            }
+                        });
+                    }
+                }
             });
 
             const docDefinition: any = {
@@ -1121,6 +1164,24 @@ export default function EditorPage() {
                     resumeData.skills.technical.forEach((skillLine: string, idx: number) => {
                         sectionChildren.push(bodyParagraph(`${settings.bulletStyle} ${skillLine}`, { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 }));
                     });
+                }
+
+                if (section.type === 'custom') {
+                    const customData = (resumeData as any)[section.id];
+                    if (customData && customData.items && customData.items.length > 0) {
+                        sectionChildren.push(heading(section.name));
+                        customData.items.forEach((item: any, idx: number) => {
+                            if (item.title) {
+                                sectionChildren.push(new Paragraph({
+                                    children: [new TextRun({ text: item.title, bold: true, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily })],
+                                    spacing: { after: 40 },
+                                }));
+                            }
+                            if (item.description) {
+                                sectionChildren.push(bodyParagraph(item.description, { after: idx === customData.items.length - 1 ? 120 : 60 }));
+                            }
+                        });
+                    }
                 }
             });
 
