@@ -86,8 +86,15 @@ export function useAutoSave<T>(
     useEffect(() => {
         if (!enabled) return;
 
-        // Serialize data to detect real changes
-        const serialized = JSON.stringify(data);
+        // Serialize data to detect real changes (with error handling)
+        let serialized: string;
+        try {
+            serialized = JSON.stringify(data);
+        } catch (e) {
+            // If serialization fails (circular refs, etc), skip this update
+            console.warn('Auto-save: Failed to serialize data', e);
+            return;
+        }
 
         // Skip first render
         if (isFirstRender.current) {

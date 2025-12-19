@@ -216,7 +216,8 @@ export default function EditorPage() {
         },
         {
             delay: 2000,
-            enabled: !!user && params.id !== 'new',
+            // Only enable auto-save after initial load is complete and user is logged in
+            enabled: !!user && params.id !== 'new' && !loading,
         }
     );
 
