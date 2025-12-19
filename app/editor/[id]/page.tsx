@@ -13,6 +13,10 @@ import { ResumeSettings, DEFAULT_ATS_SETTINGS, FONT_STACKS } from '@/lib/types/r
 import { parseFormattedText } from '@/lib/utils/textFormatter';
 import { handleFormattedPaste } from '@/lib/utils/pasteHandler';
 import RichTextEditor from '@/components/RichTextEditor';
+import { TemplateService } from '@/lib/services/templateService';
+import { TemplateSchema } from '@/lib/types/templateSchema';
+import { TemplateRenderer } from '@/components/TemplateRenderer';
+import { convertTemplateToPdfMake } from '@/lib/utils/templateToPdfMake';
 
 interface Section {
     id: string;
@@ -73,6 +77,21 @@ export default function EditorPage() {
     // Settings state
     const [settings, setSettings] = useState<ResumeSettings>(DEFAULT_ATS_SETTINGS);
     const [showSettings, setShowSettings] = useState(false);
+    const [activeTemplate, setActiveTemplate] = useState<TemplateSchema | null>(null);
+
+    // Load active template when selection changes
+    useEffect(() => {
+        const loadTemplate = async () => {
+            if (settings.selectedTemplateId && settings.selectedTemplateId !== 'classic' && settings.selectedTemplateId !== 'modern') {
+                const template = await TemplateService.getTemplateById(settings.selectedTemplateId);
+                setActiveTemplate(template);
+            } else {
+                setActiveTemplate(null);
+            }
+        };
+        loadTemplate();
+    }, [settings.selectedTemplateId]);
+
     const [paginatedPages, setPaginatedPages] = useState<ReactNode[][]>([]);
 
     // Custom section modal state
@@ -95,6 +114,25 @@ export default function EditorPage() {
     }), [settings]);
 
     const pageBlocks = useMemo<ReactNode[]>(() => {
+        // ✅ Use Template Renderer if custom template is selected & loaded
+        if (activeTemplate) {
+            // Map custom sections data
+            const customSectionsData: Record<string, any> = {};
+            sections.forEach(s => {
+                if (s.type === 'custom') {
+                    customSectionsData[s.id] = (resumeData as any)[s.id];
+                }
+            });
+
+            // Call function directly (it returns ReactNode[])
+            return TemplateRenderer({
+                data: resumeData,
+                template: activeTemplate,
+                sections: sortedSections,
+                customSections: customSectionsData
+            });
+        }
+
         const blocks: ReactNode[] = [];
         const gapTight = `${Math.max(2, settings.paragraphSpacing / 2)}pt`;
         const gapParagraph = `${settings.paragraphSpacing}pt`;
@@ -325,7 +363,7 @@ export default function EditorPage() {
         });
 
         return blocks;
-    }, [resumeData, settings, sortedSections]);
+    }, [resumeData, settings, sortedSections, activeTemplate]);
 
     // Convert markdown-style **bold** into pdfmake rich text segments
     const formatPdfText = (text: string) => {
@@ -816,149 +854,160 @@ export default function EditorPage() {
 
             const content: any[] = [];
 
-            // Template-aware settings (modern = left-aligned with accent colors)
-            const isModernPdf = settings.template === 'modern';
-            const headerAlignmentPdf = isModernPdf ? 'left' : 'center';
-            const accentColorPdf = settings.fontColor.accent || '#1D4ED8';
-            const nameColorPdf = isModernPdf ? accentColorPdf : settings.fontColor.name;
-            const headingColorPdf = isModernPdf ? accentColorPdf : settings.fontColor.headers;
-            const dividerColorPdf = isModernPdf ? accentColorPdf : settings.dividerColor;
-
-            const addSectionHeader = (sectionName: string) => {
-                content.push({
-                    text: headerCase(sectionName),
-                    style: 'sectionHeader',
-                    color: headingColorPdf,
-                    margin: [0, 12, 0, settings.sectionDivider ? 4 : 8],
+            if (activeTemplate) {
+                const customSectionsData: Record<string, any> = {};
+                sections.forEach(s => {
+                    if (s.type === 'custom') {
+                        customSectionsData[s.id] = (resumeData as any)[s.id];
+                    }
                 });
+                content.push(...convertTemplateToPdfMake(resumeData, activeTemplate, sortedSections, customSectionsData));
+            } else {
+                // Template-aware settings (modern = left-aligned with accent colors)
+                const isModernPdf = settings.template === 'modern';
+                const headerAlignmentPdf = isModernPdf ? 'left' : 'center';
+                const accentColorPdf = settings.fontColor.accent || '#1D4ED8';
+                const nameColorPdf = isModernPdf ? accentColorPdf : settings.fontColor.name;
+                const headingColorPdf = isModernPdf ? accentColorPdf : settings.fontColor.headers;
+                const dividerColorPdf = isModernPdf ? accentColorPdf : settings.dividerColor;
 
-                if (settings.sectionDivider) {
+                const addSectionHeader = (sectionName: string) => {
                     content.push({
-                        canvas: [
-                            {
-                                type: 'line',
-                                x1: 0,
-                                y1: 0,
-                                x2: 515,
-                                y2: 0,
-                                lineWidth: settings.dividerWeight,
-                                lineColor: dividerColorPdf,
-                            },
-                        ],
-                        margin: [0, 0, 0, 8],
+                        text: headerCase(sectionName),
+                        style: 'sectionHeader',
+                        color: headingColorPdf,
+                        margin: [0, 12, 0, settings.sectionDivider ? 4 : 8],
                     });
-                }
-            };
 
-            content.push({
-                text: resumeData.personalInfo.name || 'Your Name',
-                style: 'name',
-                color: nameColorPdf,
-                alignment: headerAlignmentPdf,
-                margin: [0, 0, 0, 6],
-            });
-
-            const contactPieces = [
-                resumeData.personalInfo.email,
-                resumeData.personalInfo.phone,
-                resumeData.personalInfo.location,
-                resumeData.personalInfo.linkedin,
-                resumeData.personalInfo.github,
-            ].filter(Boolean);
-
-            if (contactPieces.length) {
-                content.push({
-                    text: contactPieces.join(` ${settings.contactSeparator} `),
-                    style: 'contact',
-                    alignment: headerAlignmentPdf,
-                    margin: [0, 0, 0, 12],
-                });
-            }
-
-            sortedSections.forEach(section => {
-                if (!section.visible) return;
-
-                if (section.type === 'summary' && resumeData.summary) {
-                    addSectionHeader(section.name);
-                    content.push({ text: formatPdfText(resumeData.summary), style: 'body', margin: [0, 0, 0, 8] });
-                }
-
-                if (section.type === 'experience' && resumeData.experience.length > 0) {
-                    addSectionHeader(section.name);
-                    resumeData.experience.forEach((exp: any) => {
+                    if (settings.sectionDivider) {
                         content.push({
-                            margin: [0, 0, 0, 10],
-                            stack: [
+                            canvas: [
                                 {
-                                    columns: [
-                                        { text: exp.title, style: 'bodyBold', width: '*' },
-                                        { text: `${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`, style: 'muted', alignment: 'right' },
-                                    ],
-                                },
-                                {
-                                    columns: [
-                                        { text: exp.company, style: 'italic' },
-                                        { text: exp.location, style: 'italic', alignment: 'right' },
-                                    ],
-                                    margin: [0, 2, 0, 4],
-                                },
-                                {
-                                    ul: exp.bullets
-                                        .filter((b: string) => b.trim())
-                                        .map((b: string) => formatPdfText(b)),
-                                    style: 'body',
-                                    margin: [0, 0, 0, 0],
+                                    type: 'line',
+                                    x1: 0,
+                                    y1: 0,
+                                    x2: 515,
+                                    y2: 0,
+                                    lineWidth: settings.dividerWeight,
+                                    lineColor: dividerColorPdf,
                                 },
                             ],
-                        });
-                    });
-                }
-
-                if (section.type === 'education' && resumeData.education.length > 0) {
-                    addSectionHeader(section.name);
-                    resumeData.education.forEach((edu: any) => {
-                        content.push({
                             margin: [0, 0, 0, 8],
-                            stack: [
-                                {
-                                    columns: [
-                                        { text: `${edu.degree} ${edu.field}`.trim(), style: 'bodyBold', width: '*' },
-                                        { text: formatMonthYear(edu.graduationDate), style: 'muted', alignment: 'right' },
-                                    ],
-                                },
-                                {
-                                    columns: [
-                                        { text: edu.school, style: 'italic' },
-                                        { text: edu.location, style: 'italic', alignment: 'right' },
-                                    ],
-                                },
-                            ],
-                        });
-                    });
-                }
-
-                if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
-                    addSectionHeader(section.name);
-                    resumeData.skills.technical.forEach((skillLine, idx) => {
-                        content.push({ text: formatPdfText(`${settings.bulletStyle} ${skillLine}`), style: 'body', margin: [0, 0, 0, idx === resumeData.skills.technical.length - 1 ? 8 : 4] });
-                    });
-                }
-
-                if (section.type === 'custom') {
-                    const customData = (resumeData as any)[section.id];
-                    if (customData && customData.items && customData.items.length > 0) {
-                        addSectionHeader(section.name);
-                        customData.items.forEach((item: any, idx: number) => {
-                            if (item.title) {
-                                content.push({ text: item.title, style: 'bodyBold', margin: [0, 0, 0, 2] });
-                            }
-                            if (item.description) {
-                                content.push({ text: formatPdfText(item.description), style: 'body', margin: [0, 0, 0, idx === customData.items.length - 1 ? 8 : 4] });
-                            }
                         });
                     }
+                };
+
+                content.push({
+                    text: resumeData.personalInfo.name || 'Your Name',
+                    style: 'name',
+                    color: nameColorPdf,
+                    alignment: headerAlignmentPdf,
+                    margin: [0, 0, 0, 6],
+                });
+
+                const contactPieces = [
+                    resumeData.personalInfo.email,
+                    resumeData.personalInfo.phone,
+                    resumeData.personalInfo.location,
+                    resumeData.personalInfo.linkedin,
+                    resumeData.personalInfo.github,
+                ].filter(Boolean);
+
+                if (contactPieces.length) {
+                    content.push({
+                        text: contactPieces.join(` ${settings.contactSeparator} `),
+                        style: 'contact',
+                        alignment: headerAlignmentPdf,
+                        margin: [0, 0, 0, 12],
+                    });
                 }
-            });
+
+                sortedSections.forEach(section => {
+                    if (!section.visible) return;
+
+                    if (section.type === 'summary' && resumeData.summary) {
+                        addSectionHeader(section.name);
+                        content.push({ text: formatPdfText(resumeData.summary), style: 'body', margin: [0, 0, 0, 8] });
+                    }
+
+                    if (section.type === 'experience' && resumeData.experience.length > 0) {
+                        addSectionHeader(section.name);
+                        resumeData.experience.forEach((exp: any) => {
+                            content.push({
+                                margin: [0, 0, 0, 10],
+                                stack: [
+                                    {
+                                        columns: [
+                                            { text: exp.title, style: 'bodyBold', width: '*' },
+                                            { text: `${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`, style: 'muted', alignment: 'right' },
+                                        ],
+                                    },
+                                    {
+                                        columns: [
+                                            { text: exp.company, style: 'italic' },
+                                            { text: exp.location, style: 'italic', alignment: 'right' },
+                                        ],
+                                        margin: [0, 2, 0, 4],
+                                    },
+                                    {
+                                        ul: exp.bullets
+                                            .filter((b: string) => b.trim())
+                                            .map((b: string) => formatPdfText(b)),
+                                        style: 'body',
+                                        margin: [0, 0, 0, 0],
+                                    },
+                                ],
+                            });
+                        });
+                    }
+
+                    if (section.type === 'education' && resumeData.education.length > 0) {
+                        addSectionHeader(section.name);
+                        resumeData.education.forEach((edu: any) => {
+                            content.push({
+                                margin: [0, 0, 0, 8],
+                                stack: [
+                                    {
+                                        columns: [
+                                            { text: `${edu.degree} ${edu.field}`.trim(), style: 'bodyBold', width: '*' },
+                                            { text: formatMonthYear(edu.graduationDate), style: 'muted', alignment: 'right' },
+                                        ],
+                                    },
+                                    {
+                                        columns: [
+                                            { text: edu.school, style: 'italic' },
+                                            { text: edu.location, style: 'italic', alignment: 'right' },
+                                        ],
+                                    },
+                                ],
+                            });
+                        });
+                    }
+
+                    if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
+                        addSectionHeader(section.name);
+                        resumeData.skills.technical.forEach((skillLine, idx) => {
+                            content.push({ text: formatPdfText(`${settings.bulletStyle} ${skillLine}`), style: 'body', margin: [0, 0, 0, idx === resumeData.skills.technical.length - 1 ? 8 : 4] });
+                        });
+                    }
+
+                    if (section.type === 'custom') {
+                        const customData = (resumeData as any)[section.id];
+                        if (customData && customData.items && customData.items.length > 0) {
+                            addSectionHeader(section.name);
+                            customData.items.forEach((item: any, idx: number) => {
+                                if (item.title) {
+                                    content.push({ text: item.title, style: 'bodyBold', margin: [0, 0, 0, 2] });
+                                }
+                                if (item.description) {
+                                    content.push({ text: formatPdfText(item.description), style: 'body', margin: [0, 0, 0, idx === customData.items.length - 1 ? 8 : 4] });
+                                }
+                            });
+                        }
+                    }
+                });
+
+            }
 
             const docDefinition: any = {
                 pageSize: 'LETTER',
