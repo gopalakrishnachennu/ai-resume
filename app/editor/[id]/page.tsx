@@ -787,9 +787,10 @@ export default function EditorPage() {
             // Template-aware settings (modern = left-aligned with accent colors)
             const isModernPdf = settings.template === 'modern';
             const headerAlignmentPdf = isModernPdf ? 'left' : 'center';
-            const nameColorPdf = isModernPdf ? settings.fontColor.accent : settings.fontColor.name;
-            const headingColorPdf = isModernPdf ? settings.fontColor.accent : settings.fontColor.headers;
-            const dividerColorPdf = isModernPdf ? settings.fontColor.accent : settings.dividerColor;
+            const accentColorPdf = settings.fontColor.accent || '#1D4ED8';
+            const nameColorPdf = isModernPdf ? accentColorPdf : settings.fontColor.name;
+            const headingColorPdf = isModernPdf ? accentColorPdf : settings.fontColor.headers;
+            const dividerColorPdf = isModernPdf ? accentColorPdf : settings.dividerColor;
 
             const addSectionHeader = (sectionName: string) => {
                 content.push({
@@ -985,9 +986,10 @@ export default function EditorPage() {
             // Template-aware settings (modern = left-aligned with accent colors)
             const isModernDocx = settings.template === 'modern';
             const headerAlignmentDocx = isModernDocx ? AlignmentType.LEFT : (settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT);
-            const nameColorDocx = isModernDocx ? settings.fontColor.accent.replace('#', '') : settings.fontColor.name.replace('#', '');
-            const headingColorDocx = isModernDocx ? settings.fontColor.accent.replace('#', '') : settings.fontColor.headers.replace('#', '');
-            const dividerColorDocx = isModernDocx ? settings.fontColor.accent.replace('#', '') : settings.dividerColor.replace('#', '');
+            const accentColorDocx = (settings.fontColor.accent || '#1D4ED8').replace('#', '');
+            const nameColorDocx = isModernDocx ? accentColorDocx : settings.fontColor.name.replace('#', '');
+            const headingColorDocx = isModernDocx ? accentColorDocx : settings.fontColor.headers.replace('#', '');
+            const dividerColorDocx = isModernDocx ? accentColorDocx : settings.dividerColor.replace('#', '');
 
             const heading = (text: string) => new Paragraph({
                 children: [new TextRun({ text, bold: settings.headerStyle === 'bold', size: px(settings.fontSize.headers), color: headingColorDocx, font: settings.fontFamily })],
