@@ -113,6 +113,7 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                 >
                                     <option value="Calibri">Calibri (Recommended)</option>
+                                    <option value="Aptos">Aptos (Modern)</option>
                                     <option value="Arial">Arial</option>
                                     <option value="Times New Roman">Times New Roman</option>
                                     <option value="Georgia">Georgia</option>

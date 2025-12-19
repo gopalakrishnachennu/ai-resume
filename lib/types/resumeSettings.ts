@@ -95,6 +95,7 @@ export const FONT_STACKS = {
     'Calibri': '"Calibri", "Helvetica Neue", Arial, sans-serif',
     'Arial': 'Arial, "Helvetica Neue", Helvetica, sans-serif',
     'Times New Roman': '"Times New Roman", Times, Georgia, serif',
-    'Georgia': 'Georgia, "Times New Roman", Times, serif',
-    'Helvetica': 'Helvetica, Arial, sans-serif',
+    'Georgia': 'Georgia, Times, "Times New Roman", serif',
+    'Helvetica': '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    'Aptos': '"Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif', // New Microsoft default
 };

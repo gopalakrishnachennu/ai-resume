@@ -776,6 +776,7 @@ export default function EditorPage() {
             (pdfMake as any).fonts = {
                 Roboto: robotoFont,
                 Calibri: robotoFont,
+                Aptos: robotoFont,
                 Arial: robotoFont,
                 Helvetica: robotoFont,
                 'Times New Roman': robotoFont,

@@ -118,6 +118,7 @@ export class ResumeExportService {
         (pdfMake as any).fonts = {
             Roboto: robotoFont,
             Calibri: robotoFont,
+            Aptos: robotoFont,
             Arial: robotoFont,
             Helvetica: robotoFont,
             'Times New Roman': robotoFont,
@@ -132,9 +133,10 @@ export class ResumeExportService {
         // Template-aware settings (modern = left-aligned with accent colors)
         const isModern = (settings as any).template === 'modern';
         const headerAlignment = isModern ? 'left' : 'center';
-        const nameColor = isModern ? settings.fontColor.accent : settings.fontColor.name;
-        const headingColor = isModern ? settings.fontColor.accent : settings.fontColor.headers;
-        const dividerColorValue = isModern ? settings.fontColor.accent : settings.dividerColor;
+        const accentColor = (settings.fontColor as any).accent || '#1D4ED8';
+        const nameColor = isModern ? accentColor : settings.fontColor.name;
+        const headingColor = isModern ? accentColor : settings.fontColor.headers;
+        const dividerColorValue = isModern ? accentColor : settings.dividerColor;
 
         const addSectionHeader = (sectionName: string) => {
             content.push({
@@ -326,9 +328,10 @@ export class ResumeExportService {
         // Template-aware settings (modern = left-aligned with accent colors)
         const isModern = (settings as any).template === 'modern';
         const headerAlignment = isModern ? AlignmentType.LEFT : (settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT);
-        const nameColor = isModern ? settings.fontColor.accent.replace('#', '') : settings.fontColor.name.replace('#', '');
-        const headingColor = isModern ? settings.fontColor.accent.replace('#', '') : settings.fontColor.headers.replace('#', '');
-        const dividerColorValue = isModern ? settings.fontColor.accent.replace('#', '') : settings.dividerColor.replace('#', '');
+        const accentColor = ((settings.fontColor as any).accent || '#1D4ED8').replace('#', '');
+        const nameColor = isModern ? accentColor : settings.fontColor.name.replace('#', '');
+        const headingColor = isModern ? accentColor : settings.fontColor.headers.replace('#', '');
+        const dividerColorValue = isModern ? accentColor : settings.dividerColor.replace('#', '');
 
         const heading = (text: string) => new Paragraph({
             children: [new TextRun({ text, bold: settings.headerStyle === 'bold', size: px(settings.fontSize.headers), color: headingColor, font: settings.fontFamily })],
