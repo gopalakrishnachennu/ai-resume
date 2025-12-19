@@ -574,6 +574,25 @@ export default function EditorPage() {
 
     const loadData = async () => {
         try {
+            // --- FETCH USER PROFILE (Unified Name Fallback) ---
+            let profileName = user?.displayName || '';
+            let profileData: any = {};
+
+            if (user?.uid) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        profileData = userData; // Store for new resume creation
+                        if (userData.profile && userData.profile.firstName) {
+                            profileName = `${userData.profile.firstName} ${userData.profile.lastName || ''}`.trim();
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching profile for name:', err);
+                }
+            }
+
             // ✅ Check for local draft first (survives refresh)
             const draftKey = `draft_resume_${params.id}`;
             const savedDraft = localStorage.getItem(draftKey);
@@ -583,7 +602,13 @@ export default function EditorPage() {
                     const draft = JSON.parse(savedDraft);
                     // Only use draft if it's recent (e.g., less than 24 hours)
                     if (Date.now() - draft.updatedAt < 24 * 60 * 60 * 1000) {
-                        setResumeData(draft.resumeData);
+                        // Apply name fallback to draft if empty
+                        const draftData = draft.resumeData;
+                        if (!draftData.personalInfo.name || draftData.personalInfo.name.trim() === '') {
+                            draftData.personalInfo.name = profileName;
+                        }
+
+                        setResumeData(draftData);
                         if (draft.sections) setSections(draft.sections);
                         if (draft.settings) setSettings(draft.settings);
 
@@ -605,24 +630,7 @@ export default function EditorPage() {
             }
 
             // If editing existing resume, load it
-            // --- FETCH USER PROFILE (Unified Name Fallback) ---
-            let profileName = user?.displayName || '';
-            let profileData: any = {};
 
-            if (user?.uid) {
-                try {
-                    const userDoc = await getDoc(doc(db, 'users', user.uid));
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data();
-                        profileData = userData; // Store for new resume creation
-                        if (userData.profile && userData.profile.firstName) {
-                            profileName = `${userData.profile.firstName} ${userData.profile.lastName || ''}`.trim();
-                        }
-                    }
-                } catch (err) {
-                    console.error('Error fetching profile for name:', err);
-                }
-            }
 
             if (params.id !== 'new') {
                 // ====== IMPORTED RESUME (Quick Format Flow) ======
