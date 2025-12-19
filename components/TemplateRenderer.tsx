@@ -401,7 +401,32 @@ export function TemplateRenderer({
                 gpa: t.education.showGPA && edu.gpa ? `GPA: ${edu.gpa}` : undefined,
             };
 
-            t.education.rows.forEach((row, rowIndex) => {
+            // Best practice: Ensure education has essential rows (fallback if template missing them)
+            const defaultEducationRows: TemplateRow[] = [
+                {
+                    align: 'space-between',
+                    fields: [
+                        { name: 'degree', style: 'bold', separator: ' in ' },
+                        { name: 'field', style: 'normal', separator: '' },
+                        { name: 'dates', style: 'normal', separator: '' },
+                    ],
+                },
+                {
+                    align: 'space-between',
+                    fields: [
+                        { name: 'school', style: 'italic', separator: '' },
+                        { name: 'location', style: 'normal', separator: '' },
+                    ],
+                },
+            ];
+
+            // Use template rows if they exist and have location, otherwise use default rows
+            const templateHasLocation = t.education.rows.some(row =>
+                row.fields.some(f => f.name === 'location')
+            );
+            const educationRows = templateHasLocation ? t.education.rows : defaultEducationRows;
+
+            educationRows.forEach((row, rowIndex) => {
                 const renderedRow = renderRow(row, eduData, `edu-${eduIndex}-row-${rowIndex}`);
                 if (renderedRow) {
                     blocks.push(
