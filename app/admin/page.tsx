@@ -120,6 +120,13 @@ export default function AdminDashboard() {
             href: '/admin/extension',
             color: 'from-amber-500 to-orange-600',
         },
+        {
+            title: 'Template Builder',
+            description: 'Design custom resume templates',
+            icon: '🎨',
+            href: '/admin/templates',
+            color: 'from-pink-500 to-rose-600',
+        },
     ];
 
     const statCards = [
