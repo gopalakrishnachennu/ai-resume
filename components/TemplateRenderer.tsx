@@ -27,6 +27,7 @@ interface ResumeData {
         location?: string;
         startDate?: string;
         endDate?: string;
+        current?: boolean;
         achievements?: string[];
         bullets?: string[];
         highlights?: string[];
@@ -221,7 +222,7 @@ export function TemplateRenderer({
                 style={{
                     fontSize: `${t.typography.sizes.body}pt`,
                     color: t.typography.colors.body,
-                    textAlign: t.summary.align,
+                    textAlign: t.typography.bodyAlignment || t.summary.align || 'left',
                     lineHeight: 1.4,
                 }}
             >
@@ -360,7 +361,11 @@ export function TemplateRenderer({
                             }}
                         >
                             <span>{t.experience.bulletStyle}</span>
-                            <span style={{ flex: 1, overflowWrap: t.experience.wrapLongText ? 'break-word' : 'normal' }}>
+                            <span style={{
+                                flex: 1,
+                                overflowWrap: t.experience.wrapLongText ? 'break-word' : 'normal',
+                                textAlign: t.typography.bodyAlignment || 'left'
+                            }}>
                                 {parseFormattedText(achievement)}
                             </span>
                         </div>

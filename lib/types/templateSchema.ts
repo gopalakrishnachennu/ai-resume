@@ -60,6 +60,7 @@ export interface TemplateSchema {
             accent: string;
             links: string;
         };
+        bodyAlignment?: 'left' | 'justify';
     };
 
     // === HEADER ===

@@ -33,7 +33,7 @@ export interface ResumeSettings {
 
     // Formatting
     alignment: 'left' | 'center';  // For name only
-    bodyAlignment: 'left';
+    bodyAlignment: 'left' | 'justify';
     dateFormat: 'MMM YYYY' | 'MM/YYYY' | 'Month YYYY';
     bulletStyle: '•' | '-' | '◦' | '➤' | '◆' | '★' | '❀' | '■' | '▸' | '›';
 

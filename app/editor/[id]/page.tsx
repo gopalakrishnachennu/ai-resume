@@ -101,29 +101,37 @@ export default function EditorPage() {
     // UNIFIED PIPELINE: Always use a template (builtin Classic/Modern or Custom)
     useEffect(() => {
         const loadTemplate = async () => {
-            // If custom template is selected, load it from Firestore
+            let template: TemplateSchema;
+
+            // If custom template is selected, load from Firestore
             if (settings.selectedTemplateId) {
                 try {
-                    const template = await TemplateService.getTemplateById(settings.selectedTemplateId);
-                    if (template) {
-                        setActiveTemplate(template);
-                        return;
+                    const customTemplate = await TemplateService.getTemplateById(settings.selectedTemplateId);
+                    if (customTemplate) {
+                        template = customTemplate;
+                    } else {
+                        template = BUILTIN_CLASSIC_TEMPLATE;
                     }
                 } catch (e) {
                     console.error('Failed to load custom template:', e);
+                    template = BUILTIN_CLASSIC_TEMPLATE;
                 }
+            } else {
+                // Use builtin templates
+                template = settings.template === 'modern' ? BUILTIN_MODERN_TEMPLATE : BUILTIN_CLASSIC_TEMPLATE;
             }
 
-            // Use builtin templates based on settings.template
-            if (settings.template === 'modern') {
-                setActiveTemplate(BUILTIN_MODERN_TEMPLATE);
-            } else {
-                // Default to Classic
-                setActiveTemplate(BUILTIN_CLASSIC_TEMPLATE);
-            }
+            // Apply User Settings Overrides (e.g. Justification)
+            setActiveTemplate({
+                ...template,
+                typography: {
+                    ...template.typography,
+                    bodyAlignment: settings.bodyAlignment,
+                },
+            });
         };
         loadTemplate();
-    }, [settings.selectedTemplateId, settings.template]);
+    }, [settings.selectedTemplateId, settings.template, settings.bodyAlignment]);
 
     const [paginatedPages, setPaginatedPages] = useState<ReactNode[][]>([]);
 
@@ -1158,7 +1166,7 @@ export default function EditorPage() {
 
             const bodyParagraph = (text: string, opts: any = {}) => new Paragraph({
                 children: formatDocxRuns(text, docxModule, { font: settings.fontFamily, size: px(settings.fontSize.body), color: settings.fontColor.body }),
-                alignment: AlignmentType.LEFT,
+                alignment: settings.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
                 spacing: { after: opts.after ?? 60 },
             });
 
