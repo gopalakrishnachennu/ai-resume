@@ -141,6 +141,7 @@ export default function EditorPage() {
                         headers: settings.fontColor.headers,
                         body: settings.fontColor.body,
                         accent: settings.fontColor.accent || template.typography.colors.accent,
+                        links: template.typography.colors.links || settings.fontColor.accent,
                     },
                 },
                 page: {
