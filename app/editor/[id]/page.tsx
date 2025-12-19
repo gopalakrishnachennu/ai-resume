@@ -1179,6 +1179,110 @@ export default function EditorPage() {
                 spacing: { after: opts.after ?? 60 },
             });
 
+            // === DYNAMIC ROW RENDERER (matches TemplateRenderer logic) ===
+            const renderDocxRow = (row: any, fieldData: Record<string, string | undefined>, isFirstRow: boolean = false): any => {
+                // Filter visible fields (hide empty if template says so)
+                const visibleFields = row.fields.filter((field: any) => {
+                    const value = fieldData[field.name];
+                    return t.header.hideEmptyFields ? !!value?.trim() : true;
+                });
+
+                if (visibleFields.length === 0) return null;
+
+                // Build TextRuns for each field with separators
+                const textRuns: any[] = [];
+                visibleFields.forEach((field: any, i: number) => {
+                    const value = fieldData[field.name] || '';
+                    if (!value) return;
+
+                    const isLast = i === visibleFields.length - 1;
+                    const separator = isLast ? '' : (field.separator || '');
+
+                    // Field text
+                    textRuns.push(new TextRun({
+                        text: value,
+                        bold: field.style === 'bold',
+                        italics: field.style === 'italic',
+                        size: field.fontSize === 'small' ? px(t.typography.sizes.body - 1) : px(isFirstRow ? t.typography.sizes.itemTitle : t.typography.sizes.body),
+                        color: bodyColorDocx,
+                        font: t.typography.fontFamily,
+                    }));
+
+                    // Separator
+                    if (separator) {
+                        textRuns.push(new TextRun({
+                            text: separator,
+                            size: px(t.typography.sizes.body),
+                            color: bodyColorDocx,
+                            font: t.typography.fontFamily,
+                        }));
+                    }
+                });
+
+                // Handle alignment: space-between uses tab stops, others use alignment
+                if (row.align === 'space-between' && visibleFields.length >= 2) {
+                    // For space-between: first field left, last field right-aligned via tab
+                    const leftFields = visibleFields.slice(0, -1);
+                    const rightField = visibleFields[visibleFields.length - 1];
+
+                    const leftRuns: any[] = [];
+                    leftFields.forEach((field: any, i: number) => {
+                        const value = fieldData[field.name] || '';
+                        if (!value) return;
+                        const isLast = i === leftFields.length - 1;
+                        const separator = isLast ? '' : (field.separator || '');
+
+                        leftRuns.push(new TextRun({
+                            text: value,
+                            bold: field.style === 'bold',
+                            italics: field.style === 'italic',
+                            size: px(isFirstRow ? t.typography.sizes.itemTitle : t.typography.sizes.body),
+                            color: bodyColorDocx,
+                            font: t.typography.fontFamily,
+                        }));
+
+                        if (separator) {
+                            leftRuns.push(new TextRun({
+                                text: separator,
+                                size: px(t.typography.sizes.body),
+                                color: bodyColorDocx,
+                                font: t.typography.fontFamily,
+                            }));
+                        }
+                    });
+
+                    // Tab + Right field
+                    leftRuns.push(new TextRun({ text: '\t' }));
+                    leftRuns.push(new TextRun({
+                        text: fieldData[rightField.name] || '',
+                        bold: rightField.style === 'bold',
+                        italics: rightField.style === 'italic',
+                        size: px(t.typography.sizes.body),
+                        color: bodyColorDocx,
+                        font: t.typography.fontFamily,
+                    }));
+
+                    return new Paragraph({
+                        children: leftRuns,
+                        tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
+                        spacing: { after: 40 },
+                    });
+                }
+
+                // Standard alignment
+                const alignmentMap: Record<string, any> = {
+                    'left': AlignmentType.LEFT,
+                    'center': AlignmentType.CENTER,
+                    'right': AlignmentType.RIGHT,
+                };
+
+                return new Paragraph({
+                    children: textRuns,
+                    alignment: alignmentMap[row.align] || AlignmentType.LEFT,
+                    spacing: { after: 40 },
+                });
+            };
+
             const sectionChildren: any[] = [];
 
             // Name
@@ -1219,27 +1323,25 @@ export default function EditorPage() {
 
                 if (section.type === 'experience' && resumeData.experience.length > 0) {
                     sectionChildren.push(heading(section.name));
-                    resumeData.experience.forEach((exp: any) => {
-                        // Title + Date (right-aligned via tab stop)
-                        sectionChildren.push(new Paragraph({
-                            children: [
-                                new TextRun({ text: exp.title || '', bold: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
-                                new TextRun({ text: '\t' }),
-                                new TextRun({ text: `${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`, color: bodyColorDocx, size: px(t.typography.sizes.body), font: t.typography.fontFamily }),
-                            ],
-                            tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
-                            spacing: { after: 40 },
-                        }));
-                        // Company + Location (right-aligned via tab stop)
-                        sectionChildren.push(new Paragraph({
-                            children: [
-                                new TextRun({ text: exp.company || '', italics: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
-                                new TextRun({ text: '\t' }),
-                                new TextRun({ text: exp.location || '', italics: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
-                            ],
-                            tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
-                            spacing: { after: 60 },
-                        }));
+                    resumeData.experience.forEach((exp: any, expIndex: number) => {
+                        // Build field data for row rendering
+                        const dates = `${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`;
+                        const expData: Record<string, string | undefined> = {
+                            title: exp.title,
+                            company: exp.company,
+                            location: exp.location,
+                            dates: dates,
+                        };
+
+                        // Render each template row dynamically
+                        t.experience.rows.forEach((row: any, rowIndex: number) => {
+                            const rowParagraph = renderDocxRow(row, expData, rowIndex === 0);
+                            if (rowParagraph) {
+                                sectionChildren.push(rowParagraph);
+                            }
+                        });
+
+                        // Render bullets
                         exp.bullets.filter((b: string) => b.trim()).forEach((b: string) => {
                             sectionChildren.push(new Paragraph({
                                 children: [
@@ -1250,34 +1352,34 @@ export default function EditorPage() {
                                 alignment: t.typography.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
                             }));
                         });
-                        sectionChildren.push(new Paragraph({ spacing: { after: 120 }, children: [] }));
+                        sectionChildren.push(new Paragraph({ spacing: { after: t.experience.spacing.afterItem || 120 }, children: [] }));
                     });
                 }
 
                 if (section.type === 'education' && resumeData.education.length > 0) {
                     sectionChildren.push(heading(section.name));
 
-                    resumeData.education.forEach((edu: any) => {
-                        // Degree + Date (right-aligned via tab stop)
-                        sectionChildren.push(new Paragraph({
-                            children: [
-                                new TextRun({ text: `${edu.degree} ${edu.field}`.trim(), bold: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
-                                new TextRun({ text: '\t' }),
-                                new TextRun({ text: edu.graduationDate ? formatMonthYear(edu.graduationDate) : '', color: bodyColorDocx, size: px(t.typography.sizes.body), font: t.typography.fontFamily }),
-                            ],
-                            tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
-                            spacing: { after: 40 },
-                        }));
-                        // School + Location (right-aligned via tab stop)
-                        sectionChildren.push(new Paragraph({
-                            children: [
-                                new TextRun({ text: edu.school || '', italics: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
-                                new TextRun({ text: '\t' }),
-                                new TextRun({ text: edu.location || '', italics: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
-                            ],
-                            tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
-                            spacing: { after: 120 },
-                        }));
+                    resumeData.education.forEach((edu: any, eduIndex: number) => {
+                        // Build field data for row rendering
+                        const eduData: Record<string, string | undefined> = {
+                            degree: edu.degree,
+                            field: edu.field,
+                            school: edu.school,
+                            location: edu.location,
+                            dates: edu.graduationDate ? formatMonthYear(edu.graduationDate) : '',
+                            gpa: t.education.showGPA && edu.gpa ? `GPA: ${edu.gpa}` : undefined,
+                        };
+
+                        // Render each template row dynamically
+                        t.education.rows.forEach((row: any, rowIndex: number) => {
+                            const rowParagraph = renderDocxRow(row, eduData, rowIndex === 0);
+                            if (rowParagraph) {
+                                sectionChildren.push(rowParagraph);
+                            }
+                        });
+
+                        // Spacing after item
+                        sectionChildren.push(new Paragraph({ spacing: { after: t.education.spacing.afterItem || 120 }, children: [] }));
                     });
                 }
 
