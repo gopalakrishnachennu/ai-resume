@@ -35,6 +35,9 @@ export interface TemplateSchema {
     atsCompatible: boolean;
     atsWarning?: string;
 
+    // === BUILTIN FLAG ===
+    isBuiltIn?: boolean;  // True for Classic/Modern presets
+
     // === PAGE LAYOUT ===
     page: {
         margins: { top: number; right: number; bottom: number; left: number };
@@ -293,6 +296,91 @@ export const DEFAULT_MODERN_TEMPLATE: TemplateSchema = {
 
     sectionHeaders: {
         style: 'uppercase',
+        divider: true,
+        dividerStyle: 'line',
+    },
+};
+
+// ============================================================
+// BUILTIN TEMPLATES FOR EDITOR (Classic & Modern preset styles)
+// These match the hardcoded Classic/Modern styles in the editor
+// ============================================================
+
+// CLASSIC: All black, centered header, traditional layout
+export const BUILTIN_CLASSIC_TEMPLATE: TemplateSchema = {
+    ...DEFAULT_ATS_TEMPLATE,
+    id: 'builtin-classic',
+    name: 'Classic',
+    description: 'Traditional centered layout with all black text',
+    isBuiltIn: true,
+
+    typography: {
+        fontFamily: 'Arial',
+        sizes: { name: 24, sectionHeader: 14, itemTitle: 11, body: 11 },
+        // ALL BLACK - no accent colors
+        colors: { name: '#000000', headers: '#000000', body: '#000000', accent: '#000000', links: '#000000' },
+    },
+
+    header: {
+        nameAlign: 'center',
+        nameStyle: 'bold',
+        contactRows: [
+            {
+                align: 'center',
+                fields: [
+                    { name: 'email', style: 'normal', separator: ' | ' },
+                    { name: 'phone', style: 'normal', separator: ' | ' },
+                    { name: 'location', style: 'normal', separator: ' | ' },
+                    { name: 'linkedin', style: 'normal', separator: '' },
+                ],
+            },
+        ],
+        showIcons: false,
+        hideEmptyFields: true,
+    },
+
+    sectionHeaders: {
+        style: 'bold-uppercase',
+        divider: true,
+        dividerStyle: 'line',
+    },
+};
+
+// MODERN: Accent colors, left-aligned header, contemporary look
+export const BUILTIN_MODERN_TEMPLATE: TemplateSchema = {
+    ...DEFAULT_ATS_TEMPLATE,
+    id: 'builtin-modern',
+    name: 'Modern',
+    description: 'Contemporary design with accent colors',
+    isBuiltIn: true,
+
+    typography: {
+        fontFamily: 'Inter',
+        sizes: { name: 24, sectionHeader: 14, itemTitle: 11, body: 11 },
+        // Accent color for headers/links
+        colors: { name: '#2563eb', headers: '#2563eb', body: '#000000', accent: '#2563eb', links: '#2563eb' },
+    },
+
+    header: {
+        nameAlign: 'left',
+        nameStyle: 'bold',
+        contactRows: [
+            {
+                align: 'left',
+                fields: [
+                    { name: 'email', style: 'normal', separator: ' | ' },
+                    { name: 'phone', style: 'normal', separator: ' | ' },
+                    { name: 'location', style: 'normal', separator: ' | ' },
+                    { name: 'linkedin', style: 'normal', separator: '' },
+                ],
+            },
+        ],
+        showIcons: false,
+        hideEmptyFields: true,
+    },
+
+    sectionHeaders: {
+        style: 'bold-uppercase',
         divider: true,
         dividerStyle: 'line',
     },

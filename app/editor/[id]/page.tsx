@@ -14,7 +14,7 @@ import { parseFormattedText } from '@/lib/utils/textFormatter';
 import { handleFormattedPaste } from '@/lib/utils/pasteHandler';
 import RichTextEditor from '@/components/RichTextEditor';
 import { TemplateService } from '@/lib/services/templateService';
-import { TemplateSchema } from '@/lib/types/templateSchema';
+import { TemplateSchema, BUILTIN_CLASSIC_TEMPLATE, BUILTIN_MODERN_TEMPLATE } from '@/lib/types/templateSchema';
 import { TemplateRenderer } from '@/components/TemplateRenderer';
 import { convertTemplateToPdfMake } from '@/lib/utils/templateToPdfMake';
 
@@ -94,20 +94,36 @@ export default function EditorPage() {
     // Settings state
     const [settings, setSettings] = useState<ResumeSettings>(DEFAULT_ATS_SETTINGS);
     const [showSettings, setShowSettings] = useState(false);
-    const [activeTemplate, setActiveTemplate] = useState<TemplateSchema | null>(null);
+    // UNIFIED TEMPLATE SYSTEM: Always have an active template (Classic, Modern, or Custom)
+    const [activeTemplate, setActiveTemplate] = useState<TemplateSchema>(BUILTIN_CLASSIC_TEMPLATE);
 
     // Load active template when selection changes
+    // UNIFIED PIPELINE: Always use a template (builtin Classic/Modern or Custom)
     useEffect(() => {
         const loadTemplate = async () => {
-            if (settings.selectedTemplateId && settings.selectedTemplateId !== 'classic' && settings.selectedTemplateId !== 'modern') {
-                const template = await TemplateService.getTemplateById(settings.selectedTemplateId);
-                setActiveTemplate(template);
+            // If custom template is selected, load it from Firestore
+            if (settings.selectedTemplateId) {
+                try {
+                    const template = await TemplateService.getTemplateById(settings.selectedTemplateId);
+                    if (template) {
+                        setActiveTemplate(template);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Failed to load custom template:', e);
+                }
+            }
+
+            // Use builtin templates based on settings.template
+            if (settings.template === 'modern') {
+                setActiveTemplate(BUILTIN_MODERN_TEMPLATE);
             } else {
-                setActiveTemplate(null);
+                // Default to Classic
+                setActiveTemplate(BUILTIN_CLASSIC_TEMPLATE);
             }
         };
         loadTemplate();
-    }, [settings.selectedTemplateId]);
+    }, [settings.selectedTemplateId, settings.template]);
 
     const [paginatedPages, setPaginatedPages] = useState<ReactNode[][]>([]);
 
