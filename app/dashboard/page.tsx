@@ -289,110 +289,109 @@ export default function DashboardPage() {
     const loadData = async () => {
         if (!user) return;
 
-        // First, migrate existing data
-        try {
-            const result = await ApplicationService.migrateUserData(user.uid);
-            if (result.migrated > 0) {
-                console.log(`Migrated ${result.migrated} items to applications`);
+        // Check if migration already done (skip on subsequent loads)
+        const migrationKey = `migration_done_${user.uid}`;
+        const alreadyMigrated = localStorage.getItem(migrationKey);
+
+        if (!alreadyMigrated) {
+            try {
+                const result = await ApplicationService.migrateUserData(user.uid);
+                if (result.migrated > 0) {
+                    console.log(`Migrated ${result.migrated} items to applications`);
+                }
+                localStorage.setItem(migrationKey, 'true');
+            } catch (error) {
+                console.error('Migration error:', error);
             }
-        } catch (error) {
-            console.error('Migration error:', error);
         }
 
         await loadApplications();
-
-        // AUTO SYNC PROFILE TO EXTENSION (Corporate style)
-        // This replaces any sample data with the real user's profile
-        try {
-            const { isAutoProfileSyncEnabled } = await import('@/lib/services/extensionSettingsService');
-            const { syncProfileToExtension, isExtensionAvailable } = await import('@/lib/extensionBridge');
-
-            if (await isAutoProfileSyncEnabled() && await isExtensionAvailable()) {
-                // Fetch user profile from Firebase
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-
-                    // Build profile object for extension
-                    const profileForExtension = {
-                        version: '2.0',
-                        lastUpdated: new Date().toISOString(),
-                        personalInfo: {
-                            firstName: userData.displayName?.split(' ')[0] || '',
-                            lastName: userData.displayName?.split(' ').slice(1).join(' ') || '',
-                            email: user.email || '',
-                            phone: userData.profile?.phone || '',
-                            location: {
-                                city: userData.profile?.location?.city || '',
-                                state: userData.profile?.location?.state || '',
-                                country: userData.profile?.location?.country || 'USA',
-                            },
-                            linkedin: userData.profile?.linkedin || '',
-                            github: userData.profile?.github || '',
-                            portfolio: userData.profile?.portfolio || '',
-                        },
-                        professionalSummary: {
-                            default: userData.baseSummary || '',
-                        },
-                        experience: (userData.baseExperience || []).map((exp: any) => ({
-                            company: exp.company || '',
-                            position: exp.title || '',
-                            startDate: exp.startDate || '',
-                            endDate: exp.endDate || '',
-                            current: exp.current || false,
-                            responsibilities: exp.achievements || [],
-                        })),
-                        education: (userData.baseEducation || []).map((edu: any) => ({
-                            institution: edu.school || '',
-                            degree: edu.degree || '',
-                            field: edu.field || '',
-                            graduationDate: edu.graduationYear || '',
-                            gpa: edu.gpa || '',
-                        })),
-                        skills: {
-                            technical: {
-                                programming: userData.skills?.programmingLanguages || [],
-                                frameworks: userData.skills?.frameworks || [],
-                                tools: userData.skills?.tools || [],
-                            },
-                            soft: userData.skills?.softSkills || [],
-                        },
-                    };
-
-                    const syncResult = await syncProfileToExtension(profileForExtension);
-                    console.log('[Dashboard] Profile sync to extension:', syncResult);
-                }
-            }
-        } catch (error) {
-            console.log('[Dashboard] Profile sync skipped:', error);
-        }
-
         setLoading(false);
+
+        // AUTO SYNC PROFILE TO EXTENSION (run in background - don't block UI)
+        (async () => {
+            try {
+                const { isAutoProfileSyncEnabled } = await import('@/lib/services/extensionSettingsService');
+                const { syncProfileToExtension, isExtensionAvailable } = await import('@/lib/extensionBridge');
+
+                if (await isAutoProfileSyncEnabled() && await isExtensionAvailable()) {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        const profileForExtension = {
+                            version: '2.0',
+                            lastUpdated: new Date().toISOString(),
+                            personalInfo: {
+                                firstName: userData.displayName?.split(' ')[0] || '',
+                                lastName: userData.displayName?.split(' ').slice(1).join(' ') || '',
+                                email: user.email || '',
+                                phone: userData.profile?.phone || '',
+                                location: {
+                                    city: userData.profile?.location?.city || '',
+                                    state: userData.profile?.location?.state || '',
+                                    country: userData.profile?.location?.country || 'USA',
+                                },
+                                linkedin: userData.profile?.linkedin || '',
+                                github: userData.profile?.github || '',
+                                portfolio: userData.profile?.portfolio || '',
+                            },
+                            professionalSummary: {
+                                default: userData.baseSummary || '',
+                            },
+                            experience: (userData.baseExperience || []).map((exp: any) => ({
+                                company: exp.company || '',
+                                position: exp.title || '',
+                                startDate: exp.startDate || '',
+                                endDate: exp.endDate || '',
+                                current: exp.current || false,
+                                responsibilities: exp.achievements || [],
+                            })),
+                            education: (userData.baseEducation || []).map((edu: any) => ({
+                                institution: edu.school || '',
+                                degree: edu.degree || '',
+                                field: edu.field || '',
+                                graduationDate: edu.graduationYear || '',
+                                gpa: edu.gpa || '',
+                            })),
+                            skills: {
+                                technical: {
+                                    programming: userData.skills?.programmingLanguages || [],
+                                    frameworks: userData.skills?.frameworks || [],
+                                    tools: userData.skills?.tools || [],
+                                },
+                                soft: userData.skills?.softSkills || [],
+                            },
+                        };
+                        await syncProfileToExtension(profileForExtension);
+                        console.log('[Dashboard] Profile synced to extension (background)');
+                    }
+                }
+            } catch (error) {
+                console.log('[Dashboard] Profile sync skipped:', error);
+            }
+        })();
     };
 
     const loadApplications = async () => {
         if (!user) return;
 
         try {
-            // Try to get applications from new collection
-            let apps = await ApplicationService.getApplications(user.uid, {
-                status: statusFilter,
-                searchField,
-                searchQuery,
-                sortBy,
-            });
+            // Run all queries in PARALLEL for faster loading
+            const [appsData, resumesSnapshot, jobsSnapshot] = await Promise.all([
+                ApplicationService.getApplications(user.uid, {
+                    status: statusFilter,
+                    searchField,
+                    searchQuery,
+                    sortBy,
+                }),
+                getDocs(query(collection(db, 'resumes'), where('userId', '==', user.uid))),
+                getDocs(query(collection(db, 'jobs'), where('userId', '==', user.uid))),
+            ]);
 
-            // ====== ALWAYS LOAD LEGACY RESUMES (Flow 1) ======
-            // Load from resumes collection and merge with applications
-            console.log('[Dashboard] Loading resumes from both collections...');
+            let apps = appsData; // Mutable copy for filtering/merging
+            console.log(`[Dashboard] Parallel load: ${apps.length} apps, ${resumesSnapshot.docs.length} resumes, ${jobsSnapshot.docs.length} jobs`);
 
-            const resumesQuery = query(
-                collection(db, 'resumes'),
-                where('userId', '==', user.uid)
-            );
-            const resumesSnapshot = await getDocs(resumesQuery);
-            console.log('[Dashboard] Resumes query result:', resumesSnapshot.docs.length, 'docs for user:', user.uid);
-
+            // Map legacy resumes
             const legacyApps: Application[] = resumesSnapshot.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -403,7 +402,6 @@ export default function DashboardPage() {
                     jobDescription: data.jobDescription || '',
                     hasResume: true,
                     resumeId: doc.id,
-                    // Include resume data for Flash/session creation
                     resume: {
                         personalInfo: data.personalInfo || {},
                         professionalSummary: data.professionalSummary || data.summary || '',
@@ -420,13 +418,7 @@ export default function DashboardPage() {
                 };
             });
 
-            // Also load jobs as draft applications
-            const jobsQuery = query(
-                collection(db, 'jobs'),
-                where('userId', '==', user.uid)
-            );
-            const jobsSnapshot = await getDocs(jobsQuery);
-
+            // Map jobs as draft applications
             const jobApps: Application[] = jobsSnapshot.docs
                 .filter(doc => !legacyApps.some(app => app.jobTitle === doc.data().parsedData?.title))
                 .map(doc => {
