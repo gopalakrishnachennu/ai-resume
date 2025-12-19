@@ -37,7 +37,9 @@ interface ResumeData {
         school: string;
         degree: string;
         field?: string;
+        location?: string;
         graduationYear?: string;
+        graduationDate?: string;
         gpa?: string;
     }>;
     skills: {
@@ -390,7 +392,8 @@ export function TemplateRenderer({
                 degree: edu.degree,
                 field: edu.field,
                 school: edu.school,
-                dates: edu.graduationYear,
+                location: edu.location,
+                dates: edu.graduationDate || edu.graduationYear,
                 gpa: t.education.showGPA && edu.gpa ? `GPA: ${edu.gpa}` : undefined,
             };
 

@@ -236,8 +236,11 @@ export const DEFAULT_ATS_TEMPLATE: TemplateSchema = {
                 ],
             },
             {
-                align: 'left',
-                fields: [{ name: 'school', style: 'italic', separator: '' }],
+                align: 'space-between',
+                fields: [
+                    { name: 'school', style: 'italic', separator: '' },
+                    { name: 'location', style: 'normal', separator: '' },
+                ],
             },
         ],
         showGPA: true,
