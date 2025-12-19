@@ -44,7 +44,7 @@ export interface Application {
 
     // Status & Metadata
     status: ApplicationStatus;
-    atsScore?: number;
+    atsScore?: number | { total: number;[key: string]: any };
     version: number;
 
     // Legacy fields for backwards compatibility
@@ -207,10 +207,14 @@ export class ApplicationService {
             switch (sortBy) {
                 case 'oldest':
                     return getMillis(a.createdAt) - getMillis(b.createdAt);
-                case 'ats-high':
-                    return (b.atsScore || 0) - (a.atsScore || 0);
-                case 'ats-low':
-                    return (a.atsScore || 0) - (b.atsScore || 0);
+                case 'ats-high': {
+                    const getScore = (val: any) => typeof val === 'object' ? (val?.total || 0) : (val || 0);
+                    return getScore(b.atsScore) - getScore(a.atsScore);
+                }
+                case 'ats-low': {
+                    const getScore = (val: any) => typeof val === 'object' ? (val?.total || 0) : (val || 0);
+                    return getScore(a.atsScore) - getScore(b.atsScore);
+                }
                 case 'newest':
                 default:
                     return getMillis(b.createdAt) - getMillis(a.createdAt);

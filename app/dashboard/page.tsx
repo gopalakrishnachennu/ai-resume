@@ -391,6 +391,13 @@ export default function DashboardPage() {
             let apps = appsData; // Mutable copy for filtering/merging
             console.log(`[Dashboard] Parallel load: ${apps.length} apps, ${resumesSnapshot.docs.length} resumes, ${jobsSnapshot.docs.length} jobs`);
 
+            // Dictionary helper to extract ATS score safely (handles number or object)
+            const getAtsScore = (score: any): number => {
+                if (typeof score === 'number') return score;
+                if (typeof score === 'object' && score && typeof score.total === 'number') return score.total;
+                return 0;
+            };
+
             // Map legacy resumes
             const legacyApps: Application[] = resumesSnapshot.docs.map(doc => {
                 const data = doc.data();
@@ -410,7 +417,7 @@ export default function DashboardPage() {
                         education: data.education || [],
                     },
                     status: 'generated' as ApplicationStatus,
-                    atsScore: data.atsScore?.total,
+                    atsScore: getAtsScore(data.atsScore),
                     version: 1,
                     createdAt: data.createdAt,
                     generatedAt: data.createdAt,
@@ -513,9 +520,9 @@ export default function DashboardPage() {
                     case 'oldest':
                         return getMillis(a.createdAt) - getMillis(b.createdAt);
                     case 'ats-high':
-                        return (b.atsScore || 0) - (a.atsScore || 0);
+                        return getAtsScore(b.atsScore) - getAtsScore(a.atsScore);
                     case 'ats-low':
-                        return (a.atsScore || 0) - (b.atsScore || 0);
+                        return getAtsScore(a.atsScore) - getAtsScore(b.atsScore);
                     case 'newest':
                     default:
                         return getMillis(b.createdAt) - getMillis(a.createdAt);
@@ -528,9 +535,9 @@ export default function DashboardPage() {
 
             // Calculate stats
             const total = apps.length;
-            const withScore = apps.filter(a => a.atsScore);
+            const withScore = apps.filter(a => getAtsScore(a.atsScore) > 0);
             const avgAts = withScore.length > 0
-                ? Math.round(withScore.reduce((sum, a) => sum + (a.atsScore || 0), 0) / withScore.length)
+                ? Math.round(withScore.reduce((sum, a) => sum + getAtsScore(a.atsScore), 0) / withScore.length)
                 : 0;
 
             const oneWeekAgo = new Date();
@@ -1482,7 +1489,12 @@ export default function DashboardPage() {
                                                     </button>
                                                 </div>
                                             </div>
-                                            {app.atsScore && <ATSScoreRing score={app.atsScore} size={44} />}
+                                            {(typeof app.atsScore === 'number' || (typeof app.atsScore === 'object' && app.atsScore?.total)) && (
+                                                <ATSScoreRing
+                                                    score={typeof app.atsScore === 'object' ? app.atsScore.total : app.atsScore}
+                                                    size={44}
+                                                />
+                                            )}
                                         </div>
 
                                         {/* Status Badge (clickable) */}
