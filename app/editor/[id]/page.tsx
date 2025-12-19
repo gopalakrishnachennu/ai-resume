@@ -605,6 +605,25 @@ export default function EditorPage() {
             }
 
             // If editing existing resume, load it
+            // --- FETCH USER PROFILE (Unified Name Fallback) ---
+            let profileName = user?.displayName || '';
+            let profileData: any = {};
+
+            if (user?.uid) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        profileData = userData; // Store for new resume creation
+                        if (userData.profile && userData.profile.firstName) {
+                            profileName = `${userData.profile.firstName} ${userData.profile.lastName || ''}`.trim();
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching profile for name:', err);
+                }
+            }
+
             if (params.id !== 'new') {
                 // ====== IMPORTED RESUME (Quick Format Flow) ======
                 // Check if this is an imported resume from applications collection
@@ -624,7 +643,7 @@ export default function EditorPage() {
                             const resume = appData.resume;
                             setResumeData({
                                 personalInfo: {
-                                    name: resume.personalInfo?.fullName || resume.personalInfo?.name || '',
+                                    name: resume.personalInfo?.fullName || resume.personalInfo?.name || profileName,
                                     email: resume.personalInfo?.email || '',
                                     phone: resume.personalInfo?.phone || '',
                                     location: resume.personalInfo?.location || '',
@@ -688,22 +707,7 @@ export default function EditorPage() {
                     setJobTitle(resumeData.jobTitle || '');
                     setJobCompany(resumeData.jobCompany || '');
 
-                    // Fetch user profile for name fallback
-                    let profileName = user?.displayName || '';
-                    if (user?.uid) {
-                        try {
-                            const userDoc = await getDoc(doc(db, 'users', user.uid));
-                            if (userDoc.exists()) {
-                                const userData = userDoc.data();
-                                const p = userData.profile;
-                                if (p && p.firstName) {
-                                    profileName = `${p.firstName} ${p.lastName || ''}`.trim();
-                                }
-                            }
-                        } catch (err) {
-                            console.error('Error fetching profile for name:', err);
-                        }
-                    }
+
 
                     // CASE 1: AI-Generated Resume (New Format)
                     if (resumeData.professionalSummary || resumeData.technicalSkills) {
@@ -783,25 +787,23 @@ export default function EditorPage() {
             }
 
             // Otherwise, load from user profile (new resume)
-            const userDoc = await getDoc(doc(db, 'users', user!.uid));
+            // Note: We already fetched profileData/profileName at the top
 
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
-
+            if (profileData) {
                 setResumeData({
                     personalInfo: {
-                        name: user?.displayName || (userData.profile?.firstName ? `${userData.profile.firstName} ${userData.profile.lastName || ''}`.trim() : '') || '',
+                        name: profileName,
                         email: user?.email || '',
-                        phone: userData.profile?.phone || '',
-                        location: userData.profile?.location || '',
-                        linkedin: userData.profile?.linkedin || '',
-                        github: userData.profile?.github || '',
+                        phone: profileData.profile?.phone || '',
+                        location: profileData.profile?.location || '',
+                        linkedin: profileData.profile?.linkedin || '',
+                        github: profileData.profile?.github || '',
                     },
-                    summary: `Experienced professional with expertise in ${userData.baseSkills?.technical?.slice(0, 3).join(', ') || 'various technologies'}`,
-                    experience: userData.baseExperience || [],
-                    education: userData.baseEducation || [],
+                    summary: `Experienced professional with expertise in ${profileData.baseSkills?.technical?.slice(0, 3).join(', ') || 'various technologies'}`,
+                    experience: profileData.baseExperience || [],
+                    education: profileData.baseEducation || [],
                     skills: {
-                        technical: userData.baseSkills?.technical || [],
+                        technical: profileData.baseSkills?.technical || [],
                     },
                 });
 
