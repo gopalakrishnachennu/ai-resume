@@ -1143,30 +1143,39 @@ export default function EditorPage() {
             // Calculate right tab position based on page width and margins
             const rightTabPos = Math.round((8.5 - settings.margins.left - settings.margins.right) * 1440);
 
-            // Template-aware settings (modern = left-aligned with accent colors)
-            const isModernDocx = settings.template === 'modern';
-            const headerAlignmentDocx = isModernDocx ? AlignmentType.LEFT : (settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT);
-            const accentColorDocx = (settings.fontColor.accent || '#1D4ED8').replace('#', '');
-            const nameColorDocx = isModernDocx ? accentColorDocx : settings.fontColor.name.replace('#', '');
-            const headingColorDocx = isModernDocx ? accentColorDocx : settings.fontColor.headers.replace('#', '');
-            const dividerColorDocx = isModernDocx ? accentColorDocx : settings.dividerColor.replace('#', '');
+            // === USE ACTIVE TEMPLATE FOR COLORS & STYLING ===
+            const t = activeTemplate;
+            const headerAlignmentDocx = t.header.nameAlign === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT;
+            const nameColorDocx = t.typography.colors.name.replace('#', '');
+            const headingColorDocx = t.typography.colors.headers.replace('#', '');
+            const bodyColorDocx = t.typography.colors.body.replace('#', '');
+            const accentColorDocx = t.typography.colors.accent.replace('#', '');
+            const isUppercase = t.sectionHeaders.style.includes('uppercase');
+            const isBoldHeaders = t.sectionHeaders.style.includes('bold');
+            const hasDivider = t.sectionHeaders.divider;
 
             const heading = (text: string) => new Paragraph({
-                children: [new TextRun({ text, bold: settings.headerStyle === 'bold', size: px(settings.fontSize.headers), color: headingColorDocx, font: settings.fontFamily })],
-                spacing: { before: 80, after: settings.sectionDivider ? 60 : 60 },
-                border: settings.sectionDivider ? {
+                children: [new TextRun({
+                    text: isUppercase ? text.toUpperCase() : text,
+                    bold: isBoldHeaders,
+                    size: px(t.typography.sizes.sectionHeader),
+                    color: headingColorDocx,
+                    font: t.typography.fontFamily
+                })],
+                spacing: { before: 80, after: hasDivider ? 60 : 60 },
+                border: hasDivider ? {
                     bottom: {
-                        color: dividerColorDocx,
+                        color: accentColorDocx,
                         space: 1,
                         style: BorderStyle.SINGLE,
-                        size: settings.dividerWeight * 8,
+                        size: 8,
                     },
                 } : undefined,
             });
 
             const bodyParagraph = (text: string, opts: any = {}) => new Paragraph({
-                children: formatDocxRuns(text, docxModule, { font: settings.fontFamily, size: px(settings.fontSize.body), color: settings.fontColor.body }),
-                alignment: settings.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
+                children: formatDocxRuns(text, docxModule, { font: t.typography.fontFamily, size: px(t.typography.sizes.body), color: bodyColorDocx }),
+                alignment: t.typography.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
                 spacing: { after: opts.after ?? 60 },
             });
 
@@ -1175,7 +1184,7 @@ export default function EditorPage() {
             // Name
             sectionChildren.push(new Paragraph({
                 children: [
-                    new TextRun({ text: resumeData.personalInfo.name || 'Your Name', bold: true, size: px(settings.fontSize.name), color: nameColorDocx, font: settings.fontFamily }),
+                    new TextRun({ text: resumeData.personalInfo.name || 'Your Name', bold: true, size: px(t.typography.sizes.name), color: nameColorDocx, font: t.typography.fontFamily }),
                 ],
                 heading: HeadingLevel.TITLE,
                 alignment: headerAlignmentDocx,
@@ -1192,7 +1201,7 @@ export default function EditorPage() {
             ].filter(Boolean);
             if (contactParts.length) {
                 sectionChildren.push(new Paragraph({
-                    children: [new TextRun({ text: contactParts.join(` ${settings.contactSeparator} `), size: px(settings.fontSize.contact), color: settings.fontColor.contact, font: settings.fontFamily })],
+                    children: [new TextRun({ text: contactParts.join(` ${settings.contactSeparator} `), size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily })],
                     alignment: headerAlignmentDocx,
                     spacing: { after: 200 },
                 }));
@@ -1214,9 +1223,9 @@ export default function EditorPage() {
                         // Title + Date (right-aligned via tab stop)
                         sectionChildren.push(new Paragraph({
                             children: [
-                                new TextRun({ text: exp.title || '', bold: true, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
+                                new TextRun({ text: exp.title || '', bold: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                 new TextRun({ text: '\t' }),
-                                new TextRun({ text: `${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`, color: settings.fontColor.contact, size: px(settings.fontSize.body), font: settings.fontFamily }),
+                                new TextRun({ text: `${formatMonthYear(exp.startDate)} - ${exp.current ? 'Present' : formatMonthYear(exp.endDate)}`, color: bodyColorDocx, size: px(t.typography.sizes.body), font: t.typography.fontFamily }),
                             ],
                             tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
                             spacing: { after: 40 },
@@ -1224,9 +1233,9 @@ export default function EditorPage() {
                         // Company + Location (right-aligned via tab stop)
                         sectionChildren.push(new Paragraph({
                             children: [
-                                new TextRun({ text: exp.company || '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
+                                new TextRun({ text: exp.company || '', italics: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                 new TextRun({ text: '\t' }),
-                                new TextRun({ text: exp.location || '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
+                                new TextRun({ text: exp.location || '', italics: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                             ],
                             tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
                             spacing: { after: 60 },
@@ -1234,10 +1243,11 @@ export default function EditorPage() {
                         exp.bullets.filter((b: string) => b.trim()).forEach((b: string) => {
                             sectionChildren.push(new Paragraph({
                                 children: [
-                                    new TextRun({ text: `${settings.bulletStyle} `, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
-                                    ...formatDocxRuns(b, docxModule, { font: settings.fontFamily, size: px(settings.fontSize.body), color: settings.fontColor.body }),
+                                    new TextRun({ text: `${t.experience.bulletStyle} `, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
+                                    ...formatDocxRuns(b, docxModule, { font: t.typography.fontFamily, size: px(t.typography.sizes.body), color: bodyColorDocx }),
                                 ],
                                 spacing: { after: 40 },
+                                alignment: t.typography.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
                             }));
                         });
                         sectionChildren.push(new Paragraph({ spacing: { after: 120 }, children: [] }));
@@ -1251,9 +1261,9 @@ export default function EditorPage() {
                         // Degree + Date (right-aligned via tab stop)
                         sectionChildren.push(new Paragraph({
                             children: [
-                                new TextRun({ text: `${edu.degree} ${edu.field}`.trim(), bold: true, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
+                                new TextRun({ text: `${edu.degree} ${edu.field}`.trim(), bold: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                 new TextRun({ text: '\t' }),
-                                new TextRun({ text: edu.graduationDate ? formatMonthYear(edu.graduationDate) : '', color: settings.fontColor.contact, size: px(settings.fontSize.body), font: settings.fontFamily }),
+                                new TextRun({ text: edu.graduationDate ? formatMonthYear(edu.graduationDate) : '', color: bodyColorDocx, size: px(t.typography.sizes.body), font: t.typography.fontFamily }),
                             ],
                             tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
                             spacing: { after: 40 },
@@ -1261,9 +1271,9 @@ export default function EditorPage() {
                         // School + Location (right-aligned via tab stop)
                         sectionChildren.push(new Paragraph({
                             children: [
-                                new TextRun({ text: edu.school || '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
+                                new TextRun({ text: edu.school || '', italics: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                 new TextRun({ text: '\t' }),
-                                new TextRun({ text: edu.location || '', italics: true, size: px(settings.fontSize.body), color: settings.fontColor.contact, font: settings.fontFamily }),
+                                new TextRun({ text: edu.location || '', italics: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                             ],
                             tabStops: [{ type: TabStopType.RIGHT, position: rightTabPos }],
                             spacing: { after: 120 },
@@ -1290,19 +1300,19 @@ export default function EditorPage() {
 
                                 sectionChildren.push(new Paragraph({
                                     children: [
-                                        new TextRun({ text: `${settings.bulletStyle} `, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
-                                        new TextRun({ text: `${formattedCategory}:`, bold: true, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
-                                        new TextRun({ text: ` ${skillText}`, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
+                                        new TextRun({ text: `${t.experience.bulletStyle} `, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
+                                        new TextRun({ text: `${formattedCategory}:`, bold: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
+                                        new TextRun({ text: ` ${skillText}`, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                     ],
                                     spacing: { after: 40 },
-                                    alignment: settings.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
+                                    alignment: t.typography.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
                                 }));
                             });
                         }
                         // Fallback: Array Skills
                         else if (hasArraySkills) {
                             resumeData.skills.technical.forEach((skillLine: string, idx: number) => {
-                                sectionChildren.push(bodyParagraph(`${settings.bulletStyle} ${skillLine}`, { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 }));
+                                sectionChildren.push(bodyParagraph(`${t.experience.bulletStyle} ${skillLine}`, { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 }));
                             });
                         }
                     }
@@ -1315,7 +1325,7 @@ export default function EditorPage() {
                         customData.items.forEach((item: any, idx: number) => {
                             if (item.title) {
                                 sectionChildren.push(new Paragraph({
-                                    children: [new TextRun({ text: item.title, bold: true, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily })],
+                                    children: [new TextRun({ text: item.title, bold: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily })],
                                     spacing: { after: 40 },
                                 }));
                             }
