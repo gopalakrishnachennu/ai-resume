@@ -388,12 +388,16 @@ export function TemplateRenderer({
         );
 
         data.education.forEach((edu, eduIndex) => {
+            // Format graduation date using template's date format setting
+            const rawDate = edu.graduationDate || edu.graduationYear;
+            const formattedDate = rawDate ? formatDate(rawDate) : undefined;
+
             const eduData: Record<string, string | undefined> = {
                 degree: edu.degree,
                 field: edu.field,
                 school: edu.school,
                 location: edu.location,
-                dates: edu.graduationDate || edu.graduationYear,
+                dates: formattedDate,
                 gpa: t.education.showGPA && edu.gpa ? `GPA: ${edu.gpa}` : undefined,
             };
 
