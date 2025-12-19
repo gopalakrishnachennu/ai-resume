@@ -311,7 +311,8 @@ export function TemplateRenderer({
         );
 
         data.experience.forEach((exp, expIndex) => {
-            const dates = [formatDate(exp.startDate), formatDate(exp.endDate)]
+            const endDate = exp.current ? 'Present' : formatDate(exp.endDate);
+            const dates = [formatDate(exp.startDate), endDate]
                 .filter(Boolean)
                 .join(' - ');
 
