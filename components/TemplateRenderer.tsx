@@ -276,28 +276,27 @@ export function TemplateRenderer({
             return;
         }
 
-        // Fallback: Convert flat array to single "Technical Skills" category
-        // Still uses Key: Value format for consistency
+        // Fallback: Render each skill line as its own bullet
+        // Each line is already formatted as "**Category**: skills" from loadData
         if (hasArraySkills) {
-            const skillText = data.skills.technical.join(', ');
-            blocks.push(
-                <div
-                    key={`skill-cat-${blockIndex++}`}
-                    style={{
-                        display: 'flex',
-                        gap: '6px',
-                        fontSize: `${t.typography.sizes.body}pt`,
-                        color: t.typography.colors.body,
-                        marginBottom: '4px',
-                        lineHeight: 1.4,
-                    }}
-                >
-                    <span>{t.experience.bulletStyle}</span>
-                    <span>
-                        <strong>Technical Skills:</strong> {parseFormattedText(skillText)}
-                    </span>
-                </div>
-            );
+            data.skills.technical.forEach((skillLine: string, idx: number) => {
+                blocks.push(
+                    <div
+                        key={`skill-line-${blockIndex++}-${idx}`}
+                        style={{
+                            display: 'flex',
+                            gap: '6px',
+                            fontSize: `${t.typography.sizes.body}pt`,
+                            color: t.typography.colors.body,
+                            marginBottom: '4px',
+                            lineHeight: 1.4,
+                        }}
+                    >
+                        <span>{t.experience.bulletStyle}</span>
+                        <span>{parseFormattedText(skillLine)}</span>
+                    </div>
+                );
+            });
         }
     };
 
