@@ -176,7 +176,8 @@ export default function EditorPage() {
                 },
                 header: {
                     ...template.header,
-                    nameAlign: settings.alignment as any,
+                    // For custom templates, use the template's alignment. For builtin, allow settings override.
+                    nameAlign: settings.selectedTemplateId ? template.header.nameAlign : settings.alignment as any,
                 }
             });
         };
