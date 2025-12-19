@@ -230,13 +230,13 @@ export function convertTemplateToPdfMake(
                                 .replace(/([A-Z])/g, ' $1')
                                 .replace(/^./, str => str.toUpperCase())
                                 .trim();
-                            const skillText = Array.isArray(skills) ? skills.join(', ') : skills;
+                            const skillText = Array.isArray(skills) ? skills.join(', ') : String(skills);
 
                             content.push({
                                 text: [
                                     { text: `${t.experience.bulletStyle} `, color: t.typography.colors.body },
                                     { text: `${formattedCategory}: `, bold: true, color: t.typography.colors.body },
-                                    { text: formatPdfText(skillText) }
+                                    ...formatPdfText(skillText)
                                 ],
                                 fontSize: t.typography.sizes.body,
                                 color: t.typography.colors.body,
