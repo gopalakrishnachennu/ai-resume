@@ -208,7 +208,7 @@ export function convertTemplateToPdfMake(
                         text: formatPdfText(data.summary),
                         fontSize: t.typography.sizes.body,
                         color: t.typography.colors.body,
-                        alignment: t.summary.align,
+                        alignment: t.typography.bodyAlignment || t.summary.align || 'left',
                         margin: [0, 0, 0, 8],
                         lineHeight: t.page.lineSpacing
                     });
@@ -224,7 +224,8 @@ export function convertTemplateToPdfMake(
                             text: formatPdfText(skill),
                             fontSize: t.typography.sizes.body,
                             color: t.typography.colors.body,
-                            markerColor: t.typography.colors.body
+                            markerColor: t.typography.colors.body,
+                            alignment: t.typography.bodyAlignment || 'left'
                         }));
 
                         content.push({
@@ -238,6 +239,7 @@ export function convertTemplateToPdfMake(
                             text: data.skills.technical.join(t.skills.separator || ', '),
                             fontSize: t.typography.sizes.body,
                             color: t.typography.colors.body,
+                            alignment: t.typography.bodyAlignment || 'left',
                             margin: [0, 0, 0, 8],
                             lineHeight: t.page.lineSpacing
                         });
@@ -277,7 +279,8 @@ export function convertTemplateToPdfMake(
                                     ul: bullets.map((b: string) => ({
                                         text: formatPdfText(b),
                                         fontSize: t.typography.sizes.body,
-                                        color: t.typography.colors.body
+                                        color: t.typography.colors.body,
+                                        alignment: t.typography.bodyAlignment || 'left'
                                     })),
                                     margin: [t.experience.bulletIndent, 2, 0, 4], // indent
                                     liteHeight: t.page.lineSpacing
