@@ -152,7 +152,7 @@ export default function EditorPage() {
                 sectionHeaders: {
                     ...template.sectionHeaders,
                     divider: settings.sectionDivider,
-                    style: (settings.headerStyle === 'bold' && settings.headerCase === 'UPPERCASE') ? 'bold uppercase' :
+                    style: (settings.headerStyle === 'bold' && settings.headerCase === 'UPPERCASE') ? 'bold-uppercase' :
                         (settings.headerStyle === 'bold') ? 'bold' :
                             (settings.headerCase === 'UPPERCASE') ? 'uppercase' :
                                 template.sectionHeaders.style,
