@@ -322,8 +322,8 @@ export default function DashboardPage() {
                             version: '2.0',
                             lastUpdated: new Date().toISOString(),
                             personalInfo: {
-                                firstName: userData.displayName?.split(' ')[0] || '',
-                                lastName: userData.displayName?.split(' ').slice(1).join(' ') || '',
+                                firstName: userData.profile?.firstName || userData.displayName?.split(' ')[0] || '',
+                                lastName: userData.profile?.lastName || userData.displayName?.split(' ').slice(1).join(' ') || '',
                                 email: user.email || '',
                                 phone: userData.profile?.phone || '',
                                 location: {
