@@ -2,6 +2,7 @@
 export interface ResumeSettings {
     // Template Selection
     template: 'classic' | 'modern';
+    selectedTemplateId?: string; // For custom templates from Template Builder
 
     // Font Settings
     fontFamily: 'Calibri' | 'Arial' | 'Times New Roman' | 'Georgia' | 'Helvetica';

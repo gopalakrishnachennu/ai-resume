@@ -1,6 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { ResumeSettings } from '@/lib/types/resumeSettings';
+import { TemplateService } from '@/lib/services/templateService';
+import { TemplateSchema } from '@/lib/types/templateSchema';
 
 interface SettingsPanelProps {
     settings: ResumeSettings;
@@ -9,6 +12,28 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({ settings, onSettingsChange, onClose }: SettingsPanelProps) {
+    const [customTemplates, setCustomTemplates] = useState<TemplateSchema[]>([]);
+    const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+    // Load custom templates on mount
+    useEffect(() => {
+        const loadTemplates = async () => {
+            setLoadingTemplates(true);
+            try {
+                const templates = await TemplateService.getPublishedTemplates();
+                // Filter out the built-in ones (we show those separately)
+                setCustomTemplates(templates.filter(t =>
+                    t.id !== 'ats-default' && t.id !== 'modern-default'
+                ));
+            } catch (error) {
+                console.error('Failed to load templates:', error);
+            } finally {
+                setLoadingTemplates(false);
+            }
+        };
+        loadTemplates();
+    }, []);
+
     const updateSetting = (path: string, value: any) => {
         const keys = path.split('.');
         const newSettings = { ...settings };
@@ -23,6 +48,14 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
         }
 
         onSettingsChange(newSettings);
+    };
+
+    const selectCustomTemplate = (templateId: string) => {
+        // Set the custom template ID
+        onSettingsChange({
+            ...settings,
+            selectedTemplateId: templateId,
+        });
     };
 
     return (
@@ -91,6 +124,39 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                                         Used for section headings & name
                                     </span>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Custom Templates */}
+                        {customTemplates.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                <p className="text-sm font-medium text-gray-700 mb-3">Custom Templates</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {customTemplates.map(template => (
+                                        <button
+                                            key={template.id}
+                                            onClick={() => selectCustomTemplate(template.id)}
+                                            className={`p-3 rounded-lg border-2 transition-all text-left ${settings.selectedTemplateId === template.id
+                                                    ? 'border-indigo-600 bg-indigo-50 shadow-md'
+                                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                                                }`}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <p className="font-medium text-gray-900 text-sm">{template.name}</p>
+                                                {template.atsCompatible && (
+                                                    <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">ATS</span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-1 line-clamp-1">{template.description}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {loadingTemplates && (
+                            <div className="mt-4 text-center text-sm text-gray-500">
+                                Loading custom templates...
                             </div>
                         )}
                     </div>
