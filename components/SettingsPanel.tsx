@@ -112,26 +112,32 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-                {/* Header */}
-                <div className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-lg font-bold">⚙️ Resume Settings</h2>
-                        <p className="text-xs text-gray-400">ATS-Optimized Formatting</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-white/20 animate-slideUp">
+                {/* Header with animated gradient */}
+                <div className="bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 text-white px-6 py-5 flex justify-between items-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(99,102,241,0.15),transparent_50%)]"></div>
+                    <div className="relative z-10">
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                            <span className="bg-white/10 p-1.5 rounded-lg">⚙️</span>
+                            Resume Settings
+                        </h2>
+                        <p className="text-xs text-indigo-300 mt-1 font-medium">ATS-Optimized Formatting</p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="text-white hover:text-gray-300 text-2xl leading-none"
+                        className="relative z-10 w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200 hover:scale-105"
                     >
-                        ×
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-slate-50 to-white">
                     {/* Template Selection */}
-                    <div className="border border-gray-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-indigo-50">
+                    <div className="border border-indigo-100 rounded-xl p-5 bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/50 shadow-sm hover:shadow-md transition-shadow duration-300">
                         <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                             <span className="text-indigo-600">🎨</span> Template Style
                         </h3>
@@ -221,9 +227,10 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                     </div>
 
                     {/* Font Settings */}
-                    <div className="border border-gray-200 rounded-lg p-5">
+                    <div className="border border-blue-100 rounded-xl p-5 bg-gradient-to-br from-blue-50/50 via-white to-cyan-50/30 shadow-sm hover:shadow-md transition-all duration-300">
                         <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <span className="text-blue-600">🔤</span> Font Settings
+                            <span className="bg-blue-100 p-1.5 rounded-lg">🔤</span>
+                            <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">Font Settings</span>
                         </h3>
 
                         <div className="space-y-4">
@@ -306,9 +313,10 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                     </div>
 
                     {/* Layout Settings */}
-                    <div className="border border-gray-200 rounded-lg p-5">
+                    <div className="border border-emerald-100 rounded-xl p-5 bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/30 shadow-sm hover:shadow-md transition-all duration-300">
                         <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <span className="text-green-600">📐</span> Layout & Spacing
+                            <span className="bg-emerald-100 p-1.5 rounded-lg">📐</span>
+                            <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Layout & Spacing</span>
                         </h3>
 
                         <div className="space-y-4">
@@ -428,9 +436,10 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                     </div>
 
                     {/* Formatting Settings */}
-                    <div className="border border-gray-200 rounded-lg p-5">
+                    <div className="border border-purple-100 rounded-xl p-5 bg-gradient-to-br from-purple-50/50 via-white to-pink-50/30 shadow-sm hover:shadow-md transition-all duration-300">
                         <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <span className="text-purple-600">✨</span> Formatting
+                            <span className="bg-purple-100 p-1.5 rounded-lg">✨</span>
+                            <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Formatting</span>
                         </h3>
 
                         <div className="space-y-4">
@@ -540,9 +549,10 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                     </div>
 
                     {/* Section Dividers */}
-                    <div className="border border-gray-200 rounded-lg p-5">
+                    <div className="border border-orange-100 rounded-xl p-5 bg-gradient-to-br from-orange-50/50 via-white to-amber-50/30 shadow-sm hover:shadow-md transition-all duration-300">
                         <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <span className="text-orange-600">━</span> Section Dividers
+                            <span className="bg-orange-100 p-1.5 rounded-lg">━</span>
+                            <span className="bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">Section Dividers</span>
                         </h3>
 
                         <div className="space-y-4">
@@ -594,13 +604,16 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                 </div>
 
                 {/* Footer */}
-                <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-between items-center">
-                    <p className="text-xs text-gray-600">
-                        ✅ All settings are ATS-optimized
-                    </p>
+                <div className="border-t border-gray-200/50 px-6 py-4 bg-gradient-to-r from-slate-50 via-white to-slate-50 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-xs">✓</span>
+                        <p className="text-sm text-gray-600 font-medium">
+                            All settings are ATS-optimized
+                        </p>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all"
+                        className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 hover:scale-[1.02]"
                     >
                         Apply Settings
                     </button>
