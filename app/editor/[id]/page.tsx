@@ -2,6 +2,8 @@
 
 import { CSSProperties, ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { calculateResumeScore } from '@/lib/scorers/atsScorer';
+import { analyzeResume } from '@/app/actions/atsAnalysis';
 import { useAuthStore } from '@/store/authStore';
 import { useGuestAuth } from '@/lib/hooks/useGuestAuth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -784,35 +786,61 @@ export default function EditorPage() {
         }
     };
 
-    const calculateATS = () => {
-        let score = 0;
-        if (resumeData.personalInfo.name) score += 5;
-        if (resumeData.personalInfo.email) score += 5;
-        if (resumeData.personalInfo.phone) score += 5;
-        if (resumeData.summary) score += 10;
-        if (resumeData.experience.length > 0) score += 10;
-        if (resumeData.education.length > 0) score += 5;
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [advancedAnalysis, setAdvancedAnalysis] = useState<any>(null);
 
-        if (jobAnalysis) {
-            const allKeywords = [
-                ...jobAnalysis.keywords.technical,
-                ...jobAnalysis.keywords.soft,
-                ...jobAnalysis.keywords.tools,
-            ].map((k: string) => k.toLowerCase());
+    // === ATS Score Calculation (Hybrid: Local + Server) ===
+    const calculateATS = async (forceServer = false) => {
+        // 1. Instant Local Calculation (Lite)
+        const localResult = calculateResumeScore({
+            personalInfo: resumeData.personalInfo,
+            experience: resumeData.experience,
+            education: resumeData.education,
+            skills: resumeData.skills,
+            technicalSkills: resumeData.technicalSkills,
+            summary: resumeData.summary,
+        });
 
-            const resumeText = JSON.stringify(resumeData).toLowerCase();
-            const matchedKeywords = allKeywords.filter((keyword: string) =>
-                resumeText.includes(keyword.toLowerCase())
-            );
+        // Show local score immediately
+        setAtsScore(localResult.total);
 
-            score += Math.min(60, (matchedKeywords.length / allKeywords.length) * 60);
+        // 2. Server-Side Deep Scan (Optional / Debounced)
+        // If we have a Job Description OR explicitly requested, run deep scan
+        // We avoid running this on every keystroke
+        if (forceServer || (jobAnalysis && !advancedAnalysis)) {
+            setIsAnalyzing(true);
+            try {
+                // Pass resume data AND job description text if available
+                const deepResult = await analyzeResume({
+                    personalInfo: resumeData.personalInfo,
+                    experience: resumeData.experience,
+                    education: resumeData.education,
+                    skills: resumeData.skills,
+                    technicalSkills: resumeData.technicalSkills,
+                    summary: resumeData.summary,
+                }, jobAnalysis ? JSON.stringify(jobAnalysis) : undefined);
+
+                setAdvancedAnalysis(deepResult);
+
+                // If deep scan is higher/different, we could update the main score
+                // Or keep them separate. For now, let's use the Deep Result total if available
+                if (deepResult) {
+                    setAtsScore(deepResult.totalScore);
+                }
+            } catch (err) {
+                console.error("Deep scan failed:", err);
+            } finally {
+                setIsAnalyzing(false);
+            }
         }
-
-        setAtsScore(Math.round(score));
     };
 
+    // Debounce effect for local updates, but only trigger server on specific conditions
     useEffect(() => {
-        calculateATS();
+        const timer = setTimeout(() => {
+            calculateATS(false);
+        }, 1000);
+        return () => clearTimeout(timer);
     }, [resumeData]);
 
     const handleSave = async () => {
@@ -2057,6 +2085,42 @@ export default function EditorPage() {
                         </div>
 
                         <div className="p-6 overflow-y-auto flex-1">
+                            {/* Advanced Analysis Feedback */}
+                            {advancedAnalysis && (
+                                <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl animate-fadeIn">
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-sm font-semibold text-indigo-900 mb-1">Analysis Complete</h3>
+                                            <div className="text-xs text-indigo-700 space-y-1 mb-3">
+                                                <p>Keywords: {advancedAnalysis.sections.keywords.score}/40 &bull; Quality: {advancedAnalysis.sections.quality.score}/35 &bull; Format: {advancedAnalysis.sections.formatting.score}/25</p>
+                                            </div>
+
+                                            {advancedAnalysis.feedback.length > 0 && (
+                                                <div className="space-y-2 bg-white/60 p-3 rounded-lg">
+                                                    {advancedAnalysis.feedback.map((tip: string, i: number) => (
+                                                        <div key={i} className="flex items-start gap-2 text-xs text-slate-700">
+                                                            <span className="text-indigo-500 mt-0.5">•</span>
+                                                            {tip}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => setAdvancedAnalysis(null)}
+                                            className="text-indigo-400 hover:text-indigo-600"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Personal Info */}
                             <div className="mb-5 p-5 bg-slate-50/50 rounded-xl border border-slate-200">
                                 <h3 className="font-semibold text-slate-800 mb-4 text-sm">Personal Information</h3>
