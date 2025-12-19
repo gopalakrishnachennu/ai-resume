@@ -531,6 +531,8 @@ export default function EditorPage() {
                                             .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
                                         : [],
                                 },
+                                // PRESERVE the map for TemplateRenderer!
+                                technicalSkills: resume.technicalSkills,
                             });
 
                             setLoading(false);
@@ -580,11 +582,14 @@ export default function EditorPage() {
                             })),
                             education: resumeData.education || [],
                             skills: {
+                                // Flatten for editor display
                                 technical: resumeData.technicalSkills ?
                                     Object.entries(resumeData.technicalSkills)
-                                        .map(([category, skills]) => `**${category}**: ${skills}`)
+                                        .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
                                     : [],
                             },
+                            // PRESERVE the map for TemplateRenderer to render properly!
+                            technicalSkills: resumeData.technicalSkills,
                         });
 
                         setLoading(false);
