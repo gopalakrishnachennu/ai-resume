@@ -1380,7 +1380,6 @@ export default function EditorPage() {
         setResumeData({
             ...resumeData,
             experience: [
-                ...resumeData.experience,
                 {
                     company: '',
                     title: '',
@@ -1390,6 +1389,7 @@ export default function EditorPage() {
                     current: false,
                     bullets: [''],
                 },
+                ...resumeData.experience,
             ],
         });
     };
