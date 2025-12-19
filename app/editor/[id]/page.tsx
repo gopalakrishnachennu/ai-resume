@@ -1271,12 +1271,41 @@ export default function EditorPage() {
                     });
                 }
 
-                if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
-                    sectionChildren.push(heading(section.name));
+                if (section.type === 'skills') {
+                    const hasTechnicalSkills = resumeData.technicalSkills && Object.keys(resumeData.technicalSkills).length > 0;
+                    const hasArraySkills = resumeData.skills.technical.length > 0;
 
-                    resumeData.skills.technical.forEach((skillLine: string, idx: number) => {
-                        sectionChildren.push(bodyParagraph(`${settings.bulletStyle} ${skillLine}`, { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 }));
-                    });
+                    if (hasTechnicalSkills || hasArraySkills) {
+                        sectionChildren.push(heading(section.name));
+
+                        // Primary: Categorized Skills (technicalSkills map)
+                        if (hasTechnicalSkills) {
+                            Object.entries(resumeData.technicalSkills!).forEach(([category, skills]) => {
+                                // Format camelCase to Title Case
+                                const formattedCategory = category
+                                    .replace(/([A-Z])/g, ' $1')
+                                    .replace(/^./, str => str.toUpperCase())
+                                    .trim();
+                                const skillText = Array.isArray(skills) ? skills.join(', ') : skills;
+
+                                sectionChildren.push(new Paragraph({
+                                    children: [
+                                        new TextRun({ text: `${settings.bulletStyle} `, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
+                                        new TextRun({ text: `${formattedCategory}:`, bold: true, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
+                                        new TextRun({ text: ` ${skillText}`, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
+                                    ],
+                                    spacing: { after: 40 },
+                                    alignment: settings.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
+                                }));
+                            });
+                        }
+                        // Fallback: Array Skills
+                        else if (hasArraySkills) {
+                            resumeData.skills.technical.forEach((skillLine: string, idx: number) => {
+                                sectionChildren.push(bodyParagraph(`${settings.bulletStyle} ${skillLine}`, { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 }));
+                            });
+                        }
+                    }
                 }
 
                 if (section.type === 'custom') {

@@ -216,33 +216,64 @@ export function convertTemplateToPdfMake(
                 break;
 
             case 'skills':
-                if (data.skills?.technical?.length) {
-                    addSectionHeader('Skills');
-                    if (t.skills.layout === 'bullets') {
-                        // Bullet list
-                        const skillItems = data.skills.technical.map((skill: string) => ({
-                            text: formatPdfText(skill),
-                            fontSize: t.typography.sizes.body,
-                            color: t.typography.colors.body,
-                            markerColor: t.typography.colors.body,
-                            alignment: t.typography.bodyAlignment || 'left'
-                        }));
+                const hasTechnicalSkills = data.technicalSkills && Object.keys(data.technicalSkills).length > 0;
+                const hasArraySkills = data.skills?.technical?.length > 0;
 
-                        content.push({
-                            ul: skillItems,
-                            margin: [0, 0, 0, 8],
-                            lineHeight: t.page.lineSpacing
+                if (hasTechnicalSkills || hasArraySkills) {
+                    addSectionHeader('Skills');
+
+                    // Primary: Categorized Skills (technicalSkills map)
+                    if (hasTechnicalSkills) {
+                        Object.entries(data.technicalSkills!).forEach(([category, skills]) => {
+                            // Format camelCase to Title Case
+                            const formattedCategory = category
+                                .replace(/([A-Z])/g, ' $1')
+                                .replace(/^./, str => str.toUpperCase())
+                                .trim();
+                            const skillText = Array.isArray(skills) ? skills.join(', ') : skills;
+
+                            content.push({
+                                text: [
+                                    { text: `${t.experience.bulletStyle} `, color: t.typography.colors.body },
+                                    { text: `${formattedCategory}: `, bold: true, color: t.typography.colors.body },
+                                    { text: formatPdfText(skillText) }
+                                ],
+                                fontSize: t.typography.sizes.body,
+                                color: t.typography.colors.body,
+                                alignment: t.typography.bodyAlignment || 'left',
+                                margin: [0, 0, 0, 4],
+                                lineHeight: t.page.lineSpacing
+                            });
                         });
-                    } else {
-                        // Inline
-                        content.push({
-                            text: data.skills.technical.join(t.skills.separator || ', '),
-                            fontSize: t.typography.sizes.body,
-                            color: t.typography.colors.body,
-                            alignment: t.typography.bodyAlignment || 'left',
-                            margin: [0, 0, 0, 8],
-                            lineHeight: t.page.lineSpacing
-                        });
+                    }
+                    // Fallback: Array Skills
+                    else if (hasArraySkills) {
+                        if (t.skills.layout === 'bullets') {
+                            // Bullet list
+                            const skillItems = data.skills.technical.map((skill: string) => ({
+                                text: formatPdfText(skill),
+                                fontSize: t.typography.sizes.body,
+                                color: t.typography.colors.body,
+                                markerColor: t.typography.colors.body,
+                                alignment: t.typography.bodyAlignment || 'left'
+                            }));
+
+                            content.push({
+                                ul: skillItems,
+                                margin: [0, 0, 0, 8],
+                                lineHeight: t.page.lineSpacing
+                            });
+                        } else {
+                            // Inline
+                            content.push({
+                                text: data.skills.technical.join(t.skills.separator || ', '),
+                                fontSize: t.typography.sizes.body,
+                                color: t.typography.colors.body,
+                                alignment: t.typography.bodyAlignment || 'left',
+                                margin: [0, 0, 0, 8],
+                                lineHeight: t.page.lineSpacing
+                            });
+                        }
                     }
                 }
                 break;
