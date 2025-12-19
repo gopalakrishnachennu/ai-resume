@@ -33,16 +33,19 @@ export class TemplateService {
      */
     static async getPublishedTemplates(): Promise<TemplateSchema[]> {
         try {
+            // Query without orderBy to avoid composite index requirement
             const q = query(
                 collection(db, COLLECTION),
-                where('isPublished', '==', true),
-                orderBy('name')
+                where('isPublished', '==', true)
             );
             const snapshot = await getDocs(q);
             const templates = snapshot.docs.map(doc => ({
                 ...doc.data(),
                 id: doc.id,
             })) as TemplateSchema[];
+
+            // Sort by name in memory
+            templates.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
             // Always include built-in defaults if not in Firestore
             const hasAts = templates.some(t => t.id === 'ats-default');
@@ -64,12 +67,15 @@ export class TemplateService {
      */
     static async getAllTemplates(): Promise<TemplateSchema[]> {
         try {
-            const q = query(collection(db, COLLECTION), orderBy('name'));
-            const snapshot = await getDocs(q);
+            // Get all templates without orderBy to avoid index issues
+            const snapshot = await getDocs(collection(db, COLLECTION));
             const templates = snapshot.docs.map(doc => ({
                 ...doc.data(),
                 id: doc.id,
             })) as TemplateSchema[];
+
+            // Sort by name in memory
+            templates.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
             // Include defaults
             const hasAts = templates.some(t => t.id === 'ats-default');
