@@ -474,7 +474,15 @@ export function TemplateRenderer({
     // === RENDER ALL SECTIONS IN ORDER ===
     renderHeader();
 
-    const sectionOrder = t.sectionOrder || ['summary', 'skills', 'experience', 'education'];
+    // Default section order + custom sections
+    let sectionOrder = t.sectionOrder || ['summary', 'skills', 'experience', 'education'];
+
+    // Add 'custom' to sectionOrder if there are custom sections (so they get rendered)
+    if (sections && sections.some(s => s.type === 'custom' && s.visible)) {
+        if (!sectionOrder.includes('custom')) {
+            sectionOrder = [...sectionOrder, 'custom'];
+        }
+    }
 
     sectionOrder.forEach(sectionType => {
         // Check if section should be visible (if sections array provided)
