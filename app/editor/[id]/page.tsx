@@ -40,7 +40,24 @@ export default function EditorPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    const [resumeData, setResumeData] = useState({
+    const [resumeData, setResumeData] = useState<{
+        personalInfo: {
+            name: string;
+            email: string;
+            phone: string;
+            location: string;
+            linkedin: string;
+            github: string;
+        };
+        summary: string;
+        experience: any[];
+        education: any[];
+        skills: {
+            technical: string[];
+        };
+        technicalSkills?: Record<string, string[] | string>;
+        [key: string]: any; // Allow custom section data
+    }>({
         personalInfo: {
             name: '',
             email: '',
@@ -50,10 +67,10 @@ export default function EditorPage() {
             github: '',
         },
         summary: '',
-        experience: [] as any[],
-        education: [] as any[],
+        experience: [],
+        education: [],
         skills: {
-            technical: [] as string[],
+            technical: [],
         },
     });
 
