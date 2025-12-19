@@ -525,15 +525,22 @@ export default function EditorPage() {
                                     github: resume.personalInfo?.portfolio || resume.personalInfo?.github || '',
                                 },
                                 summary: resume.professionalSummary || '',
-                                experience: (resume.experience || []).map((exp: any) => ({
-                                    company: exp.company || '',
-                                    title: exp.title || '',
-                                    location: exp.location || '',
-                                    startDate: exp.startDate || '',
-                                    endDate: exp.endDate || '',
-                                    current: exp.endDate === 'Present' || exp.current || false,
-                                    bullets: exp.highlights || exp.bullets || (exp.description ? [exp.description] : []),
-                                })),
+                                experience: (() => {
+                                    let foundCurrent = false;
+                                    return (resume.experience || []).map((exp: any) => {
+                                        const shouldBeCurrent = !foundCurrent && (exp.endDate === 'Present' || exp.current);
+                                        if (shouldBeCurrent) foundCurrent = true;
+                                        return {
+                                            company: exp.company || '',
+                                            title: exp.title || '',
+                                            location: exp.location || '',
+                                            startDate: exp.startDate || '',
+                                            endDate: exp.endDate || '',
+                                            current: shouldBeCurrent || false,
+                                            bullets: exp.highlights || exp.bullets || (exp.description ? [exp.description] : []),
+                                        };
+                                    });
+                                })(),
                                 education: (resume.education || []).map((edu: any) => ({
                                     school: edu.institution || edu.school || '',
                                     degree: edu.degree || '',
@@ -587,15 +594,22 @@ export default function EditorPage() {
                                 github: '',
                             },
                             summary: resumeData.professionalSummary || '',
-                            experience: (resumeData.experience || []).map((exp: any) => ({
-                                company: exp.company,
-                                title: exp.title,
-                                location: exp.location,
-                                startDate: exp.startDate,
-                                endDate: exp.endDate,
-                                current: exp.current,
-                                bullets: exp.responsibilities || exp.bullets || [],  // Map responsibilities to bullets
-                            })),
+                            experience: (() => {
+                                let foundCurrent = false;
+                                return (resumeData.experience || []).map((exp: any) => {
+                                    const shouldBeCurrent = !foundCurrent && exp.current;
+                                    if (shouldBeCurrent) foundCurrent = true;
+                                    return {
+                                        company: exp.company,
+                                        title: exp.title,
+                                        location: exp.location,
+                                        startDate: exp.startDate,
+                                        endDate: exp.endDate,
+                                        current: shouldBeCurrent || false,
+                                        bullets: exp.responsibilities || exp.bullets || [],
+                                    };
+                                });
+                            })(),
                             education: resumeData.education || [],
                             skills: {
                                 // Flatten for editor display
@@ -1389,6 +1403,16 @@ export default function EditorPage() {
 
     const updateExperience = (index: number, field: string, value: any) => {
         const newExp = [...resumeData.experience];
+
+        // If setting 'current' to true, uncheck all other experiences
+        if (field === 'current' && value === true) {
+            newExp.forEach((exp, i) => {
+                if (i !== index) {
+                    newExp[i] = { ...newExp[i], current: false };
+                }
+            });
+        }
+
         newExp[index] = { ...newExp[index], [field]: value };
         setResumeData({ ...resumeData, experience: newExp });
     };
