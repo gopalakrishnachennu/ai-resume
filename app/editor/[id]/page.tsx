@@ -284,9 +284,12 @@ export default function EditorPage() {
                 resumeData.skills.technical.forEach((skillLine, idx) => {
                     addBlock(
                         `skill-${idx}`,
-                        <p style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>
-                            {parseFormattedText(skillLine)}
-                        </p>,
+                        <div style={{ display: 'flex', gap: '6pt' }}>
+                            <span style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>{settings.bulletStyle}</span>
+                            <span style={{ fontSize: `${settings.fontSize.body}pt`, color: settings.fontColor.body }}>
+                                {parseFormattedText(skillLine)}
+                            </span>
+                        </div>,
                         { marginBottom: idx === resumeData.skills.technical.length - 1 ? gapSection : gapTight }
                     );
                 });
@@ -909,7 +912,7 @@ export default function EditorPage() {
                 if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
                     addSectionHeader(section.name);
                     resumeData.skills.technical.forEach((skillLine, idx) => {
-                        content.push({ text: formatPdfText(skillLine), style: 'body', margin: [0, 0, 0, idx === resumeData.skills.technical.length - 1 ? 8 : 4] });
+                        content.push({ text: formatPdfText(`${settings.bulletStyle} ${skillLine}`), style: 'body', margin: [0, 0, 0, idx === resumeData.skills.technical.length - 1 ? 8 : 4] });
                     });
                 }
             });
@@ -976,7 +979,7 @@ export default function EditorPage() {
                 throw new Error('saveAs not available');
             }
 
-            const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, TabStopType, TabStopPosition } = docxModule as any;
+            const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, TabStopType, TabStopPosition, BorderStyle } = docxModule as any;
 
             const px = (pt: number) => pt * 2; // docx uses half-points
             const letterWidth = 8.5 * 1440;
@@ -999,7 +1002,7 @@ export default function EditorPage() {
                     bottom: {
                         color: dividerColorDocx,
                         space: 1,
-                        style: docxModule.BorderStyle.SINGLE,
+                        style: BorderStyle.SINGLE,
                         size: settings.dividerWeight * 8,
                     },
                 } : undefined,
@@ -1116,7 +1119,7 @@ export default function EditorPage() {
                     sectionChildren.push(heading(section.name));
 
                     resumeData.skills.technical.forEach((skillLine: string, idx: number) => {
-                        sectionChildren.push(bodyParagraph(skillLine, { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 }));
+                        sectionChildren.push(bodyParagraph(`${settings.bulletStyle} ${skillLine}`, { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 }));
                     });
                 }
             });
