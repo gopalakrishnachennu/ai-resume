@@ -17,6 +17,8 @@ import { TemplateService } from '@/lib/services/templateService';
 import { TemplateSchema, BUILTIN_CLASSIC_TEMPLATE, BUILTIN_MODERN_TEMPLATE } from '@/lib/types/templateSchema';
 import { TemplateRenderer } from '@/components/TemplateRenderer';
 import { convertTemplateToPdfMake } from '@/lib/utils/templateToPdfMake';
+import { useAutoSave } from '@/lib/hooks/useAutoSave';
+import { SaveIndicator } from '@/components/SaveIndicator';
 
 interface Section {
     id: string;
@@ -189,6 +191,48 @@ export default function EditorPage() {
 
 
     const measurementRef = useRef<HTMLDivElement>(null);
+
+    // ===== AUTO-SAVE INTEGRATION =====
+    // Create a combined data object to track for auto-save
+    const autoSaveData = useMemo(() => ({
+        resumeData,
+        sections,
+    }), [resumeData, sections]);
+
+    // Wrap handleSave for auto-save (will be defined below, use ref)
+    const handleSaveRef = useRef<(() => Promise<void>) | undefined>(undefined);
+
+    const {
+        isSaving: autoSaveInProgress,
+        lastSaved,
+        hasUnsavedChanges,
+        error: autoSaveError,
+    } = useAutoSave(
+        autoSaveData,
+        async () => {
+            if (handleSaveRef.current) {
+                await handleSaveRef.current();
+            }
+        },
+        {
+            delay: 2000,
+            enabled: !!user && params.id !== 'new',
+        }
+    );
+
+    // Warn user before leaving with unsaved changes
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+                return e.returnValue;
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [hasUnsavedChanges]);
 
     const sortedSections = useMemo(() => [...sections].sort((a, b) => a.order - b.order), [sections]);
 
@@ -916,6 +960,9 @@ export default function EditorPage() {
             if (isGuest) await incrementUsage('resumeEdits');
         }
     };
+
+    // Connect handleSave to auto-save ref
+    handleSaveRef.current = handleSave;
 
     const generatePDF = async () => {
         if (isGuest) {
@@ -1847,6 +1894,14 @@ export default function EditorPage() {
                             }`}>
                             <span className="font-bold">ATS {atsScore}%</span>
                         </div>
+
+                        {/* Auto-Save Status Indicator */}
+                        <SaveIndicator
+                            isSaving={autoSaveInProgress || saving}
+                            lastSaved={lastSaved}
+                            hasUnsavedChanges={hasUnsavedChanges}
+                            error={autoSaveError}
+                        />
 
                         <button
                             onClick={() => setShowSettings(true)}
