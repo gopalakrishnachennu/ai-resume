@@ -784,10 +784,18 @@ export default function EditorPage() {
 
             const content: any[] = [];
 
+            // Template-aware settings (modern = left-aligned with accent colors)
+            const isModernPdf = settings.template === 'modern';
+            const headerAlignmentPdf = isModernPdf ? 'left' : 'center';
+            const nameColorPdf = isModernPdf ? settings.fontColor.accent : settings.fontColor.name;
+            const headingColorPdf = isModernPdf ? settings.fontColor.accent : settings.fontColor.headers;
+            const dividerColorPdf = isModernPdf ? settings.fontColor.accent : settings.dividerColor;
+
             const addSectionHeader = (sectionName: string) => {
                 content.push({
                     text: headerCase(sectionName),
                     style: 'sectionHeader',
+                    color: headingColorPdf,
                     margin: [0, 12, 0, settings.sectionDivider ? 4 : 8],
                 });
 
@@ -801,7 +809,7 @@ export default function EditorPage() {
                                 x2: 515,
                                 y2: 0,
                                 lineWidth: settings.dividerWeight,
-                                lineColor: settings.dividerColor,
+                                lineColor: dividerColorPdf,
                             },
                         ],
                         margin: [0, 0, 0, 8],
@@ -812,7 +820,8 @@ export default function EditorPage() {
             content.push({
                 text: resumeData.personalInfo.name || 'Your Name',
                 style: 'name',
-                alignment: 'center',
+                color: nameColorPdf,
+                alignment: headerAlignmentPdf,
                 margin: [0, 0, 0, 6],
             });
 
@@ -828,7 +837,7 @@ export default function EditorPage() {
                 content.push({
                     text: contactPieces.join(` ${settings.contactSeparator} `),
                     style: 'contact',
-                    alignment: 'center',
+                    alignment: headerAlignmentPdf,
                     margin: [0, 0, 0, 12],
                 });
             }
@@ -973,12 +982,19 @@ export default function EditorPage() {
             // Calculate right tab position based on page width and margins
             const rightTabPos = Math.round((8.5 - settings.margins.left - settings.margins.right) * 1440);
 
+            // Template-aware settings (modern = left-aligned with accent colors)
+            const isModernDocx = settings.template === 'modern';
+            const headerAlignmentDocx = isModernDocx ? AlignmentType.LEFT : (settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT);
+            const nameColorDocx = isModernDocx ? settings.fontColor.accent.replace('#', '') : settings.fontColor.name.replace('#', '');
+            const headingColorDocx = isModernDocx ? settings.fontColor.accent.replace('#', '') : settings.fontColor.headers.replace('#', '');
+            const dividerColorDocx = isModernDocx ? settings.fontColor.accent.replace('#', '') : settings.dividerColor.replace('#', '');
+
             const heading = (text: string) => new Paragraph({
-                children: [new TextRun({ text, bold: settings.headerStyle === 'bold', size: px(settings.fontSize.headers), color: settings.fontColor.headers, font: settings.fontFamily })],
+                children: [new TextRun({ text, bold: settings.headerStyle === 'bold', size: px(settings.fontSize.headers), color: headingColorDocx, font: settings.fontFamily })],
                 spacing: { before: 80, after: settings.sectionDivider ? 60 : 60 },
                 border: settings.sectionDivider ? {
                     bottom: {
-                        color: settings.dividerColor.replace('#', ''),
+                        color: dividerColorDocx,
                         space: 1,
                         style: docxModule.BorderStyle.SINGLE,
                         size: settings.dividerWeight * 8,
@@ -997,10 +1013,10 @@ export default function EditorPage() {
             // Name
             sectionChildren.push(new Paragraph({
                 children: [
-                    new TextRun({ text: resumeData.personalInfo.name || 'Your Name', bold: true, size: px(settings.fontSize.name), color: settings.fontColor.name, font: settings.fontFamily }),
+                    new TextRun({ text: resumeData.personalInfo.name || 'Your Name', bold: true, size: px(settings.fontSize.name), color: nameColorDocx, font: settings.fontFamily }),
                 ],
                 heading: HeadingLevel.TITLE,
-                alignment: settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT,
+                alignment: headerAlignmentDocx,
                 spacing: { after: 80 },
             }));
 
@@ -1015,7 +1031,7 @@ export default function EditorPage() {
             if (contactParts.length) {
                 sectionChildren.push(new Paragraph({
                     children: [new TextRun({ text: contactParts.join(` ${settings.contactSeparator} `), size: px(settings.fontSize.contact), color: settings.fontColor.contact, font: settings.fontFamily })],
-                    alignment: settings.alignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT,
+                    alignment: headerAlignmentDocx,
                     spacing: { after: 200 },
                 }));
             }
