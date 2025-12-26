@@ -2014,14 +2014,14 @@ export default function EditorPage() {
                                 {
                                     level: 0,
                                     format: "bullet",
-                                    text: "•",
+                                    text: "▪", // Small square bullet
                                     alignment: AlignmentType.LEFT,
                                     style: {
                                         paragraph: {
-                                            indent: { left: 220, hanging: 220 },
+                                            indent: { left: 180, hanging: 180 },
                                         },
                                         run: {
-                                            size: px(settings.fontSize.body), // Match body text size
+                                            size: 16, // 8pt in half-points - small bullet
                                         },
                                     },
                                 },
