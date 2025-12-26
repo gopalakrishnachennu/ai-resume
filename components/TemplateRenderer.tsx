@@ -297,17 +297,17 @@ export function TemplateRenderer({
 
         blocks.push(
             <div key={`header-name-${blockIndex++}`} style={nameStyle}>
-                {data.personalInfo.name || 'Your Name'}
+                {safeString(data.personalInfo.name) || 'Your Name'}
             </div>
         );
 
         // Contact rows
         const contactData: Record<string, string | undefined> = {
-            email: data.personalInfo.email,
-            phone: data.personalInfo.phone,
-            location: data.personalInfo.location,
-            linkedin: data.personalInfo.linkedin,
-            github: data.personalInfo.github,
+            email: safeString(data.personalInfo.email) || undefined,
+            phone: safeString(data.personalInfo.phone) || undefined,
+            location: safeString(data.personalInfo.location) || undefined,
+            linkedin: safeString(data.personalInfo.linkedin) || undefined,
+            github: safeString(data.personalInfo.github) || undefined,
         };
 
         t.header.contactRows.forEach((row, i) => {
@@ -461,16 +461,16 @@ export function TemplateRenderer({
         );
 
         data.experience.forEach((exp, expIndex) => {
-            const endDate = exp.current ? 'Present' : formatDate(exp.endDate);
-            const dates = [formatDate(exp.startDate), endDate]
+            const endDate = exp.current ? 'Present' : formatDate(safeString(exp.endDate));
+            const dates = [formatDate(safeString(exp.startDate)), endDate]
                 .filter(Boolean)
                 .join(' - ');
 
             const expData: Record<string, string | undefined> = {
-                title: exp.title,
-                company: exp.company,
-                location: exp.location,
-                dates: dates,
+                title: safeString(exp.title) || undefined,
+                company: safeString(exp.company) || undefined,
+                location: safeString(exp.location) || undefined,
+                dates: dates || undefined,
             };
 
             // Render experience rows
@@ -538,16 +538,16 @@ export function TemplateRenderer({
 
         data.education.forEach((edu, eduIndex) => {
             // Format graduation date using template's date format setting
-            const rawDate = edu.graduationDate || edu.graduationYear;
+            const rawDate = safeString(edu.graduationDate || edu.graduationYear);
             const formattedDate = rawDate ? formatDate(rawDate) : undefined;
 
             const eduData: Record<string, string | undefined> = {
-                degree: edu.degree,
-                field: edu.field,
-                school: edu.school,
-                location: edu.location,
-                dates: formattedDate,
-                gpa: t.education.showGPA && edu.gpa ? `GPA: ${edu.gpa}` : undefined,
+                degree: safeString(edu.degree) || undefined,
+                field: safeString(edu.field) || undefined,
+                school: safeString(edu.school) || undefined,
+                location: safeString(edu.location) || undefined,
+                dates: formattedDate || undefined,
+                gpa: t.education.showGPA && edu.gpa ? `GPA: ${safeString(edu.gpa)}` : undefined,
             };
 
             // Best practice: Ensure education has essential rows (fallback if template missing them)
