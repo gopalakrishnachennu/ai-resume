@@ -21,6 +21,7 @@ import { TemplateRenderer } from '@/components/TemplateRenderer';
 import { convertTemplateToPdfMake } from '@/lib/utils/templateToPdfMake';
 import { useAutoSave } from '@/lib/hooks/useAutoSave';
 import { SaveIndicator } from '@/components/SaveIndicator';
+import { editorLog } from '@/lib/utils/editorLogger';
 
 interface Section {
     id: string;
@@ -604,6 +605,9 @@ export default function EditorPage() {
 
 
     const loadData = async () => {
+        editorLog.group(`📂 loadData() - Resume ID: ${params.id}`);
+        editorLog.info('Starting data load...', { userId: user?.uid, resumeId: params.id });
+
         try {
             // --- FETCH USER PROFILE (Unified Name Fallback) ---
             let profileName = user?.displayName || '';
@@ -611,6 +615,7 @@ export default function EditorPage() {
 
             if (user?.uid) {
                 try {
+                    editorLog.debug('Fetching user profile...');
                     const userDoc = await getDoc(doc(db, 'users', user.uid));
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
@@ -618,15 +623,19 @@ export default function EditorPage() {
                         if (userData.profile && userData.profile.firstName) {
                             profileName = `${userData.profile.firstName} ${userData.profile.lastName || ''}`.trim();
                         }
+                        editorLog.info('User profile loaded', { profileName, hasDefaultSettings: !!userData.defaultSettings });
+                    } else {
+                        editorLog.warn('User profile document not found');
                     }
                 } catch (err) {
-                    console.error('Error fetching profile for name:', err);
+                    editorLog.error('Error fetching profile for name:', err);
                 }
             }
 
             // ✅ Check for local draft first (survives refresh)
             const draftKey = `draft_resume_${params.id}`;
             const savedDraft = localStorage.getItem(draftKey);
+            editorLog.debug('Checking for local draft...', { draftKey, hasDraft: !!savedDraft });
 
             // Apply default settings from profile if available (and not a draft restoration)
             if (profileData.defaultSettings) {
@@ -636,8 +645,20 @@ export default function EditorPage() {
             if (savedDraft) {
                 try {
                     const draft = JSON.parse(savedDraft);
+                    const draftAge = Date.now() - draft.updatedAt;
+                    editorLog.info('Local draft found', {
+                        ageHours: Math.round(draftAge / 3600000 * 10) / 10,
+                        isRecent: draftAge < 24 * 60 * 60 * 1000
+                    });
+
                     // Only use draft if it's recent (e.g., less than 24 hours)
-                    if (Date.now() - draft.updatedAt < 24 * 60 * 60 * 1000) {
+                    if (draftAge < 24 * 60 * 60 * 1000) {
+                        editorLog.loadStart('LocalDraft', draftKey);
+
+                        // Log raw draft data for debugging
+                        editorLog.rawData('LocalDraft', draft.resumeData);
+                        editorLog.validateData('LocalDraft-BEFORE', draft.resumeData || {});
+
                         // Apply name fallback to draft if empty
                         const draftData = draft.resumeData;
                         if (draftData && (!draftData.personalInfo?.name || draftData.personalInfo?.name?.trim() === '')) {
@@ -646,7 +667,7 @@ export default function EditorPage() {
                         }
 
                         // DEEP CLEAN THE LOCAL DRAFT (same as Firestore loading)
-                        setResumeData({
+                        const cleanedData = {
                             ...DEFAULT_RESUME_DATA,
                             personalInfo: {
                                 ...DEFAULT_RESUME_DATA.personalInfo,
@@ -676,7 +697,10 @@ export default function EditorPage() {
                                 graduationDate: edu.graduationDate || '',
                             })) : [],
                             technicalSkills: draftData.technicalSkills || {},
-                        });
+                        };
+
+                        editorLog.validateData('LocalDraft-AFTER', cleanedData);
+                        setResumeData(cleanedData);
 
                         // Deep clean sections and settings from draft
                         if (Array.isArray(draft.sections)) setSections(draft.sections);
@@ -693,12 +717,16 @@ export default function EditorPage() {
                         const analysisStr = localStorage.getItem('jobAnalysis');
                         if (analysisStr) setJobAnalysis(JSON.parse(analysisStr));
 
+                        editorLog.loadComplete('LocalDraft', { experienceCount: cleanedData.experience.length, educationCount: cleanedData.education.length });
+                        editorLog.groupEnd();
                         setLoading(false);
                         toast.success('Restored unsaved changes');
                         return;
+                    } else {
+                        editorLog.info('Draft too old, skipping', { ageHours: Math.round(draftAge / 3600000) });
                     }
                 } catch (e) {
-                    console.error('Error parsing draft:', e);
+                    editorLog.error('Error parsing draft:', e);
                 }
             }
 
@@ -711,14 +739,21 @@ export default function EditorPage() {
 
 
             if (params.id !== 'new') {
+                editorLog.info('Loading existing resume from Firestore', { resumeId: params.id });
+
                 // ====== IMPORTED RESUME (Quick Format Flow) ======
                 // Check if this is an imported resume from applications collection
                 if ((params.id as string).startsWith('app_import_')) {
+                    editorLog.formatDetected('Import', { prefix: 'app_import_' });
+                    editorLog.loadStart('ImportedResume', params.id as string);
+
                     const { getDoc, doc } = await import('firebase/firestore');
                     const appDoc = await getDoc(doc(db, 'applications', params.id as string));
 
                     if (appDoc.exists()) {
                         const appData = appDoc.data();
+                        editorLog.rawData('ImportedResume', appData.resume);
+                        editorLog.validateData('ImportedResume-BEFORE', appData.resume || {});
 
                         // Load job title and company
                         setJobTitle(appData.jobTitle || 'Imported Resume');
@@ -727,7 +762,7 @@ export default function EditorPage() {
                         // Load the embedded resume data directly
                         if (appData.resume) {
                             const resume = appData.resume;
-                            setResumeData({
+                            const cleanedData = {
                                 ...DEFAULT_RESUME_DATA,
                                 personalInfo: {
                                     ...DEFAULT_RESUME_DATA.personalInfo,
@@ -741,7 +776,7 @@ export default function EditorPage() {
                                 summary: resume.professionalSummary || '',
                                 experience: (() => {
                                     let foundCurrent = false;
-                                    return (resume.experience || []).map((exp: any) => {
+                                    return (resume.experience || []).filter((x: any) => x).map((exp: any) => {
                                         const shouldBeCurrent = !foundCurrent && (exp.endDate === 'Present' || exp.current);
                                         if (shouldBeCurrent) foundCurrent = true;
                                         return {
@@ -751,11 +786,13 @@ export default function EditorPage() {
                                             startDate: exp.startDate || '',
                                             endDate: exp.endDate || '',
                                             current: shouldBeCurrent || false,
-                                            bullets: exp.highlights || exp.bullets || (exp.description ? [exp.description] : []),
+                                            bullets: Array.isArray(exp.highlights) ? exp.highlights.filter((b: any) => b) :
+                                                Array.isArray(exp.bullets) ? exp.bullets.filter((b: any) => b) :
+                                                    (exp.description ? [exp.description] : []),
                                         };
                                     });
                                 })(),
-                                education: (resume.education || []).map((edu: any) => ({
+                                education: (resume.education || []).filter((x: any) => x).map((edu: any) => ({
                                     school: edu.institution || edu.school || '',
                                     degree: edu.degree || '',
                                     field: edu.field || '',
@@ -766,31 +803,47 @@ export default function EditorPage() {
                                     ...DEFAULT_RESUME_DATA.skills,
                                     technical: resume.technicalSkills
                                         ? Object.entries(resume.technicalSkills)
-                                            .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
+                                            .filter(([_, skills]) => skills)
+                                            .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.filter(s => s).join(', ') : skills || ''}`)
                                         : [],
                                 },
                                 // PRESERVE the map for TemplateRenderer!
                                 technicalSkills: resume.technicalSkills || DEFAULT_RESUME_DATA.technicalSkills,
-                            });
+                            };
 
+                            editorLog.validateData('ImportedResume-AFTER', cleanedData);
+                            setResumeData(cleanedData);
+                            editorLog.loadComplete('ImportedResume', {
+                                experienceCount: cleanedData.experience.length,
+                                educationCount: cleanedData.education.length
+                            });
+                            editorLog.groupEnd();
                             setLoading(false);
                             toast.success('Imported resume loaded!');
                             return;
                         }
+                    } else {
+                        editorLog.warn('Imported resume document not found in Firestore');
                     }
                 }
 
                 // ====== AI-GENERATED RESUME ======
                 // Try loading from new 'resumes' collection first (AI-generated)
+                editorLog.debug('Trying resumes collection...');
                 let resumeDoc = await getDoc(doc(db, 'resumes', params.id as string));
+                let sourceCollection = 'resumes';
 
                 // If not found, try old 'appliedResumes' collection
                 if (!resumeDoc.exists()) {
+                    editorLog.debug('Not in resumes, trying appliedResumes...');
                     resumeDoc = await getDoc(doc(db, 'appliedResumes', params.id as string));
+                    sourceCollection = 'appliedResumes';
                 }
 
                 if (resumeDoc.exists()) {
                     const resumeData = resumeDoc.data();
+                    editorLog.info('Resume found in Firestore', { collection: sourceCollection });
+                    editorLog.rawData('Firestore-Resume', resumeData);
 
                     // Load job title and company
                     setJobTitle(resumeData.jobTitle || '');
@@ -805,7 +858,15 @@ export default function EditorPage() {
                         (Array.isArray(resumeData.experience) && resumeData.experience[0]?.position);
 
                     if (isAiFormat) {
-                        setResumeData({
+                        editorLog.formatDetected('AI', {
+                            hasProfessionalSummary: !!resumeData.professionalSummary,
+                            hasTechnicalSkills: !!resumeData.technicalSkills,
+                            hasPosition: !!resumeData.experience?.[0]?.position
+                        });
+                        editorLog.loadStart('AI-Resume', params.id as string);
+                        editorLog.validateData('AI-Resume-BEFORE', resumeData);
+
+                        const cleanedData = {
                             ...DEFAULT_RESUME_DATA,
                             personalInfo: {
                                 ...DEFAULT_RESUME_DATA.personalInfo,
@@ -843,16 +904,29 @@ export default function EditorPage() {
                                     : [],
                             },
                             technicalSkills: resumeData.technicalSkills || DEFAULT_RESUME_DATA.technicalSkills,
-                        });
+                        };
+
+                        editorLog.validateData('AI-Resume-AFTER', cleanedData);
+                        setResumeData(cleanedData);
                         setAtsScore(resumeData.atsScore || 0);
+                        editorLog.loadComplete('AI-Resume', {
+                            experienceCount: cleanedData.experience.length,
+                            educationCount: cleanedData.education.length,
+                            skillCategories: Object.keys(cleanedData.technicalSkills || {}).length
+                        });
+                        editorLog.groupEnd();
                         setLoading(false);
                         return; // Exit early for AI resumes
                     }
 
                     // CASE 2: Legacy Nested Format (resumeData.resumeData)
                     if (resumeData.resumeData) {
+                        editorLog.formatDetected('Legacy', { hasNestedResumeData: true });
+                        editorLog.loadStart('Legacy-Resume', params.id as string);
+                        editorLog.validateData('Legacy-Resume-BEFORE', resumeData.resumeData);
+
                         const legacyData = resumeData.resumeData;
-                        setResumeData({
+                        const cleanedData = {
                             ...DEFAULT_RESUME_DATA,
                             ...legacyData,
                             personalInfo: {
@@ -861,7 +935,7 @@ export default function EditorPage() {
                                 name: legacyData.personalInfo?.name || profileName,
                             },
                             skills: {
-                                technical: Array.isArray(legacyData.skills?.technical) ? legacyData.skills.technical : [],
+                                technical: Array.isArray(legacyData.skills?.technical) ? legacyData.skills.technical.filter((s: any) => s) : [],
                             },
                             experience: Array.isArray(legacyData.experience) ? legacyData.experience.filter((x: any) => x).map((exp: any) => ({
                                 ...exp,
@@ -871,7 +945,7 @@ export default function EditorPage() {
                                 startDate: exp.startDate || '',
                                 endDate: exp.endDate || '',
                                 current: !!exp.current,
-                                bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
+                                bullets: Array.isArray(exp.bullets) ? exp.bullets.filter((b: any) => b) : [],
                             })) : [],
                             education: Array.isArray(legacyData.education) ? legacyData.education.filter((x: any) => x).map((edu: any) => ({
                                 ...edu,
@@ -882,9 +956,11 @@ export default function EditorPage() {
                                 graduationDate: edu.graduationDate || '',
                             })) : [],
                             technicalSkills: legacyData.technicalSkills || {},
-                        });
+                        };
 
-                        // Load aux data
+                        editorLog.validateData('Legacy-Resume-AFTER', cleanedData);
+                        setResumeData(cleanedData);
+
                         // Load aux data
                         if (Array.isArray(resumeData.sections)) setSections(resumeData.sections);
                         if (resumeData.settings) {
@@ -898,12 +974,18 @@ export default function EditorPage() {
                             });
                         }
 
+                        editorLog.loadComplete('Legacy-Resume', { experienceCount: cleanedData.experience.length });
+                        editorLog.groupEnd();
                         setLoading(false);
                         return;
                     }
 
                     // CASE 3: Standard Flat Format
-                    setResumeData({
+                    editorLog.formatDetected('Standard', { isFlat: true });
+                    editorLog.loadStart('Standard-Resume', params.id as string);
+                    editorLog.validateData('Standard-Resume-BEFORE', resumeData);
+
+                    const cleanedStandardData = {
                         ...DEFAULT_RESUME_DATA,
                         ...resumeData,
                         personalInfo: {
@@ -912,7 +994,7 @@ export default function EditorPage() {
                             name: resumeData.personalInfo?.name || profileName,
                         },
                         skills: {
-                            technical: Array.isArray(resumeData.skills?.technical) ? resumeData.skills.technical : [],
+                            technical: Array.isArray(resumeData.skills?.technical) ? resumeData.skills.technical.filter((s: any) => s) : [],
                         },
                         // DEEP CLEAN: Ensure every item in experience/education is a valid object
                         experience: Array.isArray(resumeData.experience) ? resumeData.experience.filter((x: any) => x).map((exp: any) => ({
@@ -923,7 +1005,7 @@ export default function EditorPage() {
                             startDate: exp.startDate || '',
                             endDate: exp.endDate || '',
                             current: !!exp.current,
-                            bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
+                            bullets: Array.isArray(exp.bullets) ? exp.bullets.filter((b: any) => b) : [],
                         })) : [],
                         education: Array.isArray(resumeData.education) ? resumeData.education.filter((x: any) => x).map((edu: any) => ({
                             ...edu,
@@ -934,13 +1016,16 @@ export default function EditorPage() {
                             graduationDate: edu.graduationDate || '',
                         })) : [],
                         technicalSkills: resumeData.technicalSkills || {},
-                    } as any);
+                    };
+
+                    editorLog.validateData('Standard-Resume-AFTER', cleanedStandardData);
+                    setResumeData(cleanedStandardData as any);
 
                     // Validate custom sections
                     if (Array.isArray(resumeData.sections)) {
                         setSections(resumeData.sections);
                     } else if (resumeData.sections) {
-                        // Attempt to recover if it's an object map (old format?) - likely not needed but good safety
+                        editorLog.warn('Sections is not an array, resetting', { sectionsType: typeof resumeData.sections });
                         setSections([]);
                     }
 
@@ -955,16 +1040,22 @@ export default function EditorPage() {
                         });
                     }
 
+                    editorLog.loadComplete('Standard-Resume', { experienceCount: cleanedStandardData.experience.length });
+                    editorLog.groupEnd();
                     setLoading(false);
                     return;
+                } else {
+                    editorLog.warn('Resume document not found in any collection', { resumeId: params.id });
                 }
             }
 
             // Otherwise, load from user profile (new resume)
             // Note: We already fetched profileData/profileName at the top
+            editorLog.formatDetected('New', { hasProfileData: !!profileData });
 
             if (profileData) {
-                setResumeData({
+                editorLog.loadStart('NewResume-FromProfile', 'new');
+                const newResumeData = {
                     personalInfo: {
                         name: profileName,
                         email: user?.email || '',
@@ -979,12 +1070,19 @@ export default function EditorPage() {
                     skills: {
                         technical: profileData.baseSkills?.technical || [],
                     },
-                });
-
+                };
+                editorLog.validateData('NewResume', newResumeData);
+                setResumeData(newResumeData);
+                editorLog.loadComplete('NewResume-FromProfile', { hasExperience: !!profileData.baseExperience?.length });
+                editorLog.groupEnd();
                 calculateATS();
+            } else {
+                editorLog.info('No profile data, using empty defaults');
+                editorLog.groupEnd();
             }
         } catch (error) {
-            console.error('Error loading data:', error);
+            editorLog.error('CRITICAL: Error loading data', error);
+            editorLog.groupEnd();
         } finally {
             setLoading(false);
         }
