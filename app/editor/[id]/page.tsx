@@ -823,6 +823,8 @@ export default function EditorPage() {
                             skills: {
                                 technical: Array.isArray(legacyData.skills?.technical) ? legacyData.skills.technical : [],
                             },
+                            experience: Array.isArray(legacyData.experience) ? legacyData.experience : [],
+                            education: Array.isArray(legacyData.education) ? legacyData.education : [],
                         });
 
                         // Load aux data
@@ -845,6 +847,8 @@ export default function EditorPage() {
                         skills: {
                             technical: Array.isArray(resumeData.skills?.technical) ? resumeData.skills.technical : [],
                         },
+                        experience: Array.isArray(resumeData.experience) ? resumeData.experience : [],
+                        education: Array.isArray(resumeData.education) ? resumeData.education : [],
                     } as any);
 
                     if (resumeData.sections) setSections(resumeData.sections);
