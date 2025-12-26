@@ -24,6 +24,7 @@ export interface PromptConfig {
     maxTokens: number;
     temperature: number;
     description?: string;
+    customInstructions?: string; // Appended to system prompt dynamically
 }
 
 export interface StoredPrompts {

@@ -79,8 +79,14 @@ export class LLMBlackBox {
         const registryTemplate: PromptTemplate = phasePrompts?.[promptKey];
 
         if (dynamicPrompt) {
+            let systemPrompts = dynamicPrompt.system;
+            // Append user custom instructions if present (for Simplified Mode)
+            if (dynamicPrompt.customInstructions?.trim()) {
+                systemPrompts += `\n\nCRITICAL USER INSTRUCTIONS:\n${dynamicPrompt.customInstructions}`;
+            }
+
             return {
-                system: dynamicPrompt.system,
+                system: systemPrompts,
                 user: dynamicPrompt.user,
                 maxTokens: dynamicPrompt.maxTokens,
                 temperature: dynamicPrompt.temperature,

@@ -31,6 +31,7 @@ function PromptEditor({
     onReset,
     isExpanded,
     onToggle,
+    simpleMode,
 }: {
     promptKey: FlatPromptKey;
     prompt: PromptConfig;
@@ -38,6 +39,7 @@ function PromptEditor({
     onReset: () => void;
     isExpanded: boolean;
     onToggle: () => void;
+    simpleMode: boolean;
 }) {
     const meta = PROMPT_METADATA[promptKey];
     const isMandatory = MANDATORY_PROMPTS.includes(promptKey);
@@ -61,6 +63,9 @@ function PromptEditor({
                             {hasError && (
                                 <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-600 rounded">Empty</span>
                             )}
+                            {prompt.customInstructions && (
+                                <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded">Has Instructions</span>
+                            )}
                         </div>
                         <p className="text-sm text-gray-500">{meta.description}</p>
                     </div>
@@ -74,62 +79,118 @@ function PromptEditor({
             {isExpanded && (
                 <div className="px-5 pb-5 border-t border-gray-100">
                     <div className="space-y-4 pt-4">
-                        {/* System Prompt */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                System Prompt
-                                <span className="text-gray-400 font-normal ml-2">Sets the AI's behavior</span>
-                            </label>
-                            <textarea
-                                value={prompt.system}
-                                onChange={(e) => onChange({ ...prompt, system: e.target.value })}
-                                rows={3}
-                                className={`w-full px-4 py-3 rounded-lg border ${hasError && !prompt.system?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-200'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono text-sm resize-y`}
-                                placeholder="You are an expert..."
-                            />
-                        </div>
-
-                        {/* User Prompt Template */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                User Prompt Template
-                                <span className="text-gray-400 font-normal ml-2">Use {'{{ variable }}'} for dynamic content</span>
-                            </label>
-                            <textarea
-                                value={prompt.user}
-                                onChange={(e) => onChange({ ...prompt, user: e.target.value })}
-                                rows={10}
-                                className={`w-full px-4 py-3 rounded-lg border ${hasError && !prompt.user?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-200'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono text-sm resize-y`}
-                                placeholder="Analyze this job description..."
-                            />
-                        </div>
-
-                        {/* Settings */}
-                        <div className="grid grid-cols-2 gap-4">
+                        {simpleMode ? (
+                            // Simple Mode UI
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Max Tokens</label>
-                                <input
-                                    type="number"
-                                    value={prompt.maxTokens}
-                                    onChange={(e) => onChange({ ...prompt, maxTokens: parseInt(e.target.value) || 500 })}
-                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 outline-none"
-                                    min={100}
-                                    max={4000}
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        Custom Instructions
+                                        <span className="text-gray-400 font-normal ml-2">Simple instructions to guide the AI</span>
+                                    </label>
+                                    <select
+                                        className="text-xs border-gray-200 rounded-lg text-gray-600 focus:border-purple-500 focus:ring-purple-500"
+                                        onChange={(e) => {
+                                            if (e.target.value) {
+                                                const current = prompt.customInstructions || '';
+                                                const separator = current.trim() ? '\n' : '';
+                                                onChange({ ...prompt, customInstructions: current + separator + e.target.value });
+                                                e.target.value = ''; // Reset
+                                            }
+                                        }}
+                                        defaultValue=""
+                                    >
+                                        <option value="" disabled>Add quick instruction...</option>
+                                        <option value="Make the tone professional and corporate.">Professional Tone</option>
+                                        <option value="Focus on leadership and team management.">Leadership Focus</option>
+                                        <option value="Highlight technical skills and tools.">Tech Heavy</option>
+                                        <option value="Keep bullet points concise and result-oriented.">Concise Bullets</option>
+                                        <option value="Use active voice and strong action verbs.">Active Voice</option>
+                                        <option value="Emphasize quantitative metrics and achievements.">Metrics Focus</option>
+                                    </select>
+                                </div>
+                                <textarea
+                                    value={prompt.customInstructions || ''}
+                                    onChange={(e) => onChange({ ...prompt, customInstructions: e.target.value })}
+                                    rows={4}
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none text-sm"
+                                    placeholder="e.g. Focus on leadership skills, Make it concise, Use active voice..."
                                 />
+                                <p className="text-xs text-gray-500 mt-2">These instructions are automatically appended to the AI's behavior.</p>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Temperature</label>
-                                <input
-                                    type="number"
-                                    value={prompt.temperature}
-                                    onChange={(e) => onChange({ ...prompt, temperature: parseFloat(e.target.value) || 0.3 })}
-                                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 outline-none"
-                                    min={0}
-                                    max={2}
-                                    step={0.1}
-                                />
-                            </div>
-                        </div>
+                        ) : (
+                            // Advanced Mode UI
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Custom Instructions
+                                    </label>
+                                    <textarea
+                                        value={prompt.customInstructions || ''}
+                                        onChange={(e) => onChange({ ...prompt, customInstructions: e.target.value })}
+                                        rows={2}
+                                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm"
+                                        placeholder="Additional instructions..."
+                                    />
+                                </div>
+
+                                {/* System Prompt */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        System Prompt
+                                        <span className="text-gray-400 font-normal ml-2">Sets the AI's behavior</span>
+                                    </label>
+                                    <textarea
+                                        value={prompt.system}
+                                        onChange={(e) => onChange({ ...prompt, system: e.target.value })}
+                                        rows={3}
+                                        className={`w-full px-4 py-3 rounded-lg border ${hasError && !prompt.system?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-200'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono text-sm resize-y`}
+                                        placeholder="You are an expert..."
+                                    />
+                                </div>
+
+                                {/* User Prompt Template */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        User Prompt Template
+                                        <span className="text-gray-400 font-normal ml-2">Use {'{{ variable }}'} for dynamic content</span>
+                                    </label>
+                                    <textarea
+                                        value={prompt.user}
+                                        onChange={(e) => onChange({ ...prompt, user: e.target.value })}
+                                        rows={10}
+                                        className={`w-full px-4 py-3 rounded-lg border ${hasError && !prompt.user?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-200'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono text-sm resize-y`}
+                                        placeholder="Analyze this job description..."
+                                    />
+                                </div>
+
+                                {/* Settings */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Max Tokens</label>
+                                        <input
+                                            type="number"
+                                            value={prompt.maxTokens}
+                                            onChange={(e) => onChange({ ...prompt, maxTokens: parseInt(e.target.value) || 500 })}
+                                            className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 outline-none"
+                                            min={100}
+                                            max={4000}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Temperature</label>
+                                        <input
+                                            type="number"
+                                            value={prompt.temperature}
+                                            onChange={(e) => onChange({ ...prompt, temperature: parseFloat(e.target.value) || 0.3 })}
+                                            className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 outline-none"
+                                            min={0}
+                                            max={2}
+                                            step={0.1}
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
 
                         {/* Reset Button */}
                         <div className="flex justify-end pt-2">
@@ -159,6 +220,7 @@ export default function PromptSettingsPage() {
     const [defaults, setDefaults] = useState<Record<FlatPromptKey, PromptConfig> | null>(null);
     const [expandedPrompt, setExpandedPrompt] = useState<FlatPromptKey | null>(null);
     const [showVariables, setShowVariables] = useState(false);
+    const simpleMode = true; // Always Simple Mode for end users
 
     useEffect(() => {
         useAuthStore.getState().initialize();
@@ -389,6 +451,7 @@ export default function PromptSettingsPage() {
                                         onReset={() => handleResetPrompt(key)}
                                         isExpanded={expandedPrompt === key}
                                         onToggle={() => setExpandedPrompt(expandedPrompt === key ? null : key)}
+                                        simpleMode={simpleMode}
                                     />
                                 ))}
                             </div>
