@@ -21,6 +21,7 @@ import { TemplateRenderer } from '@/components/TemplateRenderer';
 import { convertTemplateToPdfMake } from '@/lib/utils/templateToPdfMake';
 import { useAutoSave } from '@/lib/hooks/useAutoSave';
 import { SaveIndicator } from '@/components/SaveIndicator';
+import { editorLog } from '@/lib/utils/editorLogger';
 
 interface Section {
     id: string;
@@ -35,6 +36,23 @@ const PAGE_HEIGHT_IN = 11;
 const PX_PER_IN = 96;
 const PREVIEW_SCALE = 0.72;
 
+// Helper to safely convert any value to string for form inputs
+// This prevents React crash when resumeData contains objects instead of strings
+const safeStr = (value: unknown): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) return value.filter(v => typeof v === 'string').join(', ');
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return '[object]';
+        }
+    }
+    return String(value);
+};
+
 export default function EditorPage() {
     const params = useParams();
     const router = useRouter();
@@ -43,6 +61,24 @@ export default function EditorPage() {
     const { isGuest, restrictions, checkLimit, incrementUsage } = useGuestAuth();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    const DEFAULT_RESUME_DATA = {
+        personalInfo: {
+            name: '',
+            email: '',
+            phone: '',
+            location: '',
+            linkedin: '',
+            github: '',
+        },
+        summary: '',
+        experience: [],
+        education: [],
+        skills: {
+            technical: [],
+        },
+        technicalSkills: {}, // Ensure this exists
+    };
 
     const [resumeData, setResumeData] = useState<{
         personalInfo: {
@@ -60,23 +96,8 @@ export default function EditorPage() {
             technical: string[];
         };
         technicalSkills?: Record<string, string[] | string>;
-        [key: string]: any; // Allow custom section data
-    }>({
-        personalInfo: {
-            name: '',
-            email: '',
-            phone: '',
-            location: '',
-            linkedin: '',
-            github: '',
-        },
-        summary: '',
-        experience: [],
-        education: [],
-        skills: {
-            technical: [],
-        },
-    });
+        [key: string]: any;
+    }>(DEFAULT_RESUME_DATA);
 
     const [sections, setSections] = useState<Section[]>([
         { id: 'summary', name: 'Professional Summary', type: 'summary', visible: true, order: 0 },
@@ -457,7 +478,7 @@ export default function EditorPage() {
                 });
             }
 
-            if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
+            if (section.type === 'skills' && resumeData.skills?.technical?.length > 0) {
                 addBlock(`heading-${section.id}`, renderSectionHeading(section), { marginBottom: gapTight, marginTop: gapTight });
                 resumeData.skills.technical.forEach((skillLine, idx) => {
                     addBlock(
@@ -572,7 +593,38 @@ export default function EditorPage() {
         }
     }, [resumeData, sections, settings, params.id, loading]);
 
+    // ✅ AUTO-SAVE Settings to User Profile (Debounced)
+    useEffect(() => {
+        if (!user?.uid || loading || !settings) return;
+
+        const timer = setTimeout(async () => {
+            // Check if settings differ from defaults significantly or just save always?
+            // "save once changed as per the userr" -> Implies strictly saving current preferences.
+
+            try {
+                // We only want to save global preferences if they are NOT specific to a single resume?
+                // Actually, user wants "everytime they want to create a resume... configurations must beee save once changed"
+                // This implies the LAST used settings become the new defaults.
+
+                await setDoc(doc(db, 'users', user.uid), {
+                    defaultSettings: settings
+                }, { merge: true });
+
+                // console.log('Saved user default settings'); 
+            } catch (err) {
+                console.error('Error saving user settings:', err);
+            }
+        }, 2000); // 2s debounce
+
+        return () => clearTimeout(timer);
+    }, [settings, user, loading]);
+
+
+
     const loadData = async () => {
+        editorLog.group(`📂 loadData() - Resume ID: ${params.id}`);
+        editorLog.info('Starting data load...', { userId: user?.uid, resumeId: params.id });
+
         try {
             // --- FETCH USER PROFILE (Unified Name Fallback) ---
             let profileName = user?.displayName || '';
@@ -580,6 +632,7 @@ export default function EditorPage() {
 
             if (user?.uid) {
                 try {
+                    editorLog.debug('Fetching user profile...');
                     const userDoc = await getDoc(doc(db, 'users', user.uid));
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
@@ -587,21 +640,42 @@ export default function EditorPage() {
                         if (userData.profile && userData.profile.firstName) {
                             profileName = `${userData.profile.firstName} ${userData.profile.lastName || ''}`.trim();
                         }
+                        editorLog.info('User profile loaded', { profileName, hasDefaultSettings: !!userData.defaultSettings });
+                    } else {
+                        editorLog.warn('User profile document not found');
                     }
                 } catch (err) {
-                    console.error('Error fetching profile for name:', err);
+                    editorLog.error('Error fetching profile for name:', err);
                 }
             }
 
             // ✅ Check for local draft first (survives refresh)
             const draftKey = `draft_resume_${params.id}`;
             const savedDraft = localStorage.getItem(draftKey);
+            editorLog.debug('Checking for local draft...', { draftKey, hasDraft: !!savedDraft });
+
+            // Apply default settings from profile if available (and not a draft restoration)
+            if (profileData.defaultSettings) {
+                setSettings({ ...DEFAULT_ATS_SETTINGS, ...profileData.defaultSettings });
+            }
 
             if (savedDraft) {
                 try {
                     const draft = JSON.parse(savedDraft);
+                    const draftAge = Date.now() - draft.updatedAt;
+                    editorLog.info('Local draft found', {
+                        ageHours: Math.round(draftAge / 3600000 * 10) / 10,
+                        isRecent: draftAge < 24 * 60 * 60 * 1000
+                    });
+
                     // Only use draft if it's recent (e.g., less than 24 hours)
-                    if (Date.now() - draft.updatedAt < 24 * 60 * 60 * 1000) {
+                    if (draftAge < 24 * 60 * 60 * 1000) {
+                        editorLog.loadStart('LocalDraft', draftKey);
+
+                        // Log raw draft data for debugging
+                        editorLog.rawData('LocalDraft', draft.resumeData);
+                        editorLog.validateData('LocalDraft-BEFORE', draft.resumeData || {});
+
                         // Apply name fallback to draft if empty
                         const draftData = draft.resumeData;
                         if (draftData && (!draftData.personalInfo?.name || draftData.personalInfo?.name?.trim() === '')) {
@@ -609,19 +683,67 @@ export default function EditorPage() {
                             draftData.personalInfo.name = profileName;
                         }
 
-                        setResumeData(draftData);
-                        if (draft.sections) setSections(draft.sections);
-                        if (draft.settings) setSettings(draft.settings);
+                        // DEEP CLEAN THE LOCAL DRAFT (same as Firestore loading)
+                        const cleanedData = {
+                            ...DEFAULT_RESUME_DATA,
+                            personalInfo: {
+                                ...DEFAULT_RESUME_DATA.personalInfo,
+                                ...(draftData.personalInfo || {}),
+                                name: draftData.personalInfo?.name || profileName,
+                            },
+                            summary: draftData.summary || '',
+                            skills: {
+                                technical: Array.isArray(draftData.skills?.technical) ? draftData.skills.technical : [],
+                            },
+                            experience: Array.isArray(draftData.experience) ? draftData.experience.filter((x: any) => x).map((exp: any) => ({
+                                ...exp,
+                                title: exp.title || '',
+                                company: exp.company || '',
+                                location: exp.location || '',
+                                startDate: exp.startDate || '',
+                                endDate: exp.endDate || '',
+                                current: !!exp.current,
+                                bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
+                            })) : [],
+                            education: Array.isArray(draftData.education) ? draftData.education.filter((x: any) => x).map((edu: any) => ({
+                                ...edu,
+                                school: edu.school || '',
+                                degree: edu.degree || '',
+                                field: edu.field || '',
+                                location: edu.location || '',
+                                graduationDate: edu.graduationDate || '',
+                            })) : [],
+                            technicalSkills: draftData.technicalSkills || {},
+                        };
+
+                        editorLog.validateData('LocalDraft-AFTER', cleanedData);
+                        setResumeData(cleanedData);
+
+                        // Deep clean sections and settings from draft
+                        if (Array.isArray(draft.sections)) setSections(draft.sections);
+                        if (draft.settings) {
+                            setSettings({
+                                ...DEFAULT_ATS_SETTINGS,
+                                ...draft.settings,
+                                margins: { ...DEFAULT_ATS_SETTINGS.margins, ...(draft.settings.margins || {}) },
+                                fontSize: { ...DEFAULT_ATS_SETTINGS.fontSize, ...(draft.settings.fontSize || {}) },
+                                fontColor: { ...DEFAULT_ATS_SETTINGS.fontColor, ...(draft.settings.fontColor || {}) },
+                            });
+                        }
 
                         const analysisStr = localStorage.getItem('jobAnalysis');
                         if (analysisStr) setJobAnalysis(JSON.parse(analysisStr));
 
+                        editorLog.loadComplete('LocalDraft', { experienceCount: cleanedData.experience.length, educationCount: cleanedData.education.length });
+                        editorLog.groupEnd();
                         setLoading(false);
                         toast.success('Restored unsaved changes');
                         return;
+                    } else {
+                        editorLog.info('Draft too old, skipping', { ageHours: Math.round(draftAge / 3600000) });
                     }
                 } catch (e) {
-                    console.error('Error parsing draft:', e);
+                    editorLog.error('Error parsing draft:', e);
                 }
             }
 
@@ -634,14 +756,21 @@ export default function EditorPage() {
 
 
             if (params.id !== 'new') {
+                editorLog.info('Loading existing resume from Firestore', { resumeId: params.id });
+
                 // ====== IMPORTED RESUME (Quick Format Flow) ======
                 // Check if this is an imported resume from applications collection
                 if ((params.id as string).startsWith('app_import_')) {
+                    editorLog.formatDetected('Import', { prefix: 'app_import_' });
+                    editorLog.loadStart('ImportedResume', params.id as string);
+
                     const { getDoc, doc } = await import('firebase/firestore');
                     const appDoc = await getDoc(doc(db, 'applications', params.id as string));
 
                     if (appDoc.exists()) {
                         const appData = appDoc.data();
+                        editorLog.rawData('ImportedResume', appData.resume);
+                        editorLog.validateData('ImportedResume-BEFORE', appData.resume || {});
 
                         // Load job title and company
                         setJobTitle(appData.jobTitle || 'Imported Resume');
@@ -650,8 +779,10 @@ export default function EditorPage() {
                         // Load the embedded resume data directly
                         if (appData.resume) {
                             const resume = appData.resume;
-                            setResumeData({
+                            const cleanedData = {
+                                ...DEFAULT_RESUME_DATA,
                                 personalInfo: {
+                                    ...DEFAULT_RESUME_DATA.personalInfo,
                                     name: resume.personalInfo?.fullName || resume.personalInfo?.name || profileName,
                                     email: resume.personalInfo?.email || '',
                                     phone: resume.personalInfo?.phone || '',
@@ -662,7 +793,7 @@ export default function EditorPage() {
                                 summary: resume.professionalSummary || '',
                                 experience: (() => {
                                     let foundCurrent = false;
-                                    return (resume.experience || []).map((exp: any) => {
+                                    return (resume.experience || []).filter((x: any) => x).map((exp: any) => {
                                         const shouldBeCurrent = !foundCurrent && (exp.endDate === 'Present' || exp.current);
                                         if (shouldBeCurrent) foundCurrent = true;
                                         return {
@@ -672,11 +803,13 @@ export default function EditorPage() {
                                             startDate: exp.startDate || '',
                                             endDate: exp.endDate || '',
                                             current: shouldBeCurrent || false,
-                                            bullets: exp.highlights || exp.bullets || (exp.description ? [exp.description] : []),
+                                            bullets: Array.isArray(exp.highlights) ? exp.highlights.filter((b: any) => b) :
+                                                Array.isArray(exp.bullets) ? exp.bullets.filter((b: any) => b) :
+                                                    (exp.description ? [exp.description] : []),
                                         };
                                     });
                                 })(),
-                                education: (resume.education || []).map((edu: any) => ({
+                                education: (resume.education || []).filter((x: any) => x).map((edu: any) => ({
                                     school: edu.institution || edu.school || '',
                                     degree: edu.degree || '',
                                     field: edu.field || '',
@@ -684,33 +817,50 @@ export default function EditorPage() {
                                     graduationDate: edu.graduationDate || '',
                                 })),
                                 skills: {
+                                    ...DEFAULT_RESUME_DATA.skills,
                                     technical: resume.technicalSkills
                                         ? Object.entries(resume.technicalSkills)
-                                            .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
+                                            .filter(([_, skills]) => skills)
+                                            .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.filter(s => s).join(', ') : skills || ''}`)
                                         : [],
                                 },
                                 // PRESERVE the map for TemplateRenderer!
-                                technicalSkills: resume.technicalSkills,
-                            });
+                                technicalSkills: resume.technicalSkills || DEFAULT_RESUME_DATA.technicalSkills,
+                            };
 
+                            editorLog.validateData('ImportedResume-AFTER', cleanedData);
+                            setResumeData(cleanedData);
+                            editorLog.loadComplete('ImportedResume', {
+                                experienceCount: cleanedData.experience.length,
+                                educationCount: cleanedData.education.length
+                            });
+                            editorLog.groupEnd();
                             setLoading(false);
                             toast.success('Imported resume loaded!');
                             return;
                         }
+                    } else {
+                        editorLog.warn('Imported resume document not found in Firestore');
                     }
                 }
 
                 // ====== AI-GENERATED RESUME ======
                 // Try loading from new 'resumes' collection first (AI-generated)
+                editorLog.debug('Trying resumes collection...');
                 let resumeDoc = await getDoc(doc(db, 'resumes', params.id as string));
+                let sourceCollection = 'resumes';
 
                 // If not found, try old 'appliedResumes' collection
                 if (!resumeDoc.exists()) {
+                    editorLog.debug('Not in resumes, trying appliedResumes...');
                     resumeDoc = await getDoc(doc(db, 'appliedResumes', params.id as string));
+                    sourceCollection = 'appliedResumes';
                 }
 
                 if (resumeDoc.exists()) {
                     const resumeData = resumeDoc.data();
+                    editorLog.info('Resume found in Firestore', { collection: sourceCollection });
+                    editorLog.rawData('Firestore-Resume', resumeData);
 
                     // Load job title and company
                     setJobTitle(resumeData.jobTitle || '');
@@ -719,87 +869,219 @@ export default function EditorPage() {
 
 
                     // CASE 1: AI-Generated Resume (New Format)
-                    if (resumeData.professionalSummary || resumeData.technicalSkills) {
-                        setResumeData({
-                            personalInfo: resumeData.personalInfo || {
-                                name: profileName,
+                    // Detect if it follows the AI schema (professionalSummary, technicalSkills, or experience with 'position')
+                    const isAiFormat = resumeData.professionalSummary ||
+                        resumeData.technicalSkills ||
+                        (Array.isArray(resumeData.experience) && resumeData.experience[0]?.position);
+
+                    if (isAiFormat) {
+                        editorLog.formatDetected('AI', {
+                            hasProfessionalSummary: !!resumeData.professionalSummary,
+                            hasTechnicalSkills: !!resumeData.technicalSkills,
+                            hasPosition: !!resumeData.experience?.[0]?.position
+                        });
+                        editorLog.loadStart('AI-Resume', params.id as string);
+                        editorLog.validateData('AI-Resume-BEFORE', resumeData);
+
+                        const cleanedData = {
+                            ...DEFAULT_RESUME_DATA,
+                            personalInfo: {
+                                ...DEFAULT_RESUME_DATA.personalInfo,
+                                ...(resumeData.personalInfo || {}),
+                                name: resumeData.personalInfo?.name || profileName,
                                 email: user?.email || '',
-                                phone: '',
-                                location: '',
-                                linkedin: '',
-                                github: '',
                             },
                             summary: resumeData.professionalSummary || '',
-                            experience: (resumeData.experience || []).map((exp: any) => ({
+                            experience: (resumeData.experience || []).filter((x: any) => x).map((exp: any) => ({
                                 company: exp.company || '',
-                                title: exp.position || '',
-                                location: '',
+                                title: exp.position || exp.title || '',
+                                location: exp.location || '',
                                 startDate: exp.startDate || '',
                                 endDate: exp.endDate || '',
                                 current: exp.current || false,
-                                bullets: exp.responsibilities || [],
+                                bullets: Array.isArray(exp.responsibilities)
+                                    ? exp.responsibilities.filter((b: any) => b && typeof b === 'string')
+                                    : Array.isArray(exp.bullets)
+                                        ? exp.bullets.filter((b: any) => b && typeof b === 'string')
+                                        : [],
                             })),
-                            education: (resumeData.education || []).map((edu: any) => ({
-                                school: edu.institution || '',
+                            education: (resumeData.education || []).filter((x: any) => x).map((edu: any) => ({
+                                school: edu.institution || edu.school || '',
                                 degree: edu.degree || '',
                                 field: edu.field || '',
-                                location: '',
+                                location: edu.location || '',
                                 graduationDate: edu.graduationDate || '',
                             })),
                             skills: {
+                                ...DEFAULT_RESUME_DATA.skills,
                                 technical: resumeData.technicalSkills
                                     ? Object.entries(resumeData.technicalSkills)
-                                        .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
+                                        .filter(([_, skills]) => skills) // Filter out null/undefined categories
+                                        .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.filter(s => s).join(', ') : skills || ''}`)
                                     : [],
                             },
-                            technicalSkills: resumeData.technicalSkills,
+                            technicalSkills: resumeData.technicalSkills || DEFAULT_RESUME_DATA.technicalSkills,
+                        };
+
+                        editorLog.validateData('AI-Resume-AFTER', cleanedData);
+                        setResumeData(cleanedData);
+                        // Handle legacy atsScore formats - may be number or object {total, ...}
+                        const rawAtsScore = resumeData.atsScore;
+                        if (typeof rawAtsScore === 'number') {
+                            setAtsScore(rawAtsScore);
+                        } else if (rawAtsScore && typeof rawAtsScore === 'object') {
+                            // Legacy format - extract total
+                            setAtsScore(rawAtsScore.total ?? rawAtsScore.totalScore ?? 0);
+                        } else {
+                            setAtsScore(0);
+                        }
+                        editorLog.loadComplete('AI-Resume', {
+                            experienceCount: cleanedData.experience.length,
+                            educationCount: cleanedData.education.length,
+                            skillCategories: Object.keys(cleanedData.technicalSkills || {}).length
                         });
-                        setAtsScore(resumeData.atsScore || 0);
+                        editorLog.groupEnd();
                         setLoading(false);
                         return; // Exit early for AI resumes
                     }
 
                     // CASE 2: Legacy Nested Format (resumeData.resumeData)
                     if (resumeData.resumeData) {
+                        editorLog.formatDetected('Legacy', { hasNestedResumeData: true });
+                        editorLog.loadStart('Legacy-Resume', params.id as string);
+                        editorLog.validateData('Legacy-Resume-BEFORE', resumeData.resumeData);
+
                         const legacyData = resumeData.resumeData;
-                        setResumeData({
+                        const cleanedData = {
+                            ...DEFAULT_RESUME_DATA,
                             ...legacyData,
                             personalInfo: {
+                                ...DEFAULT_RESUME_DATA.personalInfo,
                                 ...legacyData.personalInfo,
                                 name: legacyData.personalInfo?.name || profileName,
-                            }
-                        });
+                            },
+                            skills: {
+                                technical: Array.isArray(legacyData.skills?.technical) ? legacyData.skills.technical.filter((s: any) => s) : [],
+                            },
+                            experience: Array.isArray(legacyData.experience) ? legacyData.experience.filter((x: any) => x).map((exp: any) => ({
+                                ...exp,
+                                title: exp.title || '',
+                                company: exp.company || '',
+                                location: exp.location || '',
+                                startDate: exp.startDate || '',
+                                endDate: exp.endDate || '',
+                                current: !!exp.current,
+                                bullets: Array.isArray(exp.bullets) ? exp.bullets.filter((b: any) => b) : [],
+                            })) : [],
+                            education: Array.isArray(legacyData.education) ? legacyData.education.filter((x: any) => x).map((edu: any) => ({
+                                ...edu,
+                                school: edu.school || '',
+                                degree: edu.degree || '',
+                                field: edu.field || '',
+                                location: edu.location || '',
+                                graduationDate: edu.graduationDate || '',
+                            })) : [],
+                            technicalSkills: legacyData.technicalSkills || {},
+                        };
+
+                        editorLog.validateData('Legacy-Resume-AFTER', cleanedData);
+                        setResumeData(cleanedData);
 
                         // Load aux data
-                        if (resumeData.sections) setSections(resumeData.sections);
-                        if (resumeData.settings) setSettings(resumeData.settings);
+                        if (Array.isArray(resumeData.sections)) setSections(resumeData.sections);
+                        if (resumeData.settings) {
+                            setSettings({
+                                ...DEFAULT_ATS_SETTINGS,
+                                ...resumeData.settings,
+                                // Ensure critical nested objects exist
+                                margins: { ...DEFAULT_ATS_SETTINGS.margins, ...(resumeData.settings.margins || {}) },
+                                fontSize: { ...DEFAULT_ATS_SETTINGS.fontSize, ...(resumeData.settings.fontSize || {}) },
+                                fontColor: { ...DEFAULT_ATS_SETTINGS.fontColor, ...(resumeData.settings.fontColor || {}) },
+                            });
+                        }
 
+                        editorLog.loadComplete('Legacy-Resume', { experienceCount: cleanedData.experience.length });
+                        editorLog.groupEnd();
                         setLoading(false);
                         return;
                     }
 
                     // CASE 3: Standard Flat Format
-                    setResumeData({
+                    editorLog.formatDetected('Standard', { isFlat: true });
+                    editorLog.loadStart('Standard-Resume', params.id as string);
+                    editorLog.validateData('Standard-Resume-BEFORE', resumeData);
+
+                    const cleanedStandardData = {
+                        ...DEFAULT_RESUME_DATA,
                         ...resumeData,
                         personalInfo: {
+                            ...DEFAULT_RESUME_DATA.personalInfo,
                             ...resumeData.personalInfo,
                             name: resumeData.personalInfo?.name || profileName,
-                        }
-                    } as any);
+                        },
+                        skills: {
+                            technical: Array.isArray(resumeData.skills?.technical) ? resumeData.skills.technical.filter((s: any) => s) : [],
+                        },
+                        // DEEP CLEAN: Ensure every item in experience/education is a valid object
+                        experience: Array.isArray(resumeData.experience) ? resumeData.experience.filter((x: any) => x).map((exp: any) => ({
+                            ...exp,
+                            title: exp.title || '',
+                            company: exp.company || '',
+                            location: exp.location || '',
+                            startDate: exp.startDate || '',
+                            endDate: exp.endDate || '',
+                            current: !!exp.current,
+                            bullets: Array.isArray(exp.bullets) ? exp.bullets.filter((b: any) => b) : [],
+                        })) : [],
+                        education: Array.isArray(resumeData.education) ? resumeData.education.filter((x: any) => x).map((edu: any) => ({
+                            ...edu,
+                            school: edu.school || '',
+                            degree: edu.degree || '',
+                            field: edu.field || '',
+                            location: edu.location || '',
+                            graduationDate: edu.graduationDate || '',
+                        })) : [],
+                        technicalSkills: resumeData.technicalSkills || {},
+                    };
 
-                    if (resumeData.sections) setSections(resumeData.sections);
-                    if (resumeData.settings) setSettings(resumeData.settings);
+                    editorLog.validateData('Standard-Resume-AFTER', cleanedStandardData);
+                    setResumeData(cleanedStandardData as any);
 
+                    // Validate custom sections
+                    if (Array.isArray(resumeData.sections)) {
+                        setSections(resumeData.sections);
+                    } else if (resumeData.sections) {
+                        editorLog.warn('Sections is not an array, resetting', { sectionsType: typeof resumeData.sections });
+                        setSections([]);
+                    }
+
+                    if (resumeData.settings) {
+                        setSettings({
+                            ...DEFAULT_ATS_SETTINGS,
+                            ...resumeData.settings,
+                            // Ensure critical nested objects exist
+                            margins: { ...DEFAULT_ATS_SETTINGS.margins, ...(resumeData.settings.margins || {}) },
+                            fontSize: { ...DEFAULT_ATS_SETTINGS.fontSize, ...(resumeData.settings.fontSize || {}) },
+                            fontColor: { ...DEFAULT_ATS_SETTINGS.fontColor, ...(resumeData.settings.fontColor || {}) },
+                        });
+                    }
+
+                    editorLog.loadComplete('Standard-Resume', { experienceCount: cleanedStandardData.experience.length });
+                    editorLog.groupEnd();
                     setLoading(false);
                     return;
+                } else {
+                    editorLog.warn('Resume document not found in any collection', { resumeId: params.id });
                 }
             }
 
             // Otherwise, load from user profile (new resume)
             // Note: We already fetched profileData/profileName at the top
+            editorLog.formatDetected('New', { hasProfileData: !!profileData });
 
             if (profileData) {
-                setResumeData({
+                editorLog.loadStart('NewResume-FromProfile', 'new');
+                const newResumeData = {
                     personalInfo: {
                         name: profileName,
                         email: user?.email || '',
@@ -814,12 +1096,19 @@ export default function EditorPage() {
                     skills: {
                         technical: profileData.baseSkills?.technical || [],
                     },
-                });
-
+                };
+                editorLog.validateData('NewResume', newResumeData);
+                setResumeData(newResumeData);
+                editorLog.loadComplete('NewResume-FromProfile', { hasExperience: !!profileData.baseExperience?.length });
+                editorLog.groupEnd();
                 calculateATS();
+            } else {
+                editorLog.info('No profile data, using empty defaults');
+                editorLog.groupEnd();
             }
         } catch (error) {
-            console.error('Error loading data:', error);
+            editorLog.error('CRITICAL: Error loading data', error);
+            editorLog.groupEnd();
         } finally {
             setLoading(false);
         }
@@ -1306,8 +1595,11 @@ export default function EditorPage() {
 
                     if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
                         addSectionHeader(section.name);
-                        resumeData.skills.technical.forEach((skillLine, idx) => {
-                            content.push({ text: formatPdfText(`${settings.bulletStyle} ${skillLine}`), style: 'body', margin: [0, 0, 0, idx === resumeData.skills.technical.length - 1 ? 8 : 4] });
+                        // Use proper pdfMake ul list for real bullet points
+                        content.push({
+                            ul: resumeData.skills.technical.map((skillLine: string) => formatPdfText(skillLine)),
+                            style: 'body',
+                            margin: [0, 0, 0, 8],
                         });
                     }
 
@@ -1610,13 +1902,13 @@ export default function EditorPage() {
                             }
                         });
 
-                        // Render bullets
+                        // Render bullets with proper Word bullet formatting
                         exp.bullets.filter((b: string) => b.trim()).forEach((b: string) => {
                             sectionChildren.push(new Paragraph({
                                 children: [
-                                    new TextRun({ text: `${t.experience.bulletStyle} `, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                     ...formatDocxRuns(b, docxModule, { font: t.typography.fontFamily, size: px(t.typography.sizes.body), color: bodyColorDocx }),
                                 ],
+                                bullet: { level: 0 }, // Use Word's native bullet formatting
                                 spacing: { after: 40 },
                                 alignment: t.typography.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
                             }));
@@ -1671,10 +1963,10 @@ export default function EditorPage() {
 
                                 sectionChildren.push(new Paragraph({
                                     children: [
-                                        new TextRun({ text: `${t.experience.bulletStyle} `, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                         new TextRun({ text: `${formattedCategory}:`, bold: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                         new TextRun({ text: ` ${skillText}`, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                     ],
+                                    bullet: { level: 0 }, // Use Word's native bullet formatting
                                     spacing: { after: 40 },
                                     alignment: t.typography.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
                                 }));
@@ -1683,7 +1975,12 @@ export default function EditorPage() {
                         // Fallback: Array Skills
                         else if (hasArraySkills) {
                             resumeData.skills.technical.forEach((skillLine: string, idx: number) => {
-                                sectionChildren.push(bodyParagraph(`${t.experience.bulletStyle} ${skillLine}`, { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 }));
+                                sectionChildren.push(new Paragraph({
+                                    children: formatDocxRuns(skillLine, docxModule, { font: t.typography.fontFamily, size: px(t.typography.sizes.body), color: bodyColorDocx }),
+                                    bullet: { level: 0 }, // Use Word's native bullet formatting
+                                    spacing: { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 },
+                                    alignment: t.typography.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
+                                }));
                             });
                         }
                     }
@@ -1709,6 +2006,30 @@ export default function EditorPage() {
             });
 
             const doc = new Document({
+                numbering: {
+                    config: [
+                        {
+                            reference: "bullet-list",
+                            levels: [
+                                {
+                                    level: 0,
+                                    format: "bullet",
+                                    text: settings.bulletStyle,
+                                    alignment: AlignmentType.LEFT,
+                                    style: {
+                                        paragraph: {
+                                            indent: { left: 360, hanging: 180 },
+                                        },
+                                        run: {
+                                            font: settings.fontFamily,
+                                            size: px(settings.bulletSize || 8),
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
                 sections: [
                     {
                         properties: {
@@ -2049,11 +2370,11 @@ export default function EditorPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <div className={`px-3 py-1.5 rounded-full font-semibold text-xs flex items-center gap-1.5 ${atsScore >= 80 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                            atsScore >= 60 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                        <div className={`px-3 py-1.5 rounded-full font-semibold text-xs flex items-center gap-1.5 ${typeof atsScore === 'number' && atsScore >= 80 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                            typeof atsScore === 'number' && atsScore >= 60 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
                                 'bg-red-50 text-red-700 border border-red-200'
                             }`}>
-                            <span className="font-bold">ATS {atsScore}%</span>
+                            <span className="font-bold">ATS {typeof atsScore === 'number' ? atsScore : 0}%</span>
                         </div>
 
                         {/* Auto-Save Status Indicator */}
@@ -2135,16 +2456,22 @@ export default function EditorPage() {
                                         </div>
                                         <div className="flex-1">
                                             <h3 className="text-sm font-semibold text-indigo-900 mb-1">Analysis Complete</h3>
-                                            <div className="text-xs text-indigo-700 space-y-1 mb-3">
-                                                <p>Keywords: {advancedAnalysis.sections.keywords.score}/40 &bull; Quality: {advancedAnalysis.sections.quality.score}/35 &bull; Format: {advancedAnalysis.sections.formatting.score}/25</p>
-                                            </div>
+                                            {advancedAnalysis.sections && (
+                                                <div className="text-xs text-indigo-700 space-y-1 mb-3">
+                                                    <p>
+                                                        Keywords: {safeStr(advancedAnalysis.sections.keywords?.score ?? advancedAnalysis.sections.keywords)}/40
+                                                        &bull; Quality: {safeStr(advancedAnalysis.sections.quality?.score ?? advancedAnalysis.sections.quality)}/35
+                                                        &bull; Format: {safeStr(advancedAnalysis.sections.formatting?.score ?? advancedAnalysis.sections.formatting)}/25
+                                                    </p>
+                                                </div>
+                                            )}
 
-                                            {advancedAnalysis.feedback.length > 0 && (
+                                            {Array.isArray(advancedAnalysis.feedback) && advancedAnalysis.feedback.length > 0 && (
                                                 <div className="space-y-2 bg-white/60 p-3 rounded-lg">
-                                                    {advancedAnalysis.feedback.map((tip: string, i: number) => (
+                                                    {advancedAnalysis.feedback.map((tip: unknown, i: number) => (
                                                         <div key={i} className="flex items-start gap-2 text-xs text-slate-700">
                                                             <span className="text-indigo-500 mt-0.5">•</span>
-                                                            {tip}
+                                                            {safeStr(tip)}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2166,7 +2493,7 @@ export default function EditorPage() {
                                 <div className="space-y-3">
                                     <input
                                         type="text"
-                                        value={resumeData.personalInfo.name}
+                                        value={safeStr(resumeData.personalInfo.name)}
                                         onChange={(e) => setResumeData({
                                             ...resumeData,
                                             personalInfo: { ...resumeData.personalInfo, name: e.target.value }
@@ -2177,7 +2504,7 @@ export default function EditorPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <input
                                             type="email"
-                                            value={resumeData.personalInfo.email}
+                                            value={safeStr(resumeData.personalInfo.email)}
                                             onChange={(e) => setResumeData({
                                                 ...resumeData,
                                                 personalInfo: { ...resumeData.personalInfo, email: e.target.value }
@@ -2187,7 +2514,7 @@ export default function EditorPage() {
                                         />
                                         <input
                                             type="tel"
-                                            value={resumeData.personalInfo.phone}
+                                            value={safeStr(resumeData.personalInfo.phone)}
                                             onChange={(e) => setResumeData({
                                                 ...resumeData,
                                                 personalInfo: { ...resumeData.personalInfo, phone: e.target.value }
@@ -2198,7 +2525,7 @@ export default function EditorPage() {
                                     </div>
                                     <input
                                         type="text"
-                                        value={resumeData.personalInfo.location}
+                                        value={safeStr(resumeData.personalInfo.location)}
                                         onChange={(e) => setResumeData({
                                             ...resumeData,
                                             personalInfo: { ...resumeData.personalInfo, location: e.target.value }
@@ -2209,7 +2536,7 @@ export default function EditorPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <input
                                             type="url"
-                                            value={resumeData.personalInfo.linkedin}
+                                            value={safeStr(resumeData.personalInfo.linkedin)}
                                             onChange={(e) => setResumeData({
                                                 ...resumeData,
                                                 personalInfo: { ...resumeData.personalInfo, linkedin: e.target.value }
@@ -2219,7 +2546,7 @@ export default function EditorPage() {
                                         />
                                         <input
                                             type="url"
-                                            value={resumeData.personalInfo.github}
+                                            value={safeStr(resumeData.personalInfo.github)}
                                             onChange={(e) => setResumeData({
                                                 ...resumeData,
                                                 personalInfo: { ...resumeData.personalInfo, github: e.target.value }
@@ -2342,21 +2669,21 @@ export default function EditorPage() {
 
                                                             <input
                                                                 type="text"
-                                                                value={exp.title}
+                                                                value={safeStr(exp.title)}
                                                                 onChange={(e) => updateExperience(idx, 'title', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 placeholder="Job Title"
                                                             />
                                                             <input
                                                                 type="text"
-                                                                value={exp.company}
+                                                                value={safeStr(exp.company)}
                                                                 onChange={(e) => updateExperience(idx, 'company', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 placeholder="Company"
                                                             />
                                                             <input
                                                                 type="text"
-                                                                value={exp.location}
+                                                                value={safeStr(exp.location)}
                                                                 onChange={(e) => updateExperience(idx, 'location', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 placeholder="Location (City, State)"
@@ -2364,13 +2691,13 @@ export default function EditorPage() {
                                                             <div className="grid grid-cols-2 gap-2">
                                                                 <input
                                                                     type="month"
-                                                                    value={exp.startDate}
+                                                                    value={safeStr(exp.startDate)}
                                                                     onChange={(e) => updateExperience(idx, 'startDate', e.target.value)}
                                                                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 />
                                                                 <input
                                                                     type="month"
-                                                                    value={exp.endDate}
+                                                                    value={safeStr(exp.endDate)}
                                                                     onChange={(e) => updateExperience(idx, 'endDate', e.target.value)}
                                                                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                     disabled={exp.current}
@@ -2389,7 +2716,7 @@ export default function EditorPage() {
                                                                 </label>
                                                             )}
                                                             <textarea
-                                                                value={exp.bullets?.join('\n') || ''}
+                                                                value={Array.isArray(exp.bullets) ? exp.bullets.filter((b: unknown) => typeof b === 'string').join('\n') : ''}
                                                                 onChange={(e) => updateExperience(idx, 'bullets', e.target.value.split('\n'))}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400 resize-none"
                                                                 placeholder="Key achievements (one per line)"
@@ -2424,7 +2751,7 @@ export default function EditorPage() {
 
                                                             <input
                                                                 type="text"
-                                                                value={edu.school}
+                                                                value={safeStr(edu.school)}
                                                                 onChange={(e) => updateEducation(idx, 'school', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 placeholder="School Name"
@@ -2432,14 +2759,14 @@ export default function EditorPage() {
                                                             <div className="grid grid-cols-2 gap-2">
                                                                 <input
                                                                     type="text"
-                                                                    value={edu.degree}
+                                                                    value={safeStr(edu.degree)}
                                                                     onChange={(e) => updateEducation(idx, 'degree', e.target.value)}
                                                                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                     placeholder="Degree (e.g., B.Sc.)"
                                                                 />
                                                                 <input
                                                                     type="text"
-                                                                    value={edu.field}
+                                                                    value={safeStr(edu.field)}
                                                                     onChange={(e) => updateEducation(idx, 'field', e.target.value)}
                                                                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                     placeholder="Field"
@@ -2447,14 +2774,14 @@ export default function EditorPage() {
                                                             </div>
                                                             <input
                                                                 type="text"
-                                                                value={edu.location}
+                                                                value={safeStr(edu.location)}
                                                                 onChange={(e) => updateEducation(idx, 'location', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 placeholder="Location (City, State)"
                                                             />
                                                             <input
                                                                 type="month"
-                                                                value={edu.graduationDate}
+                                                                value={safeStr(edu.graduationDate)}
                                                                 onChange={(e) => updateEducation(idx, 'graduationDate', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                             />
@@ -2471,7 +2798,7 @@ export default function EditorPage() {
                                                         Technical Skills - Paste from Word with formatting!
                                                     </label>
                                                     <RichTextEditor
-                                                        value={resumeData.skills.technical.join('\n')}
+                                                        value={(resumeData.skills?.technical || []).join('\n')}
                                                         onChange={(newValue) => {
                                                             const lines = newValue.split('\n').filter(line => line.trim());
                                                             setResumeData({
@@ -2480,6 +2807,7 @@ export default function EditorPage() {
                                                                     ...resumeData.skills,
                                                                     technical: lines,
                                                                 },
+                                                                technicalSkills: undefined, // Force preview to use new manual list
                                                             });
                                                         }}
                                                         placeholder="Paste your skills from Word - formatting will be preserved!"

@@ -11,6 +11,30 @@ import { FONT_STACKS } from '@/lib/types/resumeSettings';
 import { parseFormattedText } from '@/lib/utils/textFormatter';
 import { formatMonthYear } from '@/lib/utils/dateFormat';
 
+// Debug logger for TemplateRenderer
+const rendererLog = {
+    info: (msg: string, data?: any) => console.log(`%c[RENDERER] ${msg}`, 'color: #10b981', data ?? ''),
+    warn: (msg: string, data?: any) => console.warn(`%c[RENDERER] ${msg}`, 'color: #f59e0b', data ?? ''),
+    error: (msg: string, data?: any) => console.error(`%c[RENDERER] ${msg}`, 'color: #ef4444', data ?? ''),
+    debug: (msg: string, data?: any) => console.debug(`%c[RENDERER] ${msg}`, 'color: #6b7280', data ?? ''),
+};
+
+// Helper to safely convert any value to a renderable string
+function safeString(value: unknown): string {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) return value.filter(v => typeof v === 'string').join(', ');
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return '[object]';
+        }
+    }
+    return String(value);
+}
+
 interface ResumeData {
     personalInfo: {
         name: string;
@@ -65,8 +89,14 @@ export function TemplateRenderer({
     sections,
     customSections = {},
 }: TemplateRendererProps): ReactNode[] {
+    rendererLog.info('TemplateRenderer starting...', {
+        hasData: !!data,
+        hasTemplate: !!template
+    });
+
     const blocks: ReactNode[] = [];
     let blockIndex = 0;
+
 
     const t = template || DEFAULT_ATS_TEMPLATE;
 
@@ -80,7 +110,7 @@ export function TemplateRenderer({
         key: string
     ): ReactNode => {
         const visibleFields = row.fields.filter(field => {
-            const value = fieldData[field.name];
+            const value = safeString(fieldData[field.name]);
             return t.header.hideEmptyFields ? !!value?.trim() : true;
         });
 
@@ -123,7 +153,8 @@ export function TemplateRenderer({
                     {/* Left group - fields together */}
                     <span>
                         {leftFields.map((field, i) => {
-                            const value = fieldData[field.name] || '';
+                            const rawValue = fieldData[field.name];
+                            const value = safeString(rawValue);
                             if (!value) return null;
                             const isLast = i === leftFields.length - 1;
                             const separator = isLast ? '' : field.separator;
@@ -144,7 +175,8 @@ export function TemplateRenderer({
                     <span>
                         {(() => {
                             if (!rightField) return null; // No right field to render
-                            const value = fieldData[rightField.name] || '';
+                            const rawValue = fieldData[rightField.name];
+                            const value = safeString(rawValue);
                             if (!value) return null;
                             const fieldStyle: CSSProperties = {
                                 fontWeight: rightField.style === 'bold' ? 'bold' : 'normal',
@@ -162,7 +194,8 @@ export function TemplateRenderer({
         return (
             <div key={key} style={rowStyle}>
                 {visibleFields.map((field, i) => {
-                    const value = fieldData[field.name] || '';
+                    const rawValue = fieldData[field.name];
+                    const value = safeString(rawValue);
                     if (!value) return null;
 
                     const isLast = i === visibleFields.length - 1;
@@ -264,17 +297,17 @@ export function TemplateRenderer({
 
         blocks.push(
             <div key={`header-name-${blockIndex++}`} style={nameStyle}>
-                {data.personalInfo.name || 'Your Name'}
+                {safeString(data.personalInfo.name) || 'Your Name'}
             </div>
         );
 
         // Contact rows
         const contactData: Record<string, string | undefined> = {
-            email: data.personalInfo.email,
-            phone: data.personalInfo.phone,
-            location: data.personalInfo.location,
-            linkedin: data.personalInfo.linkedin,
-            github: data.personalInfo.github,
+            email: safeString(data.personalInfo.email) || undefined,
+            phone: safeString(data.personalInfo.phone) || undefined,
+            location: safeString(data.personalInfo.location) || undefined,
+            linkedin: safeString(data.personalInfo.linkedin) || undefined,
+            github: safeString(data.personalInfo.github) || undefined,
         };
 
         t.header.contactRows.forEach((row, i) => {
@@ -337,57 +370,83 @@ export function TemplateRenderer({
 
         // Primary: Categorized Skills (technicalSkills map)
         if (hasTechnicalSkills) {
-            Object.entries(data.technicalSkills!).forEach(([category, skills]) => {
-                // Format camelCase to Title Case (e.g., "securityCompliance" -> "Security Compliance")
-                const formattedCategory = category
-                    .replace(/([A-Z])/g, ' $1')
-                    .replace(/^./, str => str.toUpperCase())
-                    .trim();
-                const skillText = Array.isArray(skills) ? skills.join(', ') : skills;
+            Object.entries(data.technicalSkills!)
+                .filter(([_, skills]) => skills) // Filter out null/undefined skill categories
+                .forEach(([category, skills]) => {
+                    // Format camelCase to Title Case (e.g., "securityCompliance" -> "Security Compliance")
+                    const formattedCategory = category
+                        .replace(/([A-Z])/g, ' $1')
+                        .replace(/^./, str => str.toUpperCase())
+                        .trim();
 
-                blocks.push(
-                    <div
-                        key={`skill-cat-${blockIndex++}`}
-                        style={{
-                            display: 'flex',
-                            gap: '6px',
-                            fontSize: `${t.typography.sizes.body}pt`,
-                            color: t.typography.colors.body,
-                            marginBottom: '4px',
-                            lineHeight: 1.4,
-                        }}
-                    >
-                        <span>{t.experience.bulletStyle}</span>
-                        <span>
-                            <strong>{formattedCategory}:</strong> {parseFormattedText(skillText)}
-                        </span>
-                    </div>
-                );
-            });
+                    // CRITICAL: Ensure skillText is ALWAYS a string
+                    // skills can be: string | string[] | object | null | undefined
+                    let skillText: string;
+                    if (typeof skills === 'string') {
+                        skillText = skills;
+                    } else if (Array.isArray(skills)) {
+                        skillText = skills.filter(s => s && typeof s === 'string').join(', ');
+                    } else if (skills && typeof skills === 'object') {
+                        // Handle nested object case - flatten to string
+                        try {
+                            skillText = Object.values(skills)
+                                .flat()
+                                .filter(s => s && typeof s === 'string')
+                                .join(', ');
+                        } catch {
+                            skillText = '';
+                        }
+                    } else {
+                        skillText = '';
+                    }
+
+                    if (!skillText) return; // Skip empty skill categories
+
+                    blocks.push(
+                        <div
+                            key={`skill-cat-${blockIndex++}`}
+                            style={{
+                                display: 'flex',
+                                gap: '6px',
+                                fontSize: `${t.typography.sizes.body}pt`,
+                                color: t.typography.colors.body,
+                                marginBottom: '4px',
+                                lineHeight: 1.4,
+                            }}
+                        >
+                            <span>{t.experience.bulletStyle}</span>
+                            <span>
+                                <strong>{formattedCategory}:</strong> {parseFormattedText(skillText)}
+                            </span>
+                        </div>
+                    );
+                });
             return;
         }
 
         // Fallback: Render each skill line as its own bullet
         // Each line is already formatted as "**Category**: skills" from loadData
         if (hasArraySkills) {
-            data.skills.technical.forEach((skillLine: string, idx: number) => {
-                blocks.push(
-                    <div
-                        key={`skill-line-${blockIndex++}-${idx}`}
-                        style={{
-                            display: 'flex',
-                            gap: '6px',
-                            fontSize: `${t.typography.sizes.body}pt`,
-                            color: t.typography.colors.body,
-                            marginBottom: '4px',
-                            lineHeight: 1.4,
-                        }}
-                    >
-                        <span>{t.experience.bulletStyle}</span>
-                        <span>{parseFormattedText(skillLine)}</span>
-                    </div>
-                );
-            });
+            data.skills.technical
+                .filter((skillLine: string | null | undefined): skillLine is string => !!skillLine)
+                .forEach((skillLine: string, idx: number) => {
+                    blocks.push(
+                        <div
+                            key={`skill-line-${blockIndex++}-${idx}`}
+                            style={{
+                                display: 'flex',
+                                gap: '6px',
+                                fontSize: `${t.typography.sizes.body}pt`,
+                                color: t.typography.colors.body,
+                                marginBottom: '4px',
+                                lineHeight: 1.4,
+                            }}
+                        >
+                            <span>{t.experience.bulletStyle}</span>
+                            <span>{parseFormattedText(skillLine)}</span>
+                        </div>
+                    );
+                });
         }
     };
 
@@ -402,16 +461,16 @@ export function TemplateRenderer({
         );
 
         data.experience.forEach((exp, expIndex) => {
-            const endDate = exp.current ? 'Present' : formatDate(exp.endDate);
-            const dates = [formatDate(exp.startDate), endDate]
+            const endDate = exp.current ? 'Present' : formatDate(safeString(exp.endDate));
+            const dates = [formatDate(safeString(exp.startDate)), endDate]
                 .filter(Boolean)
                 .join(' - ');
 
             const expData: Record<string, string | undefined> = {
-                title: exp.title,
-                company: exp.company,
-                location: exp.location,
-                dates: dates,
+                title: safeString(exp.title) || undefined,
+                company: safeString(exp.company) || undefined,
+                location: safeString(exp.location) || undefined,
+                dates: dates || undefined,
             };
 
             // Render experience rows
@@ -438,29 +497,31 @@ export function TemplateRenderer({
             const bullets = exp.achievements || (exp as any).bullets || (exp as any).highlights || (exp as any).responsibilities || [];
 
             if (bullets.length) {
-                bullets.forEach((achievement: string, achIndex: number) => {
-                    blocks.push(
-                        <div
-                            key={`exp-${expIndex}-ach-${blockIndex++}`}
-                            style={{
-                                display: 'flex',
-                                gap: '6px',
-                                fontSize: `${t.typography.sizes.body}pt`,
-                                color: t.typography.colors.body,
-                                marginLeft: `${t.experience.bulletIndent}px`,
-                            }}
-                        >
-                            <span>{t.experience.bulletStyle}</span>
-                            <span style={{
-                                flex: 1,
-                                overflowWrap: t.experience.wrapLongText ? 'break-word' : 'normal',
-                                textAlign: t.typography.bodyAlignment || 'left'
-                            }}>
-                                {parseFormattedText(achievement)}
-                            </span>
-                        </div>
-                    );
-                });
+                bullets
+                    .filter((achievement: string | null | undefined): achievement is string => !!achievement)
+                    .forEach((achievement: string, achIndex: number) => {
+                        blocks.push(
+                            <div
+                                key={`exp-${expIndex}-ach-${blockIndex++}`}
+                                style={{
+                                    display: 'flex',
+                                    gap: '6px',
+                                    fontSize: `${t.typography.sizes.body}pt`,
+                                    color: t.typography.colors.body,
+                                    marginLeft: `${t.experience.bulletIndent}px`,
+                                }}
+                            >
+                                <span>{t.experience.bulletStyle}</span>
+                                <span style={{
+                                    flex: 1,
+                                    overflowWrap: t.experience.wrapLongText ? 'break-word' : 'normal',
+                                    textAlign: t.typography.bodyAlignment || 'left'
+                                }}>
+                                    {parseFormattedText(achievement)}
+                                </span>
+                            </div>
+                        );
+                    });
             }
         });
     };
@@ -477,16 +538,16 @@ export function TemplateRenderer({
 
         data.education.forEach((edu, eduIndex) => {
             // Format graduation date using template's date format setting
-            const rawDate = edu.graduationDate || edu.graduationYear;
+            const rawDate = safeString(edu.graduationDate || edu.graduationYear);
             const formattedDate = rawDate ? formatDate(rawDate) : undefined;
 
             const eduData: Record<string, string | undefined> = {
-                degree: edu.degree,
-                field: edu.field,
-                school: edu.school,
-                location: edu.location,
-                dates: formattedDate,
-                gpa: t.education.showGPA && edu.gpa ? `GPA: ${edu.gpa}` : undefined,
+                degree: safeString(edu.degree) || undefined,
+                field: safeString(edu.field) || undefined,
+                school: safeString(edu.school) || undefined,
+                location: safeString(edu.location) || undefined,
+                dates: formattedDate || undefined,
+                gpa: t.education.showGPA && edu.gpa ? `GPA: ${safeString(edu.gpa)}` : undefined,
             };
 
             // Best practice: Ensure education has essential rows (fallback if template missing them)
@@ -592,7 +653,14 @@ export function TemplateRenderer({
     };
 
     // === RENDER ALL SECTIONS IN ORDER ===
-    renderHeader();
+    try {
+        rendererLog.debug('Rendering header...');
+        renderHeader();
+        rendererLog.debug('Header rendered OK');
+    } catch (err) {
+        rendererLog.error('CRASH in header', err);
+        throw err;
+    }
 
     // Default section order + custom sections
     let sectionOrder = t.sectionOrder || ['summary', 'skills', 'experience', 'education'];
@@ -611,27 +679,48 @@ export function TemplateRenderer({
             if (sectionConfig && !sectionConfig.visible) return;
         }
 
-        switch (sectionType) {
-            case 'summary':
-                renderSummary();
-                break;
-            case 'skills':
-                renderSkills();
-                break;
-            case 'experience':
-                renderExperience();
-                break;
-            case 'education':
-                renderEducation();
-                break;
-            case 'custom':
-                // Render all custom sections
-                if (sections) {
-                    sections
-                        .filter(s => s.type === 'custom' && s.visible)
-                        .forEach(s => renderCustomSection(s.id, s.name));
-                }
-                break;
+        try {
+            switch (sectionType) {
+                case 'summary':
+                    rendererLog.debug('Rendering summary...');
+                    renderSummary();
+                    rendererLog.debug('Summary rendered OK');
+                    break;
+                case 'skills':
+                    rendererLog.debug('Rendering skills...', {
+                        hasTechnicalSkills: !!data.technicalSkills && Object.keys(data.technicalSkills).length > 0,
+                        hasArraySkills: data.skills?.technical?.length > 0,
+                        technicalSkillsKeys: data.technicalSkills ? Object.keys(data.technicalSkills) : [],
+                    });
+                    renderSkills();
+                    rendererLog.debug('Skills rendered OK');
+                    break;
+                case 'experience':
+                    rendererLog.debug('Rendering experience...', { count: data.experience?.length });
+                    renderExperience();
+                    rendererLog.debug('Experience rendered OK');
+                    break;
+                case 'education':
+                    rendererLog.debug('Rendering education...', { count: data.education?.length });
+                    renderEducation();
+                    rendererLog.debug('Education rendered OK');
+                    break;
+                case 'custom':
+                    // Render all custom sections
+                    if (sections) {
+                        sections
+                            .filter(s => s.type === 'custom' && s.visible)
+                            .forEach(s => {
+                                rendererLog.debug('Rendering custom section...', { id: s.id, name: s.name });
+                                renderCustomSection(s.id, s.name);
+                            });
+                    }
+                    break;
+            }
+        } catch (err) {
+            rendererLog.error(`CRASH in section: ${sectionType}`, err);
+            // Re-throw to show in console
+            throw err;
         }
     });
 

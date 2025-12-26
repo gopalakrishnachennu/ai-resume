@@ -224,7 +224,8 @@ export function convertTemplateToPdfMake(
 
                     // Primary: Categorized Skills (technicalSkills map)
                     if (hasTechnicalSkills) {
-                        Object.entries(data.technicalSkills!).forEach(([category, skills]) => {
+                        // Use pdfMake's ul for proper bullet formatting
+                        const skillItems = Object.entries(data.technicalSkills!).map(([category, skills]) => {
                             // Format camelCase to Title Case
                             const formattedCategory = category
                                 .replace(/([A-Z])/g, ' $1')
@@ -232,18 +233,21 @@ export function convertTemplateToPdfMake(
                                 .trim();
                             const skillText = Array.isArray(skills) ? skills.join(', ') : String(skills);
 
-                            content.push({
+                            return {
                                 text: [
-                                    { text: `${t.experience.bulletStyle} `, color: t.typography.colors.body },
                                     { text: `${formattedCategory}: `, bold: true, color: t.typography.colors.body },
                                     ...formatPdfText(skillText)
                                 ],
                                 fontSize: t.typography.sizes.body,
-                                color: t.typography.colors.body,
-                                alignment: t.typography.bodyAlignment || 'left',
-                                margin: [0, 0, 0, 4],
-                                lineHeight: t.page.lineSpacing
-                            });
+                                color: t.typography.colors.body
+                            };
+                        });
+
+                        content.push({
+                            ul: skillItems,
+                            margin: [0, 0, 0, 8],
+                            lineHeight: t.page.lineSpacing,
+                            markerColor: t.typography.colors.body
                         });
                     }
                     // Fallback: Array Skills

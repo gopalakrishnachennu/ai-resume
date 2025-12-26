@@ -413,14 +413,14 @@ export class ResumeExportService {
                     spacing: { after: 60 },
                 }));
 
-                // Bullets
+                // Bullets - use proper Word bullet list formatting
                 const bullets = exp.bullets || exp.highlights || exp.responsibilities || [];
                 bullets.filter((b: string) => b.trim()).forEach((b: string) => {
                     sectionChildren.push(new Paragraph({
                         children: [
-                            new TextRun({ text: `${settings.bulletStyle} `, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
                             new TextRun({ text: b, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily }),
                         ],
+                        bullet: { level: 0 }, // Use Word's native bullet formatting
                         spacing: { after: 40 },
                     }));
                 });
@@ -473,7 +473,12 @@ export class ResumeExportService {
         if (allSkills.length > 0) {
             sectionChildren.push(heading('TECHNICAL SKILLS'));
             allSkills.forEach((skillLine, idx) => {
-                sectionChildren.push(bodyParagraph(skillLine, { after: idx === allSkills.length - 1 ? 80 : 40 }));
+                // Use proper Word bullet list formatting for skills
+                sectionChildren.push(new Paragraph({
+                    children: [new TextRun({ text: skillLine, size: px(settings.fontSize.body), color: settings.fontColor.body, font: settings.fontFamily })],
+                    bullet: { level: 0 },
+                    spacing: { after: idx === allSkills.length - 1 ? 80 : 40 },
+                }));
             });
         }
 

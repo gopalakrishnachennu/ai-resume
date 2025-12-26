@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ResumeSettings } from '@/lib/types/resumeSettings';
 import { TemplateService } from '@/lib/services/templateService';
 import { TemplateSchema } from '@/lib/types/templateSchema';
+import { useAuthStore } from '@/store/authStore';
 
 interface SettingsPanelProps {
     settings: ResumeSettings;
@@ -15,16 +16,38 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
     const [customTemplates, setCustomTemplates] = useState<TemplateSchema[]>([]);
     const [loadingTemplates, setLoadingTemplates] = useState(false);
 
+    const { user } = useAuthStore();
+
     // Load custom templates on mount
     useEffect(() => {
         const loadTemplates = async () => {
             setLoadingTemplates(true);
             try {
-                const templates = await TemplateService.getPublishedTemplates();
-                // Filter out the built-in ones (we show those separately)
-                setCustomTemplates(templates.filter(t =>
+                // 1. Fetch published templates
+                const publishedTemplates = await TemplateService.getPublishedTemplates();
+
+                // 2. Fetch user's own templates (if logged in)
+                let userTemplates: TemplateSchema[] = [];
+                if (user?.uid) {
+                    userTemplates = await TemplateService.getUserTemplates(user.uid);
+                }
+
+                // 3. Merge lists: User templates + Published templates (avoid duplicates)
+                const allTemplates = [...userTemplates];
+
+                publishedTemplates.forEach(pub => {
+                    // Only add if not already present (e.g. if user created a published template)
+                    if (!allTemplates.some(t => t.id === pub.id)) {
+                        allTemplates.push(pub);
+                    }
+                });
+
+                // Filter out the built-in ones (we show those separately in the UI)
+                const filtered = allTemplates.filter(t =>
                     t.id !== 'ats-default' && t.id !== 'modern-default'
-                ));
+                );
+
+                setCustomTemplates(filtered);
             } catch (error) {
                 console.error('Failed to load templates:', error);
             } finally {
@@ -32,7 +55,7 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
             }
         };
         loadTemplates();
-    }, []);
+    }, [user]);
 
     const updateSetting = (path: string, value: any) => {
         const keys = path.split('.');
@@ -453,27 +476,43 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                                 </button>
                             </div>
 
-                            {/* Bullet Style */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Bullet Style
-                                </label>
-                                <select
-                                    value={settings.bulletStyle}
-                                    onChange={(e) => updateSetting('bulletStyle', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
-                                >
-                                    <option value="•">• Round (Recommended)</option>
-                                    <option value="-">- Dash</option>
-                                    <option value="◦">◦ Circle</option>
-                                    <option value="➤">➤ Arrow</option>
-                                    <option value="◆">◆ Diamond</option>
-                                    <option value="★">★ Star</option>
-                                    <option value="❀">❀ Flower</option>
-                                    <option value="■">■ Square</option>
-                                    <option value="▸">▸ Triangle</option>
-                                    <option value="›">› Chevron</option>
-                                </select>
+                            {/* Bullet Settings */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Bullet Style
+                                    </label>
+                                    <select
+                                        value={settings.bulletStyle}
+                                        onChange={(e) => updateSetting('bulletStyle', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    >
+                                        <option value="•">• Round (Recommended)</option>
+                                        <option value="-">- Dash</option>
+                                        <option value="◦">◦ Circle</option>
+                                        <option value="➤">➤ Arrow</option>
+                                        <option value="◆">◆ Diamond</option>
+                                        <option value="★">★ Star</option>
+                                        <option value="❀">❀ Flower</option>
+                                        <option value="■">■ Square</option>
+                                        <option value="▸">▸ Triangle</option>
+                                        <option value="›">› Chevron</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Bullet Size (pt)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="4"
+                                        max="14"
+                                        step="0.5"
+                                        value={settings.bulletSize || 8}
+                                        onChange={(e) => updateSetting('bulletSize', parseFloat(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    />
+                                </div>
                             </div>
 
                             {/* Header Style */}

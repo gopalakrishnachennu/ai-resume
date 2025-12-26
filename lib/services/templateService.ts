@@ -29,6 +29,31 @@ const COLLECTION = 'templates';
  */
 export class TemplateService {
     /**
+     * Get templates created by a specific user
+     */
+    static async getUserTemplates(userId: string): Promise<TemplateSchema[]> {
+        try {
+            const q = query(
+                collection(db, COLLECTION),
+                where('createdBy', '==', userId)
+            );
+            const snapshot = await getDocs(q);
+            const templates = snapshot.docs.map(doc => ({
+                ...doc.data(),
+                id: doc.id,
+            })) as TemplateSchema[];
+
+            // Sort by name
+            templates.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+            return templates;
+        } catch (error) {
+            console.error('[TemplateService] Error fetching user templates:', error);
+            return [];
+        }
+    }
+
+    /**
      * Get all published templates (for users)
      */
     static async getPublishedTemplates(): Promise<TemplateSchema[]> {

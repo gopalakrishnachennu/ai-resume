@@ -8,6 +8,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from 'react-hot-toast';
 
+
 // Extension Settings Interface
 interface ExtensionSettings {
     // Social Links
@@ -99,6 +100,7 @@ export default function ExtensionSettingsPage() {
     const [syncing, setSyncing] = useState(false);
     const [extensionInstalled, setExtensionInstalled] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+
 
     useEffect(() => {
         useAuthStore.getState().initialize();
@@ -331,6 +333,7 @@ export default function ExtensionSettingsPage() {
             {/* Content */}
             <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
                 <div className="space-y-8">
+
 
                     {/* Social Links */}
                     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -800,7 +803,6 @@ export default function ExtensionSettingsPage() {
                             </div>
                         </div>
                     </section>
-
                     {/* Info Box */}
                     <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 flex items-start gap-3">
                         <svg className="w-5 h-5 text-violet-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -819,3 +821,4 @@ export default function ExtensionSettingsPage() {
         </div>
     );
 }
+
