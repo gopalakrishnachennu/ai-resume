@@ -2006,6 +2006,26 @@ export default function EditorPage() {
             });
 
             const doc = new Document({
+                numbering: {
+                    config: [
+                        {
+                            reference: "bullet-list",
+                            levels: [
+                                {
+                                    level: 0,
+                                    format: "bullet",
+                                    text: "•",
+                                    alignment: AlignmentType.LEFT,
+                                    style: {
+                                        paragraph: {
+                                            indent: { left: 360, hanging: 180 },
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
                 sections: [
                     {
                         properties: {
