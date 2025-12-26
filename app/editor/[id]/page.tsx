@@ -645,15 +645,50 @@ export default function EditorPage() {
                             draftData.personalInfo.name = profileName;
                         }
 
+                        // DEEP CLEAN THE LOCAL DRAFT (same as Firestore loading)
                         setResumeData({
                             ...DEFAULT_RESUME_DATA,
-                            ...draftData,
-                            personalInfo: { ...DEFAULT_RESUME_DATA.personalInfo, ...(draftData.personalInfo || {}) },
-                            skills: { ...DEFAULT_RESUME_DATA.skills, ...(draftData.skills || {}) },
-                            technicalSkills: draftData.technicalSkills || DEFAULT_RESUME_DATA.technicalSkills,
+                            personalInfo: {
+                                ...DEFAULT_RESUME_DATA.personalInfo,
+                                ...(draftData.personalInfo || {}),
+                                name: draftData.personalInfo?.name || profileName,
+                            },
+                            summary: draftData.summary || '',
+                            skills: {
+                                technical: Array.isArray(draftData.skills?.technical) ? draftData.skills.technical : [],
+                            },
+                            experience: Array.isArray(draftData.experience) ? draftData.experience.filter((x: any) => x).map((exp: any) => ({
+                                ...exp,
+                                title: exp.title || '',
+                                company: exp.company || '',
+                                location: exp.location || '',
+                                startDate: exp.startDate || '',
+                                endDate: exp.endDate || '',
+                                current: !!exp.current,
+                                bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
+                            })) : [],
+                            education: Array.isArray(draftData.education) ? draftData.education.filter((x: any) => x).map((edu: any) => ({
+                                ...edu,
+                                school: edu.school || '',
+                                degree: edu.degree || '',
+                                field: edu.field || '',
+                                location: edu.location || '',
+                                graduationDate: edu.graduationDate || '',
+                            })) : [],
+                            technicalSkills: draftData.technicalSkills || {},
                         });
-                        if (draft.sections) setSections(draft.sections);
-                        if (draft.settings) setSettings(draft.settings);
+
+                        // Deep clean sections and settings from draft
+                        if (Array.isArray(draft.sections)) setSections(draft.sections);
+                        if (draft.settings) {
+                            setSettings({
+                                ...DEFAULT_ATS_SETTINGS,
+                                ...draft.settings,
+                                margins: { ...DEFAULT_ATS_SETTINGS.margins, ...(draft.settings.margins || {}) },
+                                fontSize: { ...DEFAULT_ATS_SETTINGS.fontSize, ...(draft.settings.fontSize || {}) },
+                                fontColor: { ...DEFAULT_ATS_SETTINGS.fontColor, ...(draft.settings.fontColor || {}) },
+                            });
+                        }
 
                         const analysisStr = localStorage.getItem('jobAnalysis');
                         if (analysisStr) setJobAnalysis(JSON.parse(analysisStr));
