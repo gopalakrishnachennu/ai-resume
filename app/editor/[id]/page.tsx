@@ -925,7 +925,16 @@ export default function EditorPage() {
 
                         editorLog.validateData('AI-Resume-AFTER', cleanedData);
                         setResumeData(cleanedData);
-                        setAtsScore(resumeData.atsScore || 0);
+                        // Handle legacy atsScore formats - may be number or object {total, ...}
+                        const rawAtsScore = resumeData.atsScore;
+                        if (typeof rawAtsScore === 'number') {
+                            setAtsScore(rawAtsScore);
+                        } else if (rawAtsScore && typeof rawAtsScore === 'object') {
+                            // Legacy format - extract total
+                            setAtsScore(rawAtsScore.total ?? rawAtsScore.totalScore ?? 0);
+                        } else {
+                            setAtsScore(0);
+                        }
                         editorLog.loadComplete('AI-Resume', {
                             experienceCount: cleanedData.experience.length,
                             educationCount: cleanedData.education.length,
@@ -2329,11 +2338,11 @@ export default function EditorPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <div className={`px-3 py-1.5 rounded-full font-semibold text-xs flex items-center gap-1.5 ${atsScore >= 80 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                            atsScore >= 60 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                        <div className={`px-3 py-1.5 rounded-full font-semibold text-xs flex items-center gap-1.5 ${typeof atsScore === 'number' && atsScore >= 80 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                            typeof atsScore === 'number' && atsScore >= 60 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
                                 'bg-red-50 text-red-700 border border-red-200'
                             }`}>
-                            <span className="font-bold">ATS {atsScore}%</span>
+                            <span className="font-bold">ATS {typeof atsScore === 'number' ? atsScore : 0}%</span>
                         </div>
 
                         {/* Auto-Save Status Indicator */}
