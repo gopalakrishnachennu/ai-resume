@@ -30,7 +30,7 @@ export default function UserTemplateEditorPage() {
         <TemplateBuilder
             templateId={templateId}
             userId={user.uid}
-            backLink="/settings/extension"
+            backLink="/settings/templates"
         />
     );
 }
