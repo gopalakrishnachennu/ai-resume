@@ -820,7 +820,9 @@ export default function EditorPage() {
                                 ...legacyData.personalInfo,
                                 name: legacyData.personalInfo?.name || profileName,
                             },
-                            skills: { ...DEFAULT_RESUME_DATA.skills, ...(legacyData.skills || {}) },
+                            skills: {
+                                technical: Array.isArray(legacyData.skills?.technical) ? legacyData.skills.technical : [],
+                            },
                         });
 
                         // Load aux data
@@ -840,7 +842,9 @@ export default function EditorPage() {
                             ...resumeData.personalInfo,
                             name: resumeData.personalInfo?.name || profileName,
                         },
-                        skills: { ...DEFAULT_RESUME_DATA.skills, ...(resumeData.skills || {}) },
+                        skills: {
+                            technical: Array.isArray(resumeData.skills?.technical) ? resumeData.skills.technical : [],
+                        },
                     } as any);
 
                     if (resumeData.sections) setSections(resumeData.sections);
