@@ -2018,7 +2018,10 @@ export default function EditorPage() {
                                     alignment: AlignmentType.LEFT,
                                     style: {
                                         paragraph: {
-                                            indent: { left: 360, hanging: 180 },
+                                            indent: { left: 220, hanging: 220 },
+                                        },
+                                        run: {
+                                            size: px(settings.fontSize.body), // Match body text size
                                         },
                                     },
                                 },
