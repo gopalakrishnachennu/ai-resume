@@ -110,7 +110,7 @@ export function TemplateRenderer({
         key: string
     ): ReactNode => {
         const visibleFields = row.fields.filter(field => {
-            const value = fieldData[field.name];
+            const value = safeString(fieldData[field.name]);
             return t.header.hideEmptyFields ? !!value?.trim() : true;
         });
 
@@ -153,7 +153,8 @@ export function TemplateRenderer({
                     {/* Left group - fields together */}
                     <span>
                         {leftFields.map((field, i) => {
-                            const value = fieldData[field.name] || '';
+                            const rawValue = fieldData[field.name];
+                            const value = safeString(rawValue);
                             if (!value) return null;
                             const isLast = i === leftFields.length - 1;
                             const separator = isLast ? '' : field.separator;
@@ -174,7 +175,8 @@ export function TemplateRenderer({
                     <span>
                         {(() => {
                             if (!rightField) return null; // No right field to render
-                            const value = fieldData[rightField.name] || '';
+                            const rawValue = fieldData[rightField.name];
+                            const value = safeString(rawValue);
                             if (!value) return null;
                             const fieldStyle: CSSProperties = {
                                 fontWeight: rightField.style === 'bold' ? 'bold' : 'normal',
@@ -192,7 +194,8 @@ export function TemplateRenderer({
         return (
             <div key={key} style={rowStyle}>
                 {visibleFields.map((field, i) => {
-                    const value = fieldData[field.name] || '';
+                    const rawValue = fieldData[field.name];
+                    const value = safeString(rawValue);
                     if (!value) return null;
 
                     const isLast = i === visibleFields.length - 1;
