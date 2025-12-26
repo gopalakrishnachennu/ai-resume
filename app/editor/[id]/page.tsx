@@ -573,33 +573,35 @@ export default function EditorPage() {
                 updatedAt: Date.now()
             }));
         }
-        // ✅ AUTO-SAVE Settings to User Profile (Debounced)
-        useEffect(() => {
-            if (!user?.uid || loading || !settings) return;
-
-            const timer = setTimeout(async () => {
-                // Check if settings differ from defaults significantly or just save always?
-                // "save once changed as per the userr" -> Implies strictly saving current preferences.
-
-                try {
-                    // We only want to save global preferences if they are NOT specific to a single resume?
-                    // Actually, user wants "everytime they want to create a resume... configurations must beee save once changed"
-                    // This implies the LAST used settings become the new defaults.
-
-                    await setDoc(doc(db, 'users', user.uid), {
-                        defaultSettings: settings
-                    }, { merge: true });
-
-                    // console.log('Saved user default settings'); 
-                } catch (err) {
-                    console.error('Error saving user settings:', err);
-                }
-            }, 2000); // 2s debounce
-
-            return () => clearTimeout(timer);
-        }, [settings, user, loading]);
-
     }, [resumeData, sections, settings, params.id, loading]);
+
+    // ✅ AUTO-SAVE Settings to User Profile (Debounced)
+    useEffect(() => {
+        if (!user?.uid || loading || !settings) return;
+
+        const timer = setTimeout(async () => {
+            // Check if settings differ from defaults significantly or just save always?
+            // "save once changed as per the userr" -> Implies strictly saving current preferences.
+
+            try {
+                // We only want to save global preferences if they are NOT specific to a single resume?
+                // Actually, user wants "everytime they want to create a resume... configurations must beee save once changed"
+                // This implies the LAST used settings become the new defaults.
+
+                await setDoc(doc(db, 'users', user.uid), {
+                    defaultSettings: settings
+                }, { merge: true });
+
+                // console.log('Saved user default settings'); 
+            } catch (err) {
+                console.error('Error saving user settings:', err);
+            }
+        }, 2000); // 2s debounce
+
+        return () => clearTimeout(timer);
+    }, [settings, user, loading]);
+
+
 
     const loadData = async () => {
         try {
@@ -691,7 +693,9 @@ export default function EditorPage() {
                         if (appData.resume) {
                             const resume = appData.resume;
                             setResumeData({
+                                ...DEFAULT_RESUME_DATA,
                                 personalInfo: {
+                                    ...DEFAULT_RESUME_DATA.personalInfo,
                                     name: resume.personalInfo?.fullName || resume.personalInfo?.name || profileName,
                                     email: resume.personalInfo?.email || '',
                                     phone: resume.personalInfo?.phone || '',
@@ -724,13 +728,14 @@ export default function EditorPage() {
                                     graduationDate: edu.graduationDate || '',
                                 })),
                                 skills: {
+                                    ...DEFAULT_RESUME_DATA.skills,
                                     technical: resume.technicalSkills
                                         ? Object.entries(resume.technicalSkills)
                                             .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
                                         : [],
                                 },
                                 // PRESERVE the map for TemplateRenderer!
-                                technicalSkills: resume.technicalSkills,
+                                technicalSkills: resume.technicalSkills || DEFAULT_RESUME_DATA.technicalSkills,
                             });
 
                             setLoading(false);
@@ -761,13 +766,12 @@ export default function EditorPage() {
                     // CASE 1: AI-Generated Resume (New Format)
                     if (resumeData.professionalSummary || resumeData.technicalSkills) {
                         setResumeData({
-                            personalInfo: resumeData.personalInfo || {
-                                name: profileName,
+                            ...DEFAULT_RESUME_DATA,
+                            personalInfo: {
+                                ...DEFAULT_RESUME_DATA.personalInfo,
+                                ...(resumeData.personalInfo || {}),
+                                name: resumeData.personalInfo?.name || profileName,
                                 email: user?.email || '',
-                                phone: '',
-                                location: '',
-                                linkedin: '',
-                                github: '',
                             },
                             summary: resumeData.professionalSummary || '',
                             experience: (resumeData.experience || []).map((exp: any) => ({
@@ -787,12 +791,13 @@ export default function EditorPage() {
                                 graduationDate: edu.graduationDate || '',
                             })),
                             skills: {
+                                ...DEFAULT_RESUME_DATA.skills,
                                 technical: resumeData.technicalSkills
                                     ? Object.entries(resumeData.technicalSkills)
                                         .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
                                     : [],
                             },
-                            technicalSkills: resumeData.technicalSkills,
+                            technicalSkills: resumeData.technicalSkills || DEFAULT_RESUME_DATA.technicalSkills,
                         });
                         setAtsScore(resumeData.atsScore || 0);
                         setLoading(false);
