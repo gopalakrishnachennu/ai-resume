@@ -345,7 +345,29 @@ export function TemplateRenderer({
                         .replace(/([A-Z])/g, ' $1')
                         .replace(/^./, str => str.toUpperCase())
                         .trim();
-                    const skillText = Array.isArray(skills) ? skills.filter(s => s).join(', ') : (skills || '');
+
+                    // CRITICAL: Ensure skillText is ALWAYS a string
+                    // skills can be: string | string[] | object | null | undefined
+                    let skillText: string;
+                    if (typeof skills === 'string') {
+                        skillText = skills;
+                    } else if (Array.isArray(skills)) {
+                        skillText = skills.filter(s => s && typeof s === 'string').join(', ');
+                    } else if (skills && typeof skills === 'object') {
+                        // Handle nested object case - flatten to string
+                        try {
+                            skillText = Object.values(skills)
+                                .flat()
+                                .filter(s => s && typeof s === 'string')
+                                .join(', ');
+                        } catch {
+                            skillText = '';
+                        }
+                    } else {
+                        skillText = '';
+                    }
+
+                    if (!skillText) return; // Skip empty skill categories
 
                     blocks.push(
                         <div

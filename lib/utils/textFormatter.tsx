@@ -5,13 +5,31 @@ import React from 'react';
  * **text** → bold
  * \n → line break
  */
-export function parseFormattedText(text: string) {
+export function parseFormattedText(input: string | unknown) {
+    // SAFETY: Ensure we have a valid string
+    if (!input) return null;
+
+    let text: string;
+    if (typeof input === 'string') {
+        text = input;
+    } else if (Array.isArray(input)) {
+        text = input.filter((t): t is string => t && typeof t === 'string').join(', ');
+    } else if (typeof input === 'object' && input !== null) {
+        try {
+            text = JSON.stringify(input);
+        } catch {
+            return null;
+        }
+    } else {
+        text = String(input);
+    }
+
     if (!text) return null;
 
     // Split by actual newlines and \n
     const lines = text.split(/\n|\\n/);
 
-    return lines.map((line, lineIdx) => {
+    return lines.map((line: string, lineIdx: number) => {
         const parts: React.ReactElement[] = [];
         let currentText = line;
         let partIdx = 0;
