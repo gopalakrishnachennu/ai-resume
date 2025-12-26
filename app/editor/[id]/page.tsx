@@ -764,7 +764,12 @@ export default function EditorPage() {
 
 
                     // CASE 1: AI-Generated Resume (New Format)
-                    if (resumeData.professionalSummary || resumeData.technicalSkills) {
+                    // Detect if it follows the AI schema (professionalSummary, technicalSkills, or experience with 'position')
+                    const isAiFormat = resumeData.professionalSummary ||
+                        resumeData.technicalSkills ||
+                        (Array.isArray(resumeData.experience) && resumeData.experience[0]?.position);
+
+                    if (isAiFormat) {
                         setResumeData({
                             ...DEFAULT_RESUME_DATA,
                             personalInfo: {
