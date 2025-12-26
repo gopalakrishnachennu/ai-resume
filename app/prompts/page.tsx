@@ -257,6 +257,8 @@ export default function PromptSettingsPage() {
     const [activeTab, setActiveTab] = useState<'persona' | 'rules'>('persona');
     const [summaryRules, setSummaryRules] = useState('');
     const [experienceRules, setExperienceRules] = useState('');
+    const [skillsRules, setSkillsRules] = useState('');
+    const [skillsCategorized, setSkillsCategorized] = useState(true); // Default to corporate standard
 
     useEffect(() => {
         useAuthStore.getState().initialize();
@@ -364,6 +366,15 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
             } else if (key.includes('experience') || key.includes('resumeGenerator')) {
                 if (experienceRules.trim()) {
                     finalInstruction += `\n\nSPECIFIC EXPERIENCE RULES:\n${experienceRules}`;
+                }
+            } else if (key.includes('skills')) {
+                let sRules = skillsRules;
+                if (skillsCategorized) {
+                    sRules += '\n- Organise skills into clear categories (e.g. Languages, Frameworks, Tools, Cloud).';
+                    sRules += '\n- Prioritize hard technical skills over soft skills.';
+                }
+                if (sRules.trim()) {
+                    finalInstruction += `\n\nSPECIFIC SKILLS RULES:\n${sRules}`;
                 }
             }
 
@@ -584,6 +595,32 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                     <p className="text-xs text-gray-500">
                                         Tip: You can use conditional logic like "If current job, do X".
                                     </p>
+                                </div>
+                                <div className="space-y-2 md:col-span-2 border-t pt-4 border-gray-100">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Skills Section Rules
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={skillsCategorized}
+                                                onChange={(e) => setSkillsCategorized(e.target.checked)}
+                                                className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                                                id="catSkills"
+                                            />
+                                            <label htmlFor="catSkills" className="text-xs text-gray-600 cursor-pointer select-none">
+                                                Use Corporate Categorization (Languages, Tools, etc.)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <textarea
+                                        value={skillsRules}
+                                        onChange={(e) => setSkillsRules(e.target.value)}
+                                        rows={4}
+                                        placeholder="e.g. List Cloud technologies first. Do not mention Microsoft Word."
+                                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none text-sm resize-none"
+                                    />
                                 </div>
                             </div>
                         )}
