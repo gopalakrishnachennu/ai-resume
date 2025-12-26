@@ -24,6 +24,28 @@ const PHASES = [
     { id: 4, name: 'Phase 4: Improvements', description: 'Suggest improvements', color: 'orange' },
 ];
 
+const PERSONA_STYLES = [
+    { id: 'standard', name: 'Standard (Balanced)' },
+    { id: 'professional', name: 'Corporate Professional' },
+    { id: 'creative', name: 'Creative & Storytelling' },
+    { id: 'technical', name: 'Technical & Precise' },
+    { id: 'executive', name: 'Executive (Strategic)' },
+];
+
+const PERSONA_TONES = [
+    { id: 'confident', name: 'Confident (Action-Oriented)' },
+    { id: 'neutral', name: 'Neutral (Objective)' },
+    { id: 'humble', name: 'Humble (Team-First)' },
+    { id: 'persuasive', name: 'Persuasive (Sales-Focus)' },
+];
+
+const EXPERIENCE_LEVELS = [
+    { id: 'entry', name: 'Entry Level / Intern' },
+    { id: 'mid', name: 'Mid-Senior Level' },
+    { id: 'senior', name: 'Senior / Lead' },
+    { id: 'executive', name: 'Director / Executive' },
+];
+
 function PromptEditor({
     promptKey,
     prompt,
@@ -221,6 +243,14 @@ export default function PromptSettingsPage() {
     const [expandedPrompt, setExpandedPrompt] = useState<FlatPromptKey | null>(null);
     const [showVariables, setShowVariables] = useState(false);
     const simpleMode = true; // Always Simple Mode for end users
+    const [showAdvanced, setShowAdvanced] = useState(false);
+
+    // Persona State
+    const [targetRole, setTargetRole] = useState('');
+    const [selectedStyle, setSelectedStyle] = useState('professional');
+    const [selectedTone, setSelectedTone] = useState('confident');
+    const [selectedLevel, setSelectedLevel] = useState('mid');
+    const [atsOptimized, setAtsOptimized] = useState(true);
 
     useEffect(() => {
         useAuthStore.getState().initialize();
@@ -301,6 +331,34 @@ export default function PromptSettingsPage() {
         ) as FlatPromptKey[];
     };
 
+    const handleApplyPersona = () => {
+        if (!prompts) return;
+
+        const styleName = PERSONA_STYLES.find(s => s.id === selectedStyle)?.name;
+        const toneName = PERSONA_TONES.find(t => t.id === selectedTone)?.name;
+        const levelName = EXPERIENCE_LEVELS.find(l => l.id === selectedLevel)?.name;
+
+        const instruction = `PERSONA CONTEXT:
+- Role: ${targetRole || 'Professional'}
+- Experience Level: ${levelName}
+- Writing Style: ${styleName}
+- Tone: ${toneName}
+${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, avoid fancy formatting).' : ''}
+- Goal: Write high-impact content that gets the candidate hired.`;
+
+        const updatedPrompts = { ...prompts };
+        Object.keys(updatedPrompts).forEach((key) => {
+            // Only update if it's a mandatory generation prompt (skip purely functional ones if needed, but safe to apply globally)
+            updatedPrompts[key as FlatPromptKey] = {
+                ...updatedPrompts[key as FlatPromptKey],
+                customInstructions: instruction
+            };
+        });
+
+        setPrompts(updatedPrompts);
+        toast.success('AI Persona applied to all prompts! Click Save to confirm.');
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
@@ -375,89 +433,157 @@ export default function PromptSettingsPage() {
 
             {/* Main Content */}
             <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-                {/* Info Banner */}
-                <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 text-white">
-                    <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h2 className="font-bold text-lg mb-1">Customize AI Prompts</h2>
-                            <p className="text-white/80 text-sm">
-                                These prompts control how the AI generates your resumes. Required prompts are marked with
-                                <span className="mx-1 px-2 py-0.5 bg-white/20 rounded text-xs">Required</span>
-                                and cannot be left empty.
-                            </p>
-                            <button
-                                onClick={() => setShowVariables(!showVariables)}
-                                className="mt-3 text-sm font-medium flex items-center gap-2 hover:underline"
-                            >
-                                {showVariables ? 'Hide' : 'Show'} Available Variables
-                                <svg className={`w-4 h-4 transition-transform ${showVariables ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                {/* AI Persona Wizard */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white backdrop-blur-sm">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                                 </svg>
-                            </button>
+                            </div>
+                            <div>
+                                <h2 className="font-bold text-xl text-white">AI Persona Studio</h2>
+                                <p className="text-purple-100 text-sm">Configure your personal AI career coach in seconds.</p>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Variables Reference */}
-                    {showVariables && (
-                        <div className="mt-4 p-4 bg-white/10 rounded-xl">
-                            <p className="text-sm font-medium mb-2">Use these in your prompts: {'{{ variable_name }}'}</p>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                                {PROMPT_VARIABLES.map((v) => (
-                                    <div key={v.name} className="flex items-center gap-2">
-                                        <code className="px-1.5 py-0.5 bg-white/20 rounded font-mono">{`{{ ${v.name} }}`}</code>
-                                    </div>
-                                ))}
+                    <div className="p-6 grid gap-6 md:grid-cols-2">
+                        {/* Left Column: Role & Level */}
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Target Role</label>
+                                <input
+                                    type="text"
+                                    value={targetRole}
+                                    onChange={(e) => setTargetRole(e.target.value)}
+                                    placeholder="e.g. Senior Product Manager"
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-purple-500 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {EXPERIENCE_LEVELS.map(level => (
+                                        <button
+                                            key={level.id}
+                                            onClick={() => setSelectedLevel(level.id)}
+                                            className={`px-3 py-2 text-sm rounded-lg border transition-all text-left ${selectedLevel === level.id ? 'border-purple-500 bg-purple-50 text-purple-700 font-medium' : 'border-gray-200 hover:border-gray-300'}`}
+                                        >
+                                            {level.name}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    )}
+
+                        {/* Right Column: Style & Tone */}
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Writing Style</label>
+                                <select
+                                    value={selectedStyle}
+                                    onChange={(e) => setSelectedStyle(e.target.value)}
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-purple-500 outline-none bg-white"
+                                >
+                                    {PERSONA_STYLES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Tone of Voice</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {PERSONA_TONES.map(tone => (
+                                        <button
+                                            key={tone.id}
+                                            onClick={() => setSelectedTone(tone.id)}
+                                            className={`px-3 py-1.5 text-sm rounded-full border transition-all ${selectedTone === tone.id ? 'border-purple-500 bg-purple-500 text-white shadow-md' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                        >
+                                            {tone.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 pt-2">
+                                <button
+                                    onClick={() => setAtsOptimized(!atsOptimized)}
+                                    className={`relative w-12 h-6 rounded-full transition-colors ${atsOptimized ? 'bg-green-500' : 'bg-gray-300'}`}
+                                >
+                                    <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${atsOptimized ? 'translate-x-6' : ''}`} />
+                                </button>
+                                <span className="text-sm font-medium text-gray-700">ATS Optimized Mode</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="px-6 pb-6 pt-2 border-t border-gray-100 mt-2 bg-gray-50/50 flex justify-between items-center">
+                        <button
+                            onClick={() => setShowAdvanced(!showAdvanced)}
+                            className="text-sm text-gray-500 hover:text-gray-700 font-medium flex items-center gap-1"
+                        >
+                            {showAdvanced ? 'Hide Advanced Settings' : 'Show Advanced Individual Prompts'}
+                            <svg className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <button
+                            onClick={handleApplyPersona}
+                            className="px-6 py-2 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 hover:shadow-lg transform active:scale-95 transition-all flex items-center gap-2"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Apply Persona to All Prompts
+                        </button>
+                    </div>
                 </div>
 
-                {/* Prompt Phases */}
-                {PHASES.map((phase) => {
-                    const phasePrompts = getPromptsForPhase(phase.id);
-                    if (phasePrompts.length === 0) return null;
+                {/* Individual Prompts (Hidden by default) */}
+                {showAdvanced && (
+                    <div className="space-y-8 animate-fadeIn">
+                        {PHASES.map((phase) => {
+                            const phasePrompts = getPromptsForPhase(phase.id);
+                            if (phasePrompts.length === 0) return null;
 
-                    const colorClasses: Record<string, string> = {
-                        blue: 'from-blue-500 to-blue-600',
-                        purple: 'from-purple-500 to-purple-600',
-                        green: 'from-emerald-500 to-emerald-600',
-                        orange: 'from-orange-500 to-orange-600',
-                    };
+                            const colorClasses: Record<string, string> = {
+                                blue: 'from-blue-500 to-blue-600',
+                                purple: 'from-purple-500 to-purple-600',
+                                green: 'from-emerald-500 to-emerald-600',
+                                orange: 'from-orange-500 to-orange-600',
+                            };
 
-                    return (
-                        <div key={phase.id} className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colorClasses[phase.color]} flex items-center justify-center text-white font-bold shadow-md`}>
-                                    {phase.id}
+                            return (
+                                <div key={phase.id} className="space-y-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colorClasses[phase.color]} flex items-center justify-center text-white font-bold shadow-md`}>
+                                            {phase.id}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-gray-900">{phase.name}</h3>
+                                            <p className="text-sm text-gray-500">{phase.description}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3 pl-13">
+                                        {phasePrompts.map((key) => (
+                                            <PromptEditor
+                                                key={key}
+                                                promptKey={key}
+                                                prompt={prompts[key]}
+                                                onChange={(updated) => setPrompts({ ...prompts, [key]: updated })}
+                                                onReset={() => handleResetPrompt(key)}
+                                                isExpanded={expandedPrompt === key}
+                                                onToggle={() => setExpandedPrompt(expandedPrompt === key ? null : key)}
+                                                simpleMode={simpleMode}
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="font-semibold text-gray-900">{phase.name}</h3>
-                                    <p className="text-sm text-gray-500">{phase.description}</p>
-                                </div>
-                            </div>
+                            );
+                        })}
 
-                            <div className="space-y-3 pl-13">
-                                {phasePrompts.map((key) => (
-                                    <PromptEditor
-                                        key={key}
-                                        promptKey={key}
-                                        prompt={prompts[key]}
-                                        onChange={(updated) => setPrompts({ ...prompts, [key]: updated })}
-                                        onReset={() => handleResetPrompt(key)}
-                                        isExpanded={expandedPrompt === key}
-                                        onToggle={() => setExpandedPrompt(expandedPrompt === key ? null : key)}
-                                        simpleMode={simpleMode}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    );
-                })}
+                    </div>
+                )}
             </main>
         </div>
     );
