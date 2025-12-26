@@ -829,8 +829,18 @@ export default function EditorPage() {
                         });
 
                         // Load aux data
-                        if (resumeData.sections) setSections(resumeData.sections);
-                        if (resumeData.settings) setSettings(resumeData.settings);
+                        // Load aux data
+                        if (Array.isArray(resumeData.sections)) setSections(resumeData.sections);
+                        if (resumeData.settings) {
+                            setSettings({
+                                ...DEFAULT_ATS_SETTINGS,
+                                ...resumeData.settings,
+                                // Ensure critical nested objects exist
+                                margins: { ...DEFAULT_ATS_SETTINGS.margins, ...(resumeData.settings.margins || {}) },
+                                fontSize: { ...DEFAULT_ATS_SETTINGS.fontSize, ...(resumeData.settings.fontSize || {}) },
+                                fontColor: { ...DEFAULT_ATS_SETTINGS.fontColor, ...(resumeData.settings.fontColor || {}) },
+                            });
+                        }
 
                         setLoading(false);
                         return;
@@ -853,8 +863,17 @@ export default function EditorPage() {
                         technicalSkills: resumeData.technicalSkills || {},
                     } as any);
 
-                    if (resumeData.sections) setSections(resumeData.sections);
-                    if (resumeData.settings) setSettings(resumeData.settings);
+                    if (Array.isArray(resumeData.sections)) setSections(resumeData.sections);
+                    if (resumeData.settings) {
+                        setSettings({
+                            ...DEFAULT_ATS_SETTINGS,
+                            ...resumeData.settings,
+                            // Ensure critical nested objects exist
+                            margins: { ...DEFAULT_ATS_SETTINGS.margins, ...(resumeData.settings.margins || {}) },
+                            fontSize: { ...DEFAULT_ATS_SETTINGS.fontSize, ...(resumeData.settings.fontSize || {}) },
+                            fontColor: { ...DEFAULT_ATS_SETTINGS.fontColor, ...(resumeData.settings.fontColor || {}) },
+                        });
+                    }
 
                     setLoading(false);
                     return;
