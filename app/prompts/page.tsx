@@ -41,6 +41,18 @@ const PERSONA_TONES = [
     { id: 'persuasive', name: 'Persuasive (Sales-Focus)' },
 ];
 
+const DEFAULT_SUMMARY_RULES = `- Focus on unique value proposition and key achievements.
+- Avoid generic buzzwords like "hard worker" or "motivated".
+- Include at least 1 major quantifiable metric if possible.`;
+
+const DEFAULT_EXPERIENCE_RULES = `- Current Role: Use present tense, 5-7 bullet points, focus on active projects.
+- Past Roles: Use past tense, 3-5 bullet points, focus on results (STAR method).
+- Quantify impact where possible (e.g. "increased efficiency by 20%").`;
+
+const DEFAULT_SKILLS_RULES = `- List detailed technical skills relevant to the role.
+- Prioritize high-value tools and frameworks over generic office software.
+- Group skills logically if not using auto-categorization.`;
+
 const EXPERIENCE_LEVELS = [
     { id: 'entry', name: 'Entry Level / Intern' },
     { id: 'mid', name: 'Mid-Senior Level' },
@@ -259,9 +271,9 @@ export default function PromptSettingsPage() {
 
     // Advanced Rules State
     const [activeTab, setActiveTab] = useState<'persona' | 'rules'>('persona');
-    const [summaryRules, setSummaryRules] = useState('');
-    const [experienceRules, setExperienceRules] = useState('');
-    const [skillsRules, setSkillsRules] = useState('');
+    const [summaryRules, setSummaryRules] = useState(DEFAULT_SUMMARY_RULES);
+    const [experienceRules, setExperienceRules] = useState(DEFAULT_EXPERIENCE_RULES);
+    const [skillsRules, setSkillsRules] = useState(DEFAULT_SKILLS_RULES);
     const [skillsCategorized, setSkillsCategorized] = useState(true); // Default to corporate standard
 
     useEffect(() => {
@@ -291,9 +303,9 @@ export default function PromptSettingsPage() {
                     setSelectedStyle(personaConfig.writingStyle || 'professional');
                     setSelectedTone(personaConfig.tone || 'confident');
                     setAtsOptimized(personaConfig.atsOptimized ?? true);
-                    setSummaryRules(personaConfig.summaryRules || '');
-                    setExperienceRules(personaConfig.experienceRules || '');
-                    setSkillsRules(personaConfig.skillsRules || '');
+                    setSummaryRules(personaConfig.summaryRules ?? DEFAULT_SUMMARY_RULES);
+                    setExperienceRules(personaConfig.experienceRules ?? DEFAULT_EXPERIENCE_RULES);
+                    setSkillsRules(personaConfig.skillsRules ?? DEFAULT_SKILLS_RULES);
                     setSkillsCategorized(personaConfig.skillsCategorized ?? true);
                 }
             } catch (error) {
