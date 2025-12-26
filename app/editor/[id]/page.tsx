@@ -44,6 +44,24 @@ export default function EditorPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
+    const DEFAULT_RESUME_DATA = {
+        personalInfo: {
+            name: '',
+            email: '',
+            phone: '',
+            location: '',
+            linkedin: '',
+            github: '',
+        },
+        summary: '',
+        experience: [],
+        education: [],
+        skills: {
+            technical: [],
+        },
+        technicalSkills: {}, // Ensure this exists
+    };
+
     const [resumeData, setResumeData] = useState<{
         personalInfo: {
             name: string;
@@ -60,23 +78,8 @@ export default function EditorPage() {
             technical: string[];
         };
         technicalSkills?: Record<string, string[] | string>;
-        [key: string]: any; // Allow custom section data
-    }>({
-        personalInfo: {
-            name: '',
-            email: '',
-            phone: '',
-            location: '',
-            linkedin: '',
-            github: '',
-        },
-        summary: '',
-        experience: [],
-        education: [],
-        skills: {
-            technical: [],
-        },
-    });
+        [key: string]: any;
+    }>(DEFAULT_RESUME_DATA);
 
     const [sections, setSections] = useState<Section[]>([
         { id: 'summary', name: 'Professional Summary', type: 'summary', visible: true, order: 0 },
@@ -457,7 +460,7 @@ export default function EditorPage() {
                 });
             }
 
-            if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
+            if (section.type === 'skills' && resumeData.skills?.technical?.length > 0) {
                 addBlock(`heading-${section.id}`, renderSectionHeading(section), { marginBottom: gapTight, marginTop: gapTight });
                 resumeData.skills.technical.forEach((skillLine, idx) => {
                     addBlock(
@@ -570,6 +573,32 @@ export default function EditorPage() {
                 updatedAt: Date.now()
             }));
         }
+        // ✅ AUTO-SAVE Settings to User Profile (Debounced)
+        useEffect(() => {
+            if (!user?.uid || loading || !settings) return;
+
+            const timer = setTimeout(async () => {
+                // Check if settings differ from defaults significantly or just save always?
+                // "save once changed as per the userr" -> Implies strictly saving current preferences.
+
+                try {
+                    // We only want to save global preferences if they are NOT specific to a single resume?
+                    // Actually, user wants "everytime they want to create a resume... configurations must beee save once changed"
+                    // This implies the LAST used settings become the new defaults.
+
+                    await setDoc(doc(db, 'users', user.uid), {
+                        defaultSettings: settings
+                    }, { merge: true });
+
+                    // console.log('Saved user default settings'); 
+                } catch (err) {
+                    console.error('Error saving user settings:', err);
+                }
+            }, 2000); // 2s debounce
+
+            return () => clearTimeout(timer);
+        }, [settings, user, loading]);
+
     }, [resumeData, sections, settings, params.id, loading]);
 
     const loadData = async () => {
@@ -597,6 +626,11 @@ export default function EditorPage() {
             const draftKey = `draft_resume_${params.id}`;
             const savedDraft = localStorage.getItem(draftKey);
 
+            // Apply default settings from profile if available (and not a draft restoration)
+            if (profileData.defaultSettings) {
+                setSettings({ ...DEFAULT_ATS_SETTINGS, ...profileData.defaultSettings });
+            }
+
             if (savedDraft) {
                 try {
                     const draft = JSON.parse(savedDraft);
@@ -609,7 +643,13 @@ export default function EditorPage() {
                             draftData.personalInfo.name = profileName;
                         }
 
-                        setResumeData(draftData);
+                        setResumeData({
+                            ...DEFAULT_RESUME_DATA,
+                            ...draftData,
+                            personalInfo: { ...DEFAULT_RESUME_DATA.personalInfo, ...(draftData.personalInfo || {}) },
+                            skills: { ...DEFAULT_RESUME_DATA.skills, ...(draftData.skills || {}) },
+                            technicalSkills: draftData.technicalSkills || DEFAULT_RESUME_DATA.technicalSkills,
+                        });
                         if (draft.sections) setSections(draft.sections);
                         if (draft.settings) setSettings(draft.settings);
 
@@ -763,11 +803,14 @@ export default function EditorPage() {
                     if (resumeData.resumeData) {
                         const legacyData = resumeData.resumeData;
                         setResumeData({
+                            ...DEFAULT_RESUME_DATA,
                             ...legacyData,
                             personalInfo: {
+                                ...DEFAULT_RESUME_DATA.personalInfo,
                                 ...legacyData.personalInfo,
                                 name: legacyData.personalInfo?.name || profileName,
-                            }
+                            },
+                            skills: { ...DEFAULT_RESUME_DATA.skills, ...(legacyData.skills || {}) },
                         });
 
                         // Load aux data
@@ -780,11 +823,14 @@ export default function EditorPage() {
 
                     // CASE 3: Standard Flat Format
                     setResumeData({
+                        ...DEFAULT_RESUME_DATA,
                         ...resumeData,
                         personalInfo: {
+                            ...DEFAULT_RESUME_DATA.personalInfo,
                             ...resumeData.personalInfo,
                             name: resumeData.personalInfo?.name || profileName,
-                        }
+                        },
+                        skills: { ...DEFAULT_RESUME_DATA.skills, ...(resumeData.skills || {}) },
                     } as any);
 
                     if (resumeData.sections) setSections(resumeData.sections);
