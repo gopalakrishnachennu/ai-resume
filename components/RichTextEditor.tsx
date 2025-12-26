@@ -67,18 +67,22 @@ export default function RichTextEditor({ value, onChange, placeholder, className
                         currentLine = '';
                         break;
                     case 'div':
-                        // Process children first
-                        node.childNodes.forEach(child => processNode(child));
-                        // Only create new line if this div actually has a BR or is followed by another div
-                        // Otherwise, just continue the current line
-                        break;
                     case 'p':
-                        // Paragraphs from Word - don't break unless it's a new category
+                        // Block elements should start on a new line if the current line has content
+                        if (currentLine.trim()) {
+                            lines.push(currentLine.trim());
+                            currentLine = '';
+                        }
+
+                        // Process children
                         node.childNodes.forEach(child => processNode(child));
-                        // Don't auto-break - let text flow naturally
+
+                        // Block elements end the current line
+                        if (currentLine.trim()) {
+                            lines.push(currentLine.trim());
+                            currentLine = '';
+                        }
                         break;
-                    default:
-                        node.childNodes.forEach(child => processNode(child));
                 }
             }
         };
