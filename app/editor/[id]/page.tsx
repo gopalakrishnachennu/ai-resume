@@ -823,8 +823,24 @@ export default function EditorPage() {
                             skills: {
                                 technical: Array.isArray(legacyData.skills?.technical) ? legacyData.skills.technical : [],
                             },
-                            experience: Array.isArray(legacyData.experience) ? legacyData.experience : [],
-                            education: Array.isArray(legacyData.education) ? legacyData.education : [],
+                            experience: Array.isArray(legacyData.experience) ? legacyData.experience.filter((x: any) => x).map((exp: any) => ({
+                                ...exp,
+                                title: exp.title || '',
+                                company: exp.company || '',
+                                location: exp.location || '',
+                                startDate: exp.startDate || '',
+                                endDate: exp.endDate || '',
+                                current: !!exp.current,
+                                bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
+                            })) : [],
+                            education: Array.isArray(legacyData.education) ? legacyData.education.filter((x: any) => x).map((edu: any) => ({
+                                ...edu,
+                                school: edu.school || '',
+                                degree: edu.degree || '',
+                                field: edu.field || '',
+                                location: edu.location || '',
+                                graduationDate: edu.graduationDate || '',
+                            })) : [],
                             technicalSkills: legacyData.technicalSkills || {},
                         });
 
@@ -858,12 +874,36 @@ export default function EditorPage() {
                         skills: {
                             technical: Array.isArray(resumeData.skills?.technical) ? resumeData.skills.technical : [],
                         },
-                        experience: Array.isArray(resumeData.experience) ? resumeData.experience : [],
-                        education: Array.isArray(resumeData.education) ? resumeData.education : [],
+                        // DEEP CLEAN: Ensure every item in experience/education is a valid object
+                        experience: Array.isArray(resumeData.experience) ? resumeData.experience.filter((x: any) => x).map((exp: any) => ({
+                            ...exp,
+                            title: exp.title || '',
+                            company: exp.company || '',
+                            location: exp.location || '',
+                            startDate: exp.startDate || '',
+                            endDate: exp.endDate || '',
+                            current: !!exp.current,
+                            bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
+                        })) : [],
+                        education: Array.isArray(resumeData.education) ? resumeData.education.filter((x: any) => x).map((edu: any) => ({
+                            ...edu,
+                            school: edu.school || '',
+                            degree: edu.degree || '',
+                            field: edu.field || '',
+                            location: edu.location || '',
+                            graduationDate: edu.graduationDate || '',
+                        })) : [],
                         technicalSkills: resumeData.technicalSkills || {},
                     } as any);
 
-                    if (Array.isArray(resumeData.sections)) setSections(resumeData.sections);
+                    // Validate custom sections
+                    if (Array.isArray(resumeData.sections)) {
+                        setSections(resumeData.sections);
+                    } else if (resumeData.sections) {
+                        // Attempt to recover if it's an object map (old format?) - likely not needed but good safety
+                        setSections([]);
+                    }
+
                     if (resumeData.settings) {
                         setSettings({
                             ...DEFAULT_ATS_SETTINGS,
