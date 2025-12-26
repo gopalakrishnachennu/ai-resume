@@ -614,10 +614,19 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                             // RULES TAB
                             <div className="grid gap-6 md:grid-cols-2 animate-fadeIn">
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
-                                        Summary Section Rules
-                                        <span className="block text-xs font-normal text-gray-400">Applied only to Summary generators</span>
-                                    </label>
+                                    <div className="flex justify-between items-center">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Summary Section Rules
+                                            <span className="block text-xs font-normal text-gray-400">Applied only to Summary generators</span>
+                                        </label>
+                                        <button
+                                            onClick={() => setSummaryRules(DEFAULT_SUMMARY_RULES)}
+                                            className="text-xs text-purple-600 hover:text-purple-700 hover:underline"
+                                            title="Restore recommended default rules"
+                                        >
+                                            Reset to Default
+                                        </button>
+                                    </div>
                                     <textarea
                                         value={summaryRules}
                                         onChange={(e) => setSummaryRules(e.target.value)}
@@ -627,10 +636,19 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
-                                        Experience Section Rules
-                                        <span className="block text-xs font-normal text-gray-400">Applied to Resume & Experience generators</span>
-                                    </label>
+                                    <div className="flex justify-between items-center">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Experience Section Rules
+                                            <span className="block text-xs font-normal text-gray-400">Applied to Resume & Experience generators</span>
+                                        </label>
+                                        <button
+                                            onClick={() => setExperienceRules(DEFAULT_EXPERIENCE_RULES)}
+                                            className="text-xs text-purple-600 hover:text-purple-700 hover:underline"
+                                            title="Restore recommended default rules"
+                                        >
+                                            Reset to Default
+                                        </button>
+                                    </div>
                                     <textarea
                                         value={experienceRules}
                                         onChange={(e) => setExperienceRules(e.target.value)}
@@ -644,22 +662,32 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                 </div>
                                 <div className="space-y-2 md:col-span-2 border-t pt-4 border-gray-100">
                                     <div className="flex justify-between items-center mb-1">
-                                        <label className="block text-sm font-medium text-gray-700">
-                                            Skills Section Rules
-                                        </label>
                                         <div className="flex items-center gap-2">
-                                            <input
-                                                type="checkbox"
-                                                checked={skillsCategorized}
-                                                onChange={(e) => setSkillsCategorized(e.target.checked)}
-                                                className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
-                                                id="catSkills"
-                                            />
-                                            <label htmlFor="catSkills" className="text-xs text-gray-600 cursor-pointer select-none">
-                                                Use Corporate Categorization (Languages, Tools, etc.)
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Skills Section Rules
                                             </label>
+                                            <div className="flex items-center gap-2 border-l pl-3 border-gray-300">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={skillsCategorized}
+                                                    onChange={(e) => setSkillsCategorized(e.target.checked)}
+                                                    className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                                                    id="catSkills"
+                                                />
+                                                <label htmlFor="catSkills" className="text-xs text-gray-600 cursor-pointer select-none">
+                                                    Use Corporate Categorization
+                                                </label>
+                                            </div>
                                         </div>
+                                        <button
+                                            onClick={() => setSkillsRules(DEFAULT_SKILLS_RULES)}
+                                            className="text-xs text-purple-600 hover:text-purple-700 hover:underline"
+                                            title="Restore recommended default rules"
+                                        >
+                                            Reset to Default
+                                        </button>
                                     </div>
+
                                     <textarea
                                         value={skillsRules}
                                         onChange={(e) => setSkillsRules(e.target.value)}
