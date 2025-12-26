@@ -2415,16 +2415,22 @@ export default function EditorPage() {
                                         </div>
                                         <div className="flex-1">
                                             <h3 className="text-sm font-semibold text-indigo-900 mb-1">Analysis Complete</h3>
-                                            <div className="text-xs text-indigo-700 space-y-1 mb-3">
-                                                <p>Keywords: {advancedAnalysis.sections.keywords.score}/40 &bull; Quality: {advancedAnalysis.sections.quality.score}/35 &bull; Format: {advancedAnalysis.sections.formatting.score}/25</p>
-                                            </div>
+                                            {advancedAnalysis.sections && (
+                                                <div className="text-xs text-indigo-700 space-y-1 mb-3">
+                                                    <p>
+                                                        Keywords: {safeStr(advancedAnalysis.sections.keywords?.score ?? advancedAnalysis.sections.keywords)}/40
+                                                        &bull; Quality: {safeStr(advancedAnalysis.sections.quality?.score ?? advancedAnalysis.sections.quality)}/35
+                                                        &bull; Format: {safeStr(advancedAnalysis.sections.formatting?.score ?? advancedAnalysis.sections.formatting)}/25
+                                                    </p>
+                                                </div>
+                                            )}
 
-                                            {advancedAnalysis.feedback.length > 0 && (
+                                            {Array.isArray(advancedAnalysis.feedback) && advancedAnalysis.feedback.length > 0 && (
                                                 <div className="space-y-2 bg-white/60 p-3 rounded-lg">
-                                                    {advancedAnalysis.feedback.map((tip: string, i: number) => (
+                                                    {advancedAnalysis.feedback.map((tip: unknown, i: number) => (
                                                         <div key={i} className="flex items-start gap-2 text-xs text-slate-700">
                                                             <span className="text-indigo-500 mt-0.5">•</span>
-                                                            {tip}
+                                                            {safeStr(tip)}
                                                         </div>
                                                     ))}
                                                 </div>
