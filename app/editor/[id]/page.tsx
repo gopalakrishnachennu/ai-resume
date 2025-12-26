@@ -825,6 +825,7 @@ export default function EditorPage() {
                             },
                             experience: Array.isArray(legacyData.experience) ? legacyData.experience : [],
                             education: Array.isArray(legacyData.education) ? legacyData.education : [],
+                            technicalSkills: legacyData.technicalSkills || {},
                         });
 
                         // Load aux data
@@ -849,6 +850,7 @@ export default function EditorPage() {
                         },
                         experience: Array.isArray(resumeData.experience) ? resumeData.experience : [],
                         education: Array.isArray(resumeData.education) ? resumeData.education : [],
+                        technicalSkills: resumeData.technicalSkills || {},
                     } as any);
 
                     if (resumeData.sections) setSections(resumeData.sections);
