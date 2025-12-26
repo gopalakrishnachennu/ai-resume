@@ -2014,15 +2014,15 @@ export default function EditorPage() {
                                 {
                                     level: 0,
                                     format: "bullet",
-                                    text: "•", // Standard bullet
+                                    text: settings.bulletStyle,
                                     alignment: AlignmentType.LEFT,
                                     style: {
                                         paragraph: {
                                             indent: { left: 360, hanging: 180 },
                                         },
                                         run: {
-                                            font: settings.fontFamily, // Use same font as body
-                                            size: 10, // 5pt (very small) to ensure visual lightness
+                                            font: settings.fontFamily,
+                                            size: px(settings.bulletSize || 8),
                                         },
                                     },
                                 },

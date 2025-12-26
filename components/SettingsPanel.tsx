@@ -476,27 +476,43 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
                                 </button>
                             </div>
 
-                            {/* Bullet Style */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Bullet Style
-                                </label>
-                                <select
-                                    value={settings.bulletStyle}
-                                    onChange={(e) => updateSetting('bulletStyle', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
-                                >
-                                    <option value="•">• Round (Recommended)</option>
-                                    <option value="-">- Dash</option>
-                                    <option value="◦">◦ Circle</option>
-                                    <option value="➤">➤ Arrow</option>
-                                    <option value="◆">◆ Diamond</option>
-                                    <option value="★">★ Star</option>
-                                    <option value="❀">❀ Flower</option>
-                                    <option value="■">■ Square</option>
-                                    <option value="▸">▸ Triangle</option>
-                                    <option value="›">› Chevron</option>
-                                </select>
+                            {/* Bullet Settings */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Bullet Style
+                                    </label>
+                                    <select
+                                        value={settings.bulletStyle}
+                                        onChange={(e) => updateSetting('bulletStyle', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    >
+                                        <option value="•">• Round (Recommended)</option>
+                                        <option value="-">- Dash</option>
+                                        <option value="◦">◦ Circle</option>
+                                        <option value="➤">➤ Arrow</option>
+                                        <option value="◆">◆ Diamond</option>
+                                        <option value="★">★ Star</option>
+                                        <option value="❀">❀ Flower</option>
+                                        <option value="■">■ Square</option>
+                                        <option value="▸">▸ Triangle</option>
+                                        <option value="›">› Chevron</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Bullet Size (pt)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="4"
+                                        max="14"
+                                        step="0.5"
+                                        value={settings.bulletSize || 8}
+                                        onChange={(e) => updateSetting('bulletSize', parseFloat(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
+                                    />
+                                </div>
                             </div>
 
                             {/* Header Style */}

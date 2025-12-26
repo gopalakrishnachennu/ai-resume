@@ -36,6 +36,7 @@ export interface ResumeSettings {
     bodyAlignment: 'left' | 'justify';
     dateFormat: 'MMM YYYY' | 'MM/YYYY' | 'Month YYYY';
     bulletStyle: '•' | '-' | '◦' | '➤' | '◆' | '★' | '❀' | '■' | '▸' | '›';
+    bulletSize: number; // Font size of the bullet point
 
     // Section Settings
     sectionDivider: boolean;
@@ -82,6 +83,7 @@ export const DEFAULT_ATS_SETTINGS: ResumeSettings = {
     bodyAlignment: 'left',
     dateFormat: 'MMM YYYY',
     bulletStyle: '•',
+    bulletSize: 8, // Standard small bullet size
     sectionDivider: true,
     dividerColor: '#000000',
     dividerWeight: 1,
