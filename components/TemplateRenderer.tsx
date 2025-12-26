@@ -337,57 +337,61 @@ export function TemplateRenderer({
 
         // Primary: Categorized Skills (technicalSkills map)
         if (hasTechnicalSkills) {
-            Object.entries(data.technicalSkills!).forEach(([category, skills]) => {
-                // Format camelCase to Title Case (e.g., "securityCompliance" -> "Security Compliance")
-                const formattedCategory = category
-                    .replace(/([A-Z])/g, ' $1')
-                    .replace(/^./, str => str.toUpperCase())
-                    .trim();
-                const skillText = Array.isArray(skills) ? skills.join(', ') : skills;
+            Object.entries(data.technicalSkills!)
+                .filter(([_, skills]) => skills) // Filter out null/undefined skill categories
+                .forEach(([category, skills]) => {
+                    // Format camelCase to Title Case (e.g., "securityCompliance" -> "Security Compliance")
+                    const formattedCategory = category
+                        .replace(/([A-Z])/g, ' $1')
+                        .replace(/^./, str => str.toUpperCase())
+                        .trim();
+                    const skillText = Array.isArray(skills) ? skills.filter(s => s).join(', ') : (skills || '');
 
-                blocks.push(
-                    <div
-                        key={`skill-cat-${blockIndex++}`}
-                        style={{
-                            display: 'flex',
-                            gap: '6px',
-                            fontSize: `${t.typography.sizes.body}pt`,
-                            color: t.typography.colors.body,
-                            marginBottom: '4px',
-                            lineHeight: 1.4,
-                        }}
-                    >
-                        <span>{t.experience.bulletStyle}</span>
-                        <span>
-                            <strong>{formattedCategory}:</strong> {parseFormattedText(skillText)}
-                        </span>
-                    </div>
-                );
-            });
+                    blocks.push(
+                        <div
+                            key={`skill-cat-${blockIndex++}`}
+                            style={{
+                                display: 'flex',
+                                gap: '6px',
+                                fontSize: `${t.typography.sizes.body}pt`,
+                                color: t.typography.colors.body,
+                                marginBottom: '4px',
+                                lineHeight: 1.4,
+                            }}
+                        >
+                            <span>{t.experience.bulletStyle}</span>
+                            <span>
+                                <strong>{formattedCategory}:</strong> {parseFormattedText(skillText)}
+                            </span>
+                        </div>
+                    );
+                });
             return;
         }
 
         // Fallback: Render each skill line as its own bullet
         // Each line is already formatted as "**Category**: skills" from loadData
         if (hasArraySkills) {
-            data.skills.technical.forEach((skillLine: string, idx: number) => {
-                blocks.push(
-                    <div
-                        key={`skill-line-${blockIndex++}-${idx}`}
-                        style={{
-                            display: 'flex',
-                            gap: '6px',
-                            fontSize: `${t.typography.sizes.body}pt`,
-                            color: t.typography.colors.body,
-                            marginBottom: '4px',
-                            lineHeight: 1.4,
-                        }}
-                    >
-                        <span>{t.experience.bulletStyle}</span>
-                        <span>{parseFormattedText(skillLine)}</span>
-                    </div>
-                );
-            });
+            data.skills.technical
+                .filter((skillLine: string | null | undefined): skillLine is string => !!skillLine)
+                .forEach((skillLine: string, idx: number) => {
+                    blocks.push(
+                        <div
+                            key={`skill-line-${blockIndex++}-${idx}`}
+                            style={{
+                                display: 'flex',
+                                gap: '6px',
+                                fontSize: `${t.typography.sizes.body}pt`,
+                                color: t.typography.colors.body,
+                                marginBottom: '4px',
+                                lineHeight: 1.4,
+                            }}
+                        >
+                            <span>{t.experience.bulletStyle}</span>
+                            <span>{parseFormattedText(skillLine)}</span>
+                        </div>
+                    );
+                });
         }
     };
 
@@ -438,29 +442,31 @@ export function TemplateRenderer({
             const bullets = exp.achievements || (exp as any).bullets || (exp as any).highlights || (exp as any).responsibilities || [];
 
             if (bullets.length) {
-                bullets.forEach((achievement: string, achIndex: number) => {
-                    blocks.push(
-                        <div
-                            key={`exp-${expIndex}-ach-${blockIndex++}`}
-                            style={{
-                                display: 'flex',
-                                gap: '6px',
-                                fontSize: `${t.typography.sizes.body}pt`,
-                                color: t.typography.colors.body,
-                                marginLeft: `${t.experience.bulletIndent}px`,
-                            }}
-                        >
-                            <span>{t.experience.bulletStyle}</span>
-                            <span style={{
-                                flex: 1,
-                                overflowWrap: t.experience.wrapLongText ? 'break-word' : 'normal',
-                                textAlign: t.typography.bodyAlignment || 'left'
-                            }}>
-                                {parseFormattedText(achievement)}
-                            </span>
-                        </div>
-                    );
-                });
+                bullets
+                    .filter((achievement: string | null | undefined): achievement is string => !!achievement)
+                    .forEach((achievement: string, achIndex: number) => {
+                        blocks.push(
+                            <div
+                                key={`exp-${expIndex}-ach-${blockIndex++}`}
+                                style={{
+                                    display: 'flex',
+                                    gap: '6px',
+                                    fontSize: `${t.typography.sizes.body}pt`,
+                                    color: t.typography.colors.body,
+                                    marginLeft: `${t.experience.bulletIndent}px`,
+                                }}
+                            >
+                                <span>{t.experience.bulletStyle}</span>
+                                <span style={{
+                                    flex: 1,
+                                    overflowWrap: t.experience.wrapLongText ? 'break-word' : 'normal',
+                                    textAlign: t.typography.bodyAlignment || 'left'
+                                }}>
+                                    {parseFormattedText(achievement)}
+                                </span>
+                            </div>
+                        );
+                    });
             }
         });
     };

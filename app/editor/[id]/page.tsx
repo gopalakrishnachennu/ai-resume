@@ -814,27 +814,32 @@ export default function EditorPage() {
                                 email: user?.email || '',
                             },
                             summary: resumeData.professionalSummary || '',
-                            experience: (resumeData.experience || []).map((exp: any) => ({
+                            experience: (resumeData.experience || []).filter((x: any) => x).map((exp: any) => ({
                                 company: exp.company || '',
-                                title: exp.position || '',
-                                location: '',
+                                title: exp.position || exp.title || '',
+                                location: exp.location || '',
                                 startDate: exp.startDate || '',
                                 endDate: exp.endDate || '',
                                 current: exp.current || false,
-                                bullets: exp.responsibilities || [],
+                                bullets: Array.isArray(exp.responsibilities)
+                                    ? exp.responsibilities.filter((b: any) => b && typeof b === 'string')
+                                    : Array.isArray(exp.bullets)
+                                        ? exp.bullets.filter((b: any) => b && typeof b === 'string')
+                                        : [],
                             })),
-                            education: (resumeData.education || []).map((edu: any) => ({
-                                school: edu.institution || '',
+                            education: (resumeData.education || []).filter((x: any) => x).map((edu: any) => ({
+                                school: edu.institution || edu.school || '',
                                 degree: edu.degree || '',
                                 field: edu.field || '',
-                                location: '',
+                                location: edu.location || '',
                                 graduationDate: edu.graduationDate || '',
                             })),
                             skills: {
                                 ...DEFAULT_RESUME_DATA.skills,
                                 technical: resumeData.technicalSkills
                                     ? Object.entries(resumeData.technicalSkills)
-                                        .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.join(', ') : skills}`)
+                                        .filter(([_, skills]) => skills) // Filter out null/undefined categories
+                                        .map(([category, skills]) => `**${category}**: ${Array.isArray(skills) ? skills.filter(s => s).join(', ') : skills || ''}`)
                                     : [],
                             },
                             technicalSkills: resumeData.technicalSkills || DEFAULT_RESUME_DATA.technicalSkills,
