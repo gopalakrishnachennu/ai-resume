@@ -5,15 +5,17 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'react-hot-toast';
 import {
+    PromptConfig,
+    FlatPromptKey,
+    PROMPT_METADATA,
+    PROMPT_VARIABLES,
+    MANDATORY_PROMPTS,
     getActivePrompts,
     saveUserPrompts,
     resetUserPrompts,
     getCodeDefaults,
-    PROMPT_METADATA,
-    PROMPT_VARIABLES,
-    MANDATORY_PROMPTS,
-    FlatPromptKey,
-    PromptConfig,
+    getPersonaConfig,
+    savePersonaConfig
 } from '@/lib/services/promptService';
 
 // Group prompts by phase
@@ -234,12 +236,14 @@ function PromptEditor({
 }
 
 export default function PromptSettingsPage() {
-    const { user, loading: authLoading } = useAuthStore();
     const router = useRouter();
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const { user, loading: authLoading } = useAuthStore();
     const [prompts, setPrompts] = useState<Record<FlatPromptKey, PromptConfig> | null>(null);
     const [defaults, setDefaults] = useState<Record<FlatPromptKey, PromptConfig> | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    // UI State
     const [expandedPrompt, setExpandedPrompt] = useState<FlatPromptKey | null>(null);
     const [showVariables, setShowVariables] = useState(false);
     const simpleMode = true; // Always Simple Mode for end users
@@ -264,30 +268,46 @@ export default function PromptSettingsPage() {
         useAuthStore.getState().initialize();
     }, []);
 
+    // Load prompts and persona config on mount/auth
     useEffect(() => {
-        if (authLoading) return;
-        if (!user) {
-            router.push('/login');
-            return;
-        }
-        loadPrompts();
-    }, [user, authLoading]);
+        const loadData = async () => {
+            if (!user) return;
+            setLoading(true);
+            try {
+                // Parallel load
+                const [promptsData, codeDefaults, personaConfig] = await Promise.all([
+                    getActivePrompts(user.uid),
+                    getCodeDefaults(),
+                    getPersonaConfig(user.uid)
+                ]);
 
-    const loadPrompts = async () => {
-        try {
-            const [active, codeDefaults] = await Promise.all([
-                getActivePrompts(user!.uid),
-                Promise.resolve(getCodeDefaults()),
-            ]);
-            setPrompts(active);
-            setDefaults(codeDefaults);
-        } catch (error) {
-            console.error('Error loading prompts:', error);
-            toast.error('Failed to load prompts');
-        } finally {
-            setLoading(false);
+                setPrompts(promptsData);
+                setDefaults(codeDefaults);
+
+                // Restore Persona State if exists
+                if (personaConfig) {
+                    setTargetRole(personaConfig.targetRole || '');
+                    setSelectedLevel(personaConfig.experienceLevel || 'mid');
+                    setSelectedStyle(personaConfig.writingStyle || 'professional');
+                    setSelectedTone(personaConfig.tone || 'confident');
+                    setAtsOptimized(personaConfig.atsOptimized ?? true);
+                    setSummaryRules(personaConfig.summaryRules || '');
+                    setExperienceRules(personaConfig.experienceRules || '');
+                    setSkillsRules(personaConfig.skillsRules || '');
+                    setSkillsCategorized(personaConfig.skillsCategorized ?? true);
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+                toast.error('Failed to load settings');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (user) {
+            loadData();
         }
-    };
+    }, [user]);
 
     const handleSave = async () => {
         if (!user || !prompts) return;
@@ -305,10 +325,24 @@ export default function PromptSettingsPage() {
         setSaving(true);
         try {
             await saveUserPrompts(user.uid, prompts);
-            toast.success('Prompts saved successfully! 🎉');
+
+            // Also save Persona Config
+            await savePersonaConfig(user.uid, {
+                targetRole,
+                experienceLevel: selectedLevel,
+                writingStyle: selectedStyle,
+                tone: selectedTone,
+                atsOptimized,
+                summaryRules,
+                experienceRules,
+                skillsRules,
+                skillsCategorized
+            });
+
+            toast.success('Prompts & Persona settings saved successfully');
         } catch (error: any) {
             console.error('Error saving prompts:', error);
-            toast.error(error.message || 'Failed to save prompts');
+            toast.error(error.message || 'Failed to save settings');
         } finally {
             setSaving(false);
         }
