@@ -36,6 +36,23 @@ const PAGE_HEIGHT_IN = 11;
 const PX_PER_IN = 96;
 const PREVIEW_SCALE = 0.72;
 
+// Helper to safely convert any value to string for form inputs
+// This prevents React crash when resumeData contains objects instead of strings
+const safeStr = (value: unknown): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) return value.filter(v => typeof v === 'string').join(', ');
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return '[object]';
+        }
+    }
+    return String(value);
+};
+
 export default function EditorPage() {
     const params = useParams();
     const router = useRouter();
@@ -2429,7 +2446,7 @@ export default function EditorPage() {
                                 <div className="space-y-3">
                                     <input
                                         type="text"
-                                        value={resumeData.personalInfo.name}
+                                        value={safeStr(resumeData.personalInfo.name)}
                                         onChange={(e) => setResumeData({
                                             ...resumeData,
                                             personalInfo: { ...resumeData.personalInfo, name: e.target.value }
@@ -2440,7 +2457,7 @@ export default function EditorPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <input
                                             type="email"
-                                            value={resumeData.personalInfo.email}
+                                            value={safeStr(resumeData.personalInfo.email)}
                                             onChange={(e) => setResumeData({
                                                 ...resumeData,
                                                 personalInfo: { ...resumeData.personalInfo, email: e.target.value }
@@ -2450,7 +2467,7 @@ export default function EditorPage() {
                                         />
                                         <input
                                             type="tel"
-                                            value={resumeData.personalInfo.phone}
+                                            value={safeStr(resumeData.personalInfo.phone)}
                                             onChange={(e) => setResumeData({
                                                 ...resumeData,
                                                 personalInfo: { ...resumeData.personalInfo, phone: e.target.value }
@@ -2461,7 +2478,7 @@ export default function EditorPage() {
                                     </div>
                                     <input
                                         type="text"
-                                        value={resumeData.personalInfo.location}
+                                        value={safeStr(resumeData.personalInfo.location)}
                                         onChange={(e) => setResumeData({
                                             ...resumeData,
                                             personalInfo: { ...resumeData.personalInfo, location: e.target.value }
@@ -2472,7 +2489,7 @@ export default function EditorPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <input
                                             type="url"
-                                            value={resumeData.personalInfo.linkedin}
+                                            value={safeStr(resumeData.personalInfo.linkedin)}
                                             onChange={(e) => setResumeData({
                                                 ...resumeData,
                                                 personalInfo: { ...resumeData.personalInfo, linkedin: e.target.value }
@@ -2482,7 +2499,7 @@ export default function EditorPage() {
                                         />
                                         <input
                                             type="url"
-                                            value={resumeData.personalInfo.github}
+                                            value={safeStr(resumeData.personalInfo.github)}
                                             onChange={(e) => setResumeData({
                                                 ...resumeData,
                                                 personalInfo: { ...resumeData.personalInfo, github: e.target.value }
@@ -2605,21 +2622,21 @@ export default function EditorPage() {
 
                                                             <input
                                                                 type="text"
-                                                                value={exp.title}
+                                                                value={safeStr(exp.title)}
                                                                 onChange={(e) => updateExperience(idx, 'title', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 placeholder="Job Title"
                                                             />
                                                             <input
                                                                 type="text"
-                                                                value={exp.company}
+                                                                value={safeStr(exp.company)}
                                                                 onChange={(e) => updateExperience(idx, 'company', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 placeholder="Company"
                                                             />
                                                             <input
                                                                 type="text"
-                                                                value={exp.location}
+                                                                value={safeStr(exp.location)}
                                                                 onChange={(e) => updateExperience(idx, 'location', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 placeholder="Location (City, State)"
@@ -2627,13 +2644,13 @@ export default function EditorPage() {
                                                             <div className="grid grid-cols-2 gap-2">
                                                                 <input
                                                                     type="month"
-                                                                    value={exp.startDate}
+                                                                    value={safeStr(exp.startDate)}
                                                                     onChange={(e) => updateExperience(idx, 'startDate', e.target.value)}
                                                                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 />
                                                                 <input
                                                                     type="month"
-                                                                    value={exp.endDate}
+                                                                    value={safeStr(exp.endDate)}
                                                                     onChange={(e) => updateExperience(idx, 'endDate', e.target.value)}
                                                                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                     disabled={exp.current}
@@ -2652,7 +2669,7 @@ export default function EditorPage() {
                                                                 </label>
                                                             )}
                                                             <textarea
-                                                                value={exp.bullets?.join('\n') || ''}
+                                                                value={Array.isArray(exp.bullets) ? exp.bullets.filter((b: unknown) => typeof b === 'string').join('\n') : ''}
                                                                 onChange={(e) => updateExperience(idx, 'bullets', e.target.value.split('\n'))}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400 resize-none"
                                                                 placeholder="Key achievements (one per line)"
@@ -2687,7 +2704,7 @@ export default function EditorPage() {
 
                                                             <input
                                                                 type="text"
-                                                                value={edu.school}
+                                                                value={safeStr(edu.school)}
                                                                 onChange={(e) => updateEducation(idx, 'school', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 placeholder="School Name"
@@ -2695,14 +2712,14 @@ export default function EditorPage() {
                                                             <div className="grid grid-cols-2 gap-2">
                                                                 <input
                                                                     type="text"
-                                                                    value={edu.degree}
+                                                                    value={safeStr(edu.degree)}
                                                                     onChange={(e) => updateEducation(idx, 'degree', e.target.value)}
                                                                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                     placeholder="Degree (e.g., B.Sc.)"
                                                                 />
                                                                 <input
                                                                     type="text"
-                                                                    value={edu.field}
+                                                                    value={safeStr(edu.field)}
                                                                     onChange={(e) => updateEducation(idx, 'field', e.target.value)}
                                                                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                     placeholder="Field"
@@ -2710,14 +2727,14 @@ export default function EditorPage() {
                                                             </div>
                                                             <input
                                                                 type="text"
-                                                                value={edu.location}
+                                                                value={safeStr(edu.location)}
                                                                 onChange={(e) => updateEducation(idx, 'location', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                                 placeholder="Location (City, State)"
                                                             />
                                                             <input
                                                                 type="month"
-                                                                value={edu.graduationDate}
+                                                                value={safeStr(edu.graduationDate)}
                                                                 onChange={(e) => updateEducation(idx, 'graduationDate', e.target.value)}
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-400"
                                                             />
