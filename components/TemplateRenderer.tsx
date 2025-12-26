@@ -11,6 +11,30 @@ import { FONT_STACKS } from '@/lib/types/resumeSettings';
 import { parseFormattedText } from '@/lib/utils/textFormatter';
 import { formatMonthYear } from '@/lib/utils/dateFormat';
 
+// Debug logger for TemplateRenderer
+const rendererLog = {
+    info: (msg: string, data?: any) => console.log(`%c[RENDERER] ${msg}`, 'color: #10b981', data ?? ''),
+    warn: (msg: string, data?: any) => console.warn(`%c[RENDERER] ${msg}`, 'color: #f59e0b', data ?? ''),
+    error: (msg: string, data?: any) => console.error(`%c[RENDERER] ${msg}`, 'color: #ef4444', data ?? ''),
+    debug: (msg: string, data?: any) => console.debug(`%c[RENDERER] ${msg}`, 'color: #6b7280', data ?? ''),
+};
+
+// Helper to safely convert any value to a renderable string
+function safeString(value: unknown): string {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) return value.filter(v => typeof v === 'string').join(', ');
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return '[object]';
+        }
+    }
+    return String(value);
+}
+
 interface ResumeData {
     personalInfo: {
         name: string;
@@ -65,8 +89,14 @@ export function TemplateRenderer({
     sections,
     customSections = {},
 }: TemplateRendererProps): ReactNode[] {
+    rendererLog.info('TemplateRenderer starting...', {
+        hasData: !!data,
+        hasTemplate: !!template
+    });
+
     const blocks: ReactNode[] = [];
     let blockIndex = 0;
+
 
     const t = template || DEFAULT_ATS_TEMPLATE;
 
@@ -620,7 +650,14 @@ export function TemplateRenderer({
     };
 
     // === RENDER ALL SECTIONS IN ORDER ===
-    renderHeader();
+    try {
+        rendererLog.debug('Rendering header...');
+        renderHeader();
+        rendererLog.debug('Header rendered OK');
+    } catch (err) {
+        rendererLog.error('CRASH in header', err);
+        throw err;
+    }
 
     // Default section order + custom sections
     let sectionOrder = t.sectionOrder || ['summary', 'skills', 'experience', 'education'];
@@ -639,27 +676,48 @@ export function TemplateRenderer({
             if (sectionConfig && !sectionConfig.visible) return;
         }
 
-        switch (sectionType) {
-            case 'summary':
-                renderSummary();
-                break;
-            case 'skills':
-                renderSkills();
-                break;
-            case 'experience':
-                renderExperience();
-                break;
-            case 'education':
-                renderEducation();
-                break;
-            case 'custom':
-                // Render all custom sections
-                if (sections) {
-                    sections
-                        .filter(s => s.type === 'custom' && s.visible)
-                        .forEach(s => renderCustomSection(s.id, s.name));
-                }
-                break;
+        try {
+            switch (sectionType) {
+                case 'summary':
+                    rendererLog.debug('Rendering summary...');
+                    renderSummary();
+                    rendererLog.debug('Summary rendered OK');
+                    break;
+                case 'skills':
+                    rendererLog.debug('Rendering skills...', {
+                        hasTechnicalSkills: !!data.technicalSkills && Object.keys(data.technicalSkills).length > 0,
+                        hasArraySkills: data.skills?.technical?.length > 0,
+                        technicalSkillsKeys: data.technicalSkills ? Object.keys(data.technicalSkills) : [],
+                    });
+                    renderSkills();
+                    rendererLog.debug('Skills rendered OK');
+                    break;
+                case 'experience':
+                    rendererLog.debug('Rendering experience...', { count: data.experience?.length });
+                    renderExperience();
+                    rendererLog.debug('Experience rendered OK');
+                    break;
+                case 'education':
+                    rendererLog.debug('Rendering education...', { count: data.education?.length });
+                    renderEducation();
+                    rendererLog.debug('Education rendered OK');
+                    break;
+                case 'custom':
+                    // Render all custom sections
+                    if (sections) {
+                        sections
+                            .filter(s => s.type === 'custom' && s.visible)
+                            .forEach(s => {
+                                rendererLog.debug('Rendering custom section...', { id: s.id, name: s.name });
+                                renderCustomSection(s.id, s.name);
+                            });
+                    }
+                    break;
+            }
+        } catch (err) {
+            rendererLog.error(`CRASH in section: ${sectionType}`, err);
+            // Re-throw to show in console
+            throw err;
         }
     });
 
