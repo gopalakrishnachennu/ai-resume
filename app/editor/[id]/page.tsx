@@ -2471,7 +2471,7 @@ export default function EditorPage() {
                                                         Technical Skills - Paste from Word with formatting!
                                                     </label>
                                                     <RichTextEditor
-                                                        value={resumeData.skills.technical.join('\n')}
+                                                        value={(resumeData.skills?.technical || []).join('\n')}
                                                         onChange={(newValue) => {
                                                             const lines = newValue.split('\n').filter(line => line.trim());
                                                             setResumeData({
@@ -2480,6 +2480,7 @@ export default function EditorPage() {
                                                                     ...resumeData.skills,
                                                                     technical: lines,
                                                                 },
+                                                                technicalSkills: undefined, // Force preview to use new manual list
                                                             });
                                                         }}
                                                         placeholder="Paste your skills from Word - formatting will be preserved!"

@@ -7,6 +7,8 @@ import { useAuthStore } from '@/store/authStore';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from 'react-hot-toast';
+import { TemplateService } from '@/lib/services/templateService';
+import { TemplateSchema } from '@/lib/types/templateSchema';
 
 // Extension Settings Interface
 interface ExtensionSettings {
@@ -99,6 +101,19 @@ export default function ExtensionSettingsPage() {
     const [syncing, setSyncing] = useState(false);
     const [extensionInstalled, setExtensionInstalled] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    const [userTemplates, setUserTemplates] = useState<TemplateSchema[]>([]);
+
+    useEffect(() => {
+        if (user) {
+            loadUserTemplates();
+        }
+    }, [user]);
+
+    const loadUserTemplates = async () => {
+        if (!user) return;
+        const templates = await TemplateService.getUserTemplates(user.uid);
+        setUserTemplates(templates);
+    };
 
     useEffect(() => {
         useAuthStore.getState().initialize();
@@ -331,6 +346,71 @@ export default function ExtensionSettingsPage() {
             {/* Content */}
             <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
                 <div className="space-y-8">
+
+
+                    {/* My Custom Templates Section - NEW */}
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                                    </svg>
+                                    My Custom Templates
+                                </h2>
+                                <p className="text-sm text-slate-600">Create and manage your personalized resume designs</p>
+                            </div>
+                            <Link
+                                href="/templates/new"
+                                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span>Create New</span>
+                            </Link>
+                        </div>
+
+                        <div className="p-6">
+                            {userTemplates.length === 0 ? (
+                                <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                                    <p className="text-slate-500 mb-4">You haven't created any custom templates yet.</p>
+                                    <Link
+                                        href="/templates/new"
+                                        className="text-blue-600 font-medium hover:underline"
+                                    >
+                                        Create your first template &rarr;
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {userTemplates.map(template => (
+                                        <div key={template.id} className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-400 hover:shadow-md transition-all">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <h4 className="font-semibold text-slate-900 truncate pr-2">{template.name}</h4>
+                                                <Link
+                                                    href={`/templates/${template.id}`}
+                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="Edit Template"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </Link>
+                                            </div>
+                                            <p className="text-xs text-slate-500 line-clamp-2 mb-3">{template.description}</p>
+                                            <div className="flex items-center gap-2 text-xs">
+                                                {template.atsCompatible && (
+                                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 font-medium rounded-full">ATS Ready</span>
+                                                )}
+                                                <span className="text-slate-400">Updated {new Date(template.updatedAt as any).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     {/* Social Links */}
                     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

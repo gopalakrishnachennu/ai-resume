@@ -243,6 +243,34 @@ export default function ExtensionSettingsPage() {
                             </div>
                         </section>
 
+
+                        {/* Template Builder Section - NEW */}
+                        <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-pink-50 to-rose-50">
+                                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    🎨 Template Builder
+                                </h2>
+                                <p className="text-sm text-gray-600">Design and manage resume templates for users</p>
+                            </div>
+                            <div className="p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-md font-medium text-gray-900">Manage Templates</h3>
+                                        <p className="text-sm text-gray-500 mt-1">Create, edit, and publish resume templates available to all users.</p>
+                                    </div>
+                                    <Link
+                                        href="/admin/templates"
+                                        className="px-4 py-2 bg-white border border-gray-300 shadow-sm text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                    >
+                                        <span>Launch Builder</span>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                    </Link>
+                                </div>
+                            </div>
+                        </section>
+
                         {/* Extension IDs - CORPORATE CONTROL */}
                         <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-red-50 to-orange-50">
