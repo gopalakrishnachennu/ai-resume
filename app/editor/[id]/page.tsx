@@ -1595,8 +1595,11 @@ export default function EditorPage() {
 
                     if (section.type === 'skills' && resumeData.skills.technical.length > 0) {
                         addSectionHeader(section.name);
-                        resumeData.skills.technical.forEach((skillLine, idx) => {
-                            content.push({ text: formatPdfText(`${settings.bulletStyle} ${skillLine}`), style: 'body', margin: [0, 0, 0, idx === resumeData.skills.technical.length - 1 ? 8 : 4] });
+                        // Use proper pdfMake ul list for real bullet points
+                        content.push({
+                            ul: resumeData.skills.technical.map((skillLine: string) => formatPdfText(skillLine)),
+                            style: 'body',
+                            margin: [0, 0, 0, 8],
                         });
                     }
 
@@ -1899,13 +1902,13 @@ export default function EditorPage() {
                             }
                         });
 
-                        // Render bullets
+                        // Render bullets with proper Word bullet formatting
                         exp.bullets.filter((b: string) => b.trim()).forEach((b: string) => {
                             sectionChildren.push(new Paragraph({
                                 children: [
-                                    new TextRun({ text: `${t.experience.bulletStyle} `, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                     ...formatDocxRuns(b, docxModule, { font: t.typography.fontFamily, size: px(t.typography.sizes.body), color: bodyColorDocx }),
                                 ],
+                                bullet: { level: 0 }, // Use Word's native bullet formatting
                                 spacing: { after: 40 },
                                 alignment: t.typography.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
                             }));
@@ -1960,10 +1963,10 @@ export default function EditorPage() {
 
                                 sectionChildren.push(new Paragraph({
                                     children: [
-                                        new TextRun({ text: `${t.experience.bulletStyle} `, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                         new TextRun({ text: `${formattedCategory}:`, bold: true, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                         new TextRun({ text: ` ${skillText}`, size: px(t.typography.sizes.body), color: bodyColorDocx, font: t.typography.fontFamily }),
                                     ],
+                                    bullet: { level: 0 }, // Use Word's native bullet formatting
                                     spacing: { after: 40 },
                                     alignment: t.typography.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
                                 }));
@@ -1972,7 +1975,12 @@ export default function EditorPage() {
                         // Fallback: Array Skills
                         else if (hasArraySkills) {
                             resumeData.skills.technical.forEach((skillLine: string, idx: number) => {
-                                sectionChildren.push(bodyParagraph(`${t.experience.bulletStyle} ${skillLine}`, { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 }));
+                                sectionChildren.push(new Paragraph({
+                                    children: formatDocxRuns(skillLine, docxModule, { font: t.typography.fontFamily, size: px(t.typography.sizes.body), color: bodyColorDocx }),
+                                    bullet: { level: 0 }, // Use Word's native bullet formatting
+                                    spacing: { after: idx === resumeData.skills.technical.length - 1 ? 80 : 40 },
+                                    alignment: t.typography.bodyAlignment === 'justify' ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
+                                }));
                             });
                         }
                     }
