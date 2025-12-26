@@ -2014,14 +2014,15 @@ export default function EditorPage() {
                                 {
                                     level: 0,
                                     format: "bullet",
-                                    text: "", // Symbol font bullet character (U+F0B7)
+                                    text: "•", // Standard bullet
                                     alignment: AlignmentType.LEFT,
                                     style: {
                                         paragraph: {
-                                            indent: { left: 360, hanging: 180 }, // Standard indentation
+                                            indent: { left: 360, hanging: 180 },
                                         },
                                         run: {
-                                            font: "Symbol", // Use Symbol font for standard Word bullet
+                                            font: settings.fontFamily, // Use same font as body
+                                            size: 10, // 5pt (very small) to ensure visual lightness
                                         },
                                     },
                                 },
