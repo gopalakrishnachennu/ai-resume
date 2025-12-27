@@ -24,12 +24,25 @@ export interface PromptConfig {
     maxTokens: number;
     temperature: number;
     description?: string;
+    customInstructions?: string; // Appended to system prompt dynamically
 }
 
 export interface StoredPrompts {
     version: string;
     lastUpdated: any;
     prompts: Record<FlatPromptKey, PromptConfig>;
+}
+
+export interface PersonaConfig {
+    targetRole: string;
+    experienceLevel: string;
+    writingStyle: string;
+    tone: string;
+    atsOptimized: boolean;
+    summaryRules: string;
+    experienceRules: string;
+    skillsRules: string;
+    skillsCategorized: boolean;
 }
 
 // Define mandatory prompts that cannot be empty
@@ -230,4 +243,26 @@ export async function getActivePrompts(userId?: string): Promise<Record<FlatProm
 export async function getPrompt(key: FlatPromptKey, userId?: string): Promise<PromptConfig> {
     const prompts = await getActivePrompts(userId);
     return prompts[key];
+}
+
+/**
+ * Get user's persona configuration
+ */
+export async function getPersonaConfig(userId: string): Promise<PersonaConfig | null> {
+    try {
+        const docSnap = await getDoc(doc(db, 'users', userId, 'settings', 'persona'));
+        if (!docSnap.exists()) return null;
+        return docSnap.data() as PersonaConfig;
+    } catch (error) {
+        console.error('[PromptService] Error getting persona config:', error);
+        return null;
+    }
+}
+
+/**
+ * Save user's persona configuration
+ */
+export async function savePersonaConfig(userId: string, config: PersonaConfig): Promise<void> {
+    await setDoc(doc(db, 'users', userId, 'settings', 'persona'), config);
+    console.log('[PromptService] Persona config saved');
 }
