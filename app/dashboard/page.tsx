@@ -376,39 +376,38 @@ export default function DashboardPage() {
         if (!user) return;
 
         try {
-            // Run all queries in PARALLEL for faster loading
+            // Query all three collections in parallel
             const [appsData, resumesSnapshot, jobsSnapshot] = await Promise.all([
                 ApplicationService.getApplications(user.uid, {
-                    status: statusFilter,
-                    searchField,
-                    searchQuery,
+                    status: 'all', // Don't filter at service level
+                    searchField: 'all',
+                    searchQuery: '',
                     sortBy,
                 }),
                 getDocs(query(collection(db, 'resumes'), where('userId', '==', user.uid))),
                 getDocs(query(collection(db, 'jobs'), where('userId', '==', user.uid))),
             ]);
 
-            let apps = appsData; // Mutable copy for filtering/merging
-            console.log(`[Dashboard] Parallel load: ${apps.length} apps, ${resumesSnapshot.docs.length} resumes, ${jobsSnapshot.docs.length} jobs`);
+            console.log(`[Dashboard] Query results: ${appsData.length} apps, ${resumesSnapshot.docs.length} resumes, ${jobsSnapshot.docs.length} jobs`);
 
-            // Dictionary helper to extract ATS score safely (handles number or object)
+            // Helper to extract ATS score safely
             const getAtsScore = (score: any): number => {
                 if (typeof score === 'number') return score;
                 if (typeof score === 'object' && score && typeof score.total === 'number') return score.total;
                 return 0;
             };
 
-            // Map legacy resumes
-            const legacyApps: Application[] = resumesSnapshot.docs.map(doc => {
-                const data = doc.data();
+            // Convert resumes to Application format
+            const resumeApps: Application[] = resumesSnapshot.docs.map(docSnap => {
+                const data = docSnap.data();
                 return {
-                    id: doc.id,
+                    id: docSnap.id,
                     userId: user.uid,
                     jobTitle: data.jobTitle || 'Untitled',
                     jobCompany: data.jobCompany || data.company || '',
                     jobDescription: data.jobDescription || '',
                     hasResume: true,
-                    resumeId: doc.id,
+                    resumeId: docSnap.id,
                     resume: {
                         personalInfo: data.personalInfo || {},
                         professionalSummary: data.professionalSummary || data.summary || '',
@@ -425,62 +424,61 @@ export default function DashboardPage() {
                 };
             });
 
-            // Map jobs as draft applications
-            const jobApps: Application[] = jobsSnapshot.docs
-                .filter(doc => !legacyApps.some(app => app.jobTitle === doc.data().parsedData?.title))
-                .map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        userId: user.uid,
-                        jobId: doc.id,
-                        jobTitle: data.parsedData?.title || 'Untitled',
-                        jobCompany: data.parsedData?.company || '',
-                        jobDescription: data.originalDescription || '',
-                        hasResume: false,
-                        status: 'draft' as ApplicationStatus,
-                        version: 1,
-                        createdAt: data.createdAt,
-                        analyzedAt: data.createdAt,
-                        updatedAt: data.createdAt,
-                    };
-                });
+            // Convert jobs to Application format
+            const jobApps: Application[] = jobsSnapshot.docs.map(docSnap => {
+                const data = docSnap.data();
+                return {
+                    id: docSnap.id,
+                    userId: user.uid,
+                    jobId: docSnap.id,
+                    jobTitle: data.parsedData?.title || 'Untitled',
+                    jobCompany: data.parsedData?.company || '',
+                    jobDescription: data.originalDescription || '',
+                    hasResume: false,
+                    status: 'draft' as ApplicationStatus,
+                    version: 1,
+                    createdAt: data.createdAt,
+                    analyzedAt: data.createdAt,
+                    updatedAt: data.createdAt,
+                };
+            });
 
-            // Merge all sources: applications + resumes + jobs
-            // Avoid duplicates by checking IDs and resumeIds
-            const existingIds = new Set(apps.map(a => a.id));
-            const existingResumeIds = new Set(apps.map(a => a.resumeId).filter(Boolean));
+            // SIMPLE MERGE: Start with applications, add resumes and jobs that aren't duplicates
+            const allIds = new Set<string>();
+            const allResumeIds = new Set<string>();
 
-            // Also track IDs that were migrated (app_resumeId pattern)
-            apps.forEach(a => {
+            // Add from applications collection
+            let apps: Application[] = [...appsData];
+            appsData.forEach(a => {
+                allIds.add(a.id);
+                if (a.resumeId) allResumeIds.add(a.resumeId);
+                // Track migrated IDs (app_xxx pattern)
                 if (a.id.startsWith('app_')) {
-                    // Extract the original ID from app_xxx pattern
-                    const originalId = a.id.replace('app_', '');
-                    existingIds.add(originalId);
+                    allIds.add(a.id.replace(/^app_/, ''));
                 }
             });
 
-            // Filter legacy resumes - skip if already in applications (by ID or resumeId)
-            const newLegacyApps = legacyApps.filter(a =>
-                !existingIds.has(a.id) &&
-                !existingIds.has(`app_${a.id}`) &&
-                !existingResumeIds.has(a.id)
-            );
+            // Add resumes that aren't already in applications
+            resumeApps.forEach(r => {
+                if (!allIds.has(r.id) && !allIds.has(`app_${r.id}`) && !allResumeIds.has(r.id)) {
+                    apps.push(r);
+                    allIds.add(r.id);
+                }
+            });
 
-            // Filter jobs - skip if already in applications
-            const newJobApps = jobApps.filter(a =>
-                !existingIds.has(a.id) &&
-                !existingIds.has(`app_${a.id}`)
-            );
+            // Add jobs that aren't already covered
+            jobApps.forEach(j => {
+                if (!allIds.has(j.id) && !allIds.has(`app_${j.id}`)) {
+                    // Also check if we have a resume with same job title
+                    const hasSameTitle = apps.some(a => a.jobTitle === j.jobTitle && a.hasResume);
+                    if (!hasSameTitle) {
+                        apps.push(j);
+                        allIds.add(j.id);
+                    }
+                }
+            });
 
-            apps = [...apps, ...newLegacyApps, ...newJobApps];
-
-            console.log(`[Dashboard] DEBUG: apps from service: ${appsData.length}`);
-            console.log(`[Dashboard] DEBUG: legacyApps (from resumes): ${legacyApps.length}`);
-            console.log(`[Dashboard] DEBUG: newLegacyApps (after filter): ${newLegacyApps.length}`);
-            console.log(`[Dashboard] DEBUG: existingIds:`, Array.from(existingIds));
-            console.log(`[Dashboard] DEBUG: existingResumeIds:`, Array.from(existingResumeIds));
-            console.log(`[Dashboard] DEBUG: final apps count: ${apps.length}`);
+            console.log(`[Dashboard] Merged: ${apps.length} total items`);
 
             // Apply status filter
             if (statusFilter !== 'all') {
@@ -536,7 +534,7 @@ export default function DashboardPage() {
                 }
             });
 
-            console.log(`[Dashboard] Loaded ${apps.length} total (${legacyApps.length} resumes + ${jobApps.length} jobs + applications)`);
+            console.log(`[Dashboard] Loaded ${apps.length} total (${resumeApps.length} resumes + ${jobApps.length} jobs + applications)`);
 
             setApplications(apps);
 
