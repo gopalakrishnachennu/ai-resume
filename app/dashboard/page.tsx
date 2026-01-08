@@ -475,6 +475,13 @@ export default function DashboardPage() {
 
             apps = [...apps, ...newLegacyApps, ...newJobApps];
 
+            console.log(`[Dashboard] DEBUG: apps from service: ${appsData.length}`);
+            console.log(`[Dashboard] DEBUG: legacyApps (from resumes): ${legacyApps.length}`);
+            console.log(`[Dashboard] DEBUG: newLegacyApps (after filter): ${newLegacyApps.length}`);
+            console.log(`[Dashboard] DEBUG: existingIds:`, Array.from(existingIds));
+            console.log(`[Dashboard] DEBUG: existingResumeIds:`, Array.from(existingResumeIds));
+            console.log(`[Dashboard] DEBUG: final apps count: ${apps.length}`);
+
             // Apply status filter
             if (statusFilter !== 'all') {
                 apps = apps.filter(app => app.status === statusFilter);
