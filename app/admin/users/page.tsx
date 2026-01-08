@@ -139,8 +139,8 @@ export default function UsersPage() {
                         <button
                             onClick={() => setFilter('all')}
                             className={`px-4 py-2 rounded-lg transition-colors ${filter === 'all'
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                         >
                             All ({users.length})
@@ -148,8 +148,8 @@ export default function UsersPage() {
                         <button
                             onClick={() => setFilter('guest')}
                             className={`px-4 py-2 rounded-lg transition-colors ${filter === 'guest'
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                         >
                             Guests ({users.filter(u => u.isAnonymous).length})
@@ -157,8 +157,8 @@ export default function UsersPage() {
                         <button
                             onClick={() => setFilter('logged')}
                             className={`px-4 py-2 rounded-lg transition-colors ${filter === 'logged'
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                         >
                             Logged In ({users.filter(u => !u.isAnonymous).length})
@@ -232,12 +232,20 @@ export default function UsersPage() {
                                             {user.createdAt?.toDate?.()?.toLocaleDateString() || 'N/A'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => deleteUser(user.uid)}
-                                                className="text-red-600 hover:text-red-900"
-                                            >
-                                                Delete
-                                            </button>
+                                            <div className="flex items-center justify-end gap-3">
+                                                <Link
+                                                    href={`/admin/users/${user.uid}`}
+                                                    className="text-indigo-600 hover:text-indigo-900 font-medium"
+                                                >
+                                                    View Details
+                                                </Link>
+                                                <button
+                                                    onClick={() => deleteUser(user.uid)}
+                                                    className="text-red-600 hover:text-red-900"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
