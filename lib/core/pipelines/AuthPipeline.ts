@@ -12,11 +12,13 @@ import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     signInWithPopup,
+    signInWithRedirect,
     GoogleAuthProvider,
     signOut as firebaseSignOut,
 } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { GuestCacheService } from '@/lib/services/guestCacheService';
+import { UidMigrationService } from '@/lib/services/uidMigrationService';
 
 // ============================================================================
 // TYPES
@@ -102,7 +104,22 @@ const performAuthStage: PipelineStage = {
             case 'google':
                 toast('🔐 Signing in with Google...', { icon: '⏳' });
                 const provider = new GoogleAuthProvider();
-                userCredential = await signInWithPopup(auth, provider);
+                provider.setCustomParameters({ prompt: 'select_account' });
+                try {
+                    userCredential = await signInWithPopup(auth, provider);
+                } catch (popupError: any) {
+                    if (
+                        popupError.code === 'auth/popup-blocked' ||
+                        popupError.code === 'auth/popup-closed-by-user' ||
+                        popupError.code === 'auth/cancelled-popup-request' ||
+                        popupError.code === 'auth/network-request-failed'
+                    ) {
+                        console.log('[AuthPipeline] Popup failed, using redirect:', popupError.code);
+                        await signInWithRedirect(auth, provider);
+                        throw new Error('REDIRECT_INITIATED');
+                    }
+                    throw popupError;
+                }
                 break;
 
             case 'logout':
@@ -118,6 +135,18 @@ const performAuthStage: PipelineStage = {
         }
 
         console.log('[AuthPipeline] Authentication successful');
+
+        // Run UID migration check for non-guest logins
+        if (action !== 'guest' && userCredential?.user) {
+            try {
+                const migrationResult = await UidMigrationService.checkAndMigrateUser(userCredential.user);
+                if (migrationResult.migrated) {
+                    console.log('[AuthPipeline] UID migration completed:', migrationResult);
+                }
+            } catch (migrationError) {
+                console.error('[AuthPipeline] UID migration failed:', migrationError);
+            }
+        }
 
         return {
             ...context.input,
