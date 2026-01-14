@@ -285,6 +285,9 @@ export default function PromptSettingsPage() {
     });
     const [masterPromptWordCount, setMasterPromptWordCount] = useState(0);
 
+    // Computed: Is Master Prompt mode active (overrides Persona/Granular)?
+    const isMasterMode = masterPrompt.enabled && masterPrompt.content.trim().length > 50;
+
     useEffect(() => {
         useAuthStore.getState().initialize();
     }, []);
@@ -543,30 +546,49 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                             <div className="flex bg-black/20 rounded-lg p-1">
                                 <button
                                     onClick={() => setActiveTab('persona')}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'persona' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'persona' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'} ${isMasterMode && activeTab !== 'persona' ? 'opacity-50' : ''}`}
                                 >
-                                    Persona
+                                    <span className={isMasterMode ? 'line-through' : ''}>Persona</span>
+                                    {isMasterMode && <span className="ml-1 text-xs">⚡</span>}
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('rules')}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'rules' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'rules' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'} ${isMasterMode && activeTab !== 'rules' ? 'opacity-50' : ''}`}
                                 >
-                                    Granular Rules
+                                    <span className={isMasterMode ? 'line-through' : ''}>Granular Rules</span>
+                                    {isMasterMode && <span className="ml-1 text-xs">⚡</span>}
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('master')}
                                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'master' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
                                 >
                                     Master Prompt
-                                    {masterPrompt.content && <span className="ml-1.5 w-2 h-2 bg-emerald-400 rounded-full inline-block"></span>}
+                                    {isMasterMode && <span className="ml-1.5 w-2 h-2 bg-emerald-400 rounded-full inline-block animate-pulse"></span>}
                                 </button>
                             </div>
                         </div>
                     </div>
 
                     <div className="p-6">
+                        {/* Override Warning Banner */}
+                        {isMasterMode && (activeTab === 'persona' || activeTab === 'rules') && (
+                            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
+                                <span className="text-xl">⚡</span>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-amber-800">Master Prompt Active</p>
+                                    <p className="text-xs text-amber-600">These settings are overridden. Your Master Prompt will be used instead.</p>
+                                </div>
+                                <button
+                                    onClick={() => setActiveTab('master')}
+                                    className="px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 transition-colors"
+                                >
+                                    View Master
+                                </button>
+                            </div>
+                        )}
+
                         {activeTab === 'persona' ? (
-                            <div className="grid gap-6 md:grid-cols-2 animate-fadeIn">
+                            <div className={`grid gap-6 md:grid-cols-2 animate-fadeIn ${isMasterMode ? 'opacity-50 pointer-events-none' : ''}`}>
                                 {/* Left Column: Role & Level */}
                                 <div className="space-y-4">
                                     <div>
@@ -634,7 +656,7 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                             </div>
                         ) : activeTab === 'rules' ? (
                             // RULES TAB
-                            <div className="grid gap-6 md:grid-cols-2 animate-fadeIn">
+                            <div className={`grid gap-6 md:grid-cols-2 animate-fadeIn ${isMasterMode ? 'opacity-50 pointer-events-none' : ''}`}>
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
                                         <label className="block text-sm font-medium text-gray-700">
@@ -827,15 +849,21 @@ Or use plain text:
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                         </button>
-                        <button
-                            onClick={handleApplyPersona}
-                            className="px-6 py-2 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 hover:shadow-lg transform active:scale-95 transition-all flex items-center gap-2"
-                        >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Apply Persona to All Prompts
-                        </button>
+                        {isMasterMode ? (
+                            <div className="flex items-center gap-2 text-sm text-amber-600 font-medium">
+                                <span>⚡ Master Prompt Active</span>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={handleApplyPersona}
+                                className="px-6 py-2 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 hover:shadow-lg transform active:scale-95 transition-all flex items-center gap-2"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Apply Persona to All Prompts
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -884,8 +912,9 @@ Or use plain text:
                         })}
 
                     </div>
-                )}
-            </main>
-        </div>
+                )
+                }
+            </main >
+        </div >
     );
 }

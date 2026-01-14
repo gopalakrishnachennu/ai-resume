@@ -269,26 +269,30 @@ export default function GeneratePage() {
         });
     };
 
-    // Helper: Combine master prompt + per-job unified prompt
+    // Helper: Build final prompt based on mode
+    // If Master Prompt is active (enabled + 50+ chars) → ONLY use Master Prompt
+    // Otherwise → Use unifiedPrompt (which contains Persona/Granular from individual prompts)
     const buildCombinedPrompt = (
         masterPrompt: { name: string; content: string; enabled: boolean } | null,
         useMasterPrompt: boolean,
         unifiedPrompt: string
     ): string => {
-        const parts: string[] = [];
+        // Check if Master Prompt mode is active
+        const isMasterMode = useMasterPrompt && masterPrompt?.content && masterPrompt.content.trim().length > 50;
 
-        // Add master prompt from profile (if enabled)
-        if (useMasterPrompt && masterPrompt?.content) {
-            parts.push(`=== USER'S MASTER STYLE RULES ===\n${masterPrompt.content.trim()}`);
+        if (isMasterMode) {
+            // OVERRIDE MODE: Only use Master Prompt, ignore Persona/Granular
+            console.log('[Generate] Using MASTER PROMPT MODE (overriding Persona/Granular)');
+            return masterPrompt!.content.trim();
         }
 
-        // Add per-job customization (if provided)
+        // GUIDED MODE: Use per-job unifiedPrompt (Persona/Granular already applied to prompts)
         if (unifiedPrompt?.trim()) {
-            parts.push(`=== JOB-SPECIFIC INSTRUCTIONS ===\n${unifiedPrompt.trim()}`);
+            console.log('[Generate] Using GUIDED MODE (Persona/Granular from prompts)');
+            return unifiedPrompt.trim();
         }
 
-        // Normalize whitespace
-        return parts.join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
+        return '';
     };
 
     const handleGenerateResume = async () => {
