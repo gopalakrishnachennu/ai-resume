@@ -29,6 +29,10 @@ export default function GeneratePage() {
     const [manualTitle, setManualTitle] = useState('');
     const [manualCompany, setManualCompany] = useState('');
 
+    // Master Prompt from profile
+    const [masterPrompt, setMasterPrompt] = useState<{ name: string; content: string; enabled: boolean } | null>(null);
+    const [useMasterPrompt, setUseMasterPrompt] = useState(true);  // Toggle for this session
+
     // API Key state
     const [showApiKeySetup, setShowApiKeySetup] = useState(false);
     const [llmConfig, setLlmConfig] = useState<any>(null);
@@ -265,6 +269,28 @@ export default function GeneratePage() {
         });
     };
 
+    // Helper: Combine master prompt + per-job unified prompt
+    const buildCombinedPrompt = (
+        masterPrompt: { name: string; content: string; enabled: boolean } | null,
+        useMasterPrompt: boolean,
+        unifiedPrompt: string
+    ): string => {
+        const parts: string[] = [];
+
+        // Add master prompt from profile (if enabled)
+        if (useMasterPrompt && masterPrompt?.content) {
+            parts.push(`=== USER'S MASTER STYLE RULES ===\n${masterPrompt.content.trim()}`);
+        }
+
+        // Add per-job customization (if provided)
+        if (unifiedPrompt?.trim()) {
+            parts.push(`=== JOB-SPECIFIC INSTRUCTIONS ===\n${unifiedPrompt.trim()}`);
+        }
+
+        // Normalize whitespace
+        return parts.join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
+    };
+
     const handleGenerateResume = async () => {
         if (!user) {
             toast.error('Please sign in to continue');
@@ -288,6 +314,12 @@ export default function GeneratePage() {
             setProfilePromptMessage('Please complete your profile with at least some basic information before generating a resume.');
             setShowProfilePrompt(true);
             return;
+        }
+
+        // Load master prompt from profile if available
+        const userMasterPrompt = userData?.masterPrompt;
+        if (userMasterPrompt?.content && userMasterPrompt?.enabled !== false) {
+            setMasterPrompt(userMasterPrompt);
         }
 
         const canGenerate = await checkLimit('resumeGenerations');
@@ -356,6 +388,10 @@ export default function GeneratePage() {
                 jobTitle = manualTitle || firstLine.slice(0, 80) || 'Target Role';
                 jobCompany = manualCompany || '';
 
+                // Combine master prompt + unified prompt
+                const combinedPrompt = buildCombinedPrompt(masterPrompt, useMasterPrompt, unifiedPrompt);
+                console.log('[Generate] Combined prompt length:', combinedPrompt.length);
+
                 result = await ResumeGenerationService.generateResumeDirectFromJD(
                     resumeId,
                     user.uid,
@@ -365,7 +401,7 @@ export default function GeneratePage() {
                         jobTitle: jobTitle,
                         company: jobCompany,
                     },
-                    unifiedPrompt,  // User's vision/instructions
+                    combinedPrompt,  // Combined master + per-job prompt
                     { provider: providerToUse, apiKey: apiKeyToUse }
                 );
             } else if (analysis) {
@@ -387,6 +423,9 @@ export default function GeneratePage() {
                 jobTitle = manualTitle || 'Target Role';
                 jobCompany = manualCompany || '';
 
+                // Combine master prompt + unified prompt
+                const combinedPrompt = buildCombinedPrompt(masterPrompt, useMasterPrompt, unifiedPrompt);
+
                 result = await ResumeGenerationService.generateResumeDirectFromJD(
                     resumeId,
                     user.uid,
@@ -396,7 +435,7 @@ export default function GeneratePage() {
                         jobTitle: jobTitle,
                         company: jobCompany,
                     },
-                    unifiedPrompt,
+                    combinedPrompt,
                     { provider: providerToUse, apiKey: apiKeyToUse }
                 );
             }
