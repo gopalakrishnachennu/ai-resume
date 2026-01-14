@@ -80,7 +80,7 @@ export default function ImportPage() {
             const phoneMatch = cleanText.match(/(?:\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
             const phone = phoneMatch ? phoneMatch[0] : '';
 
-            // Extract name (first non-empty line that looks like a name)
+            // Extract name
             const lines = cleanText.split('\n').map(l => l.trim()).filter(Boolean);
             let name = '';
             for (const line of lines.slice(0, 5)) {
@@ -90,7 +90,7 @@ export default function ImportPage() {
                 }
             }
 
-            // Define section patterns (case-insensitive)
+            // Define section patterns
             const sectionPatterns = {
                 summary: /\n(?:Professional\s+)?Summary\s*\n/i,
                 skills: /\n(?:Core\s+|Technical\s+)?Skills\s*\n/i,
@@ -98,7 +98,6 @@ export default function ImportPage() {
                 education: /\nEducation\s*\n/i,
             };
 
-            // Find section positions
             const findSection = (pattern: RegExp) => {
                 const match = cleanText.match(pattern);
                 return match ? cleanText.indexOf(match[0]) : -1;
@@ -109,7 +108,6 @@ export default function ImportPage() {
             const expStart = findSection(sectionPatterns.experience);
             const eduStart = findSection(sectionPatterns.education);
 
-            // Extract sections by position
             const extractSection = (start: number, ...nextStarts: number[]) => {
                 if (start === -1) return '';
                 const validNexts = nextStarts.filter(n => n > start);
@@ -117,17 +115,13 @@ export default function ImportPage() {
                 return cleanText.substring(start, end);
             };
 
-            // Helper to clean section headers - more robust
             const removeHeader = (text: string, headerPattern: RegExp) => {
-                // Try exact regex match first (safest)
                 const match = text.match(headerPattern);
                 if (match) {
-                    // Check if match is at the very beginning
                     if (text.indexOf(match[0]) === 0) {
                         return text.substring(match[0].length).trim();
                     }
                 }
-                // Fallback: Remove first line if it looks like a header
                 const textLines = text.trim().split('\n');
                 const firstLine = textLines[0];
                 if (firstLine && firstLine.length < 50 && (firstLine.match(/Summary|Experience|Work|Employment|Skills|Education/i))) {
@@ -136,7 +130,6 @@ export default function ImportPage() {
                 return text;
             };
 
-            // Get section text with clean headers
             const summaryRaw = extractSection(summaryStart, skillsStart, expStart, eduStart);
             const summary = removeHeader(summaryRaw, sectionPatterns.summary);
 
@@ -149,8 +142,20 @@ export default function ImportPage() {
             const skillsRaw = extractSection(skillsStart, summaryStart, expStart, eduStart);
             const skillsText = removeHeader(skillsRaw, sectionPatterns.skills);
 
-            // Parse experience entries - Date-Anchored Approach (Robust to spacing)
-            const experience: any[] = [];
+            // Normalization helper (MM/YYYY -> YYYY-MM)
+            const normalizeDate = (dateStr: string) => {
+                if (!dateStr || dateStr.toLowerCase().includes('present')) return 'Present';
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    const year = date.getFullYear();
+                    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                    return `${year}-${month}`;
+                }
+                // Fallback for year only
+                const yearMatch = dateStr.match(/\d{4}/);
+                if (yearMatch) return `${yearMatch[0]}`;
+                return dateStr;
+            };
 
             // Helper to parse a single line for date range
             const parseDateRange = (line: string) => {
@@ -158,32 +163,27 @@ export default function ImportPage() {
                 return match ? { start: match[1], end: match[2], raw: match[0] } : null;
             };
 
+            // Parse Experience (Date-Anchored)
+            const experience: any[] = [];
             const expLines = expText.split('\n').map(l => l.trim()).filter(Boolean);
-
-            // Find all lines that contain a date range - these are our "Anchors"
             const dateIndices = expLines.map((line, idx) => parseDateRange(line) ? idx : -1).filter(idx => idx !== -1);
 
             if (dateIndices.length > 0) {
-                // Sort indices just in case
                 dateIndices.sort((a, b) => a - b);
 
                 for (let i = 0; i < dateIndices.length; i++) {
                     const dateLineIdx = dateIndices[i];
                     const nextDateLineIdx = i < dateIndices.length - 1 ? dateIndices[i + 1] : expLines.length;
 
-                    // Metadata for this entry
                     const dateRange = parseDateRange(expLines[dateLineIdx]);
-                    let startDate = dateRange?.start || '';
-                    let endDate = dateRange?.end || 'Present';
+                    let startDate = normalizeDate(dateRange?.start || '');
+                    let endDate = normalizeDate(dateRange?.end || 'Present');
 
                     let title = '';
                     let company = '';
                     let location = '';
 
-                    // Look back 1-2 lines for Title and Company
                     let headerStartIdx = dateLineIdx;
-
-                    // Helper to identify header candidate (short, non-bullet)
                     const isHeaderLine = (l: string) => l.length < 80 && !l.match(/^[\s•\-*]+/);
 
                     const prevLine1 = dateLineIdx > 0 ? expLines[dateLineIdx - 1] : null;
@@ -196,29 +196,23 @@ export default function ImportPage() {
                         }
                     }
 
-                    // Assign Title/Company based on Position of Date
                     if (headerStartIdx === dateLineIdx - 2) {
-                        // Case: Title \n Company \n Date
                         title = expLines[dateLineIdx - 2];
                         company = expLines[dateLineIdx - 1];
                     } else if (headerStartIdx === dateLineIdx - 1) {
-                        // Case: Title \n Date (or Company \n Date)
                         const line1 = expLines[dateLineIdx - 1];
-                        // Heuristic: If line matches known Big Companies or has Inc/LLC, it is company. Else Title.
                         if (line1.match(/Inc|Ltd|LLC|Corp/i)) {
                             company = line1;
                             title = 'Unknown Title';
                         } else {
                             title = line1;
-                            // Check if Date line has Company?
                             const inlineParts = expLines[dateLineIdx].replace(parseDateRange(expLines[dateLineIdx])?.raw || '', '').trim();
                             if (inlineParts.length > 3) company = inlineParts;
                             else company = 'Unknown Company';
                         }
                     } else {
-                        // Case: Inline (Title | Date or Date - Company)
                         const textLine = expLines[dateLineIdx];
-                        const textBefore = textLine.substring(0, textLine.indexOf(startDate)).trim();
+                        const textBefore = textLine.substring(0, textLine.indexOf(dateRange?.start || '')).trim();
                         if (textBefore.length > 2) {
                             if (textBefore.includes('|') || textBefore.includes(' - ') || textBefore.includes(' – ')) {
                                 const parts = textBefore.split(/[|\-–—]/);
@@ -229,11 +223,10 @@ export default function ImportPage() {
                                 company = 'Unknown Company';
                             }
                         } else {
-                            // Maybe Date came first?
-                            const textAfter = textLine.substring(textLine.indexOf(endDate) + endDate.length).trim();
+                            const textAfter = textLine.substring(textLine.indexOf(dateRange?.end || '') + (dateRange?.end?.length || 0)).trim();
                             if (textAfter.length > 2) {
                                 title = textAfter;
-                                company = 'Unknown Company'; // Or split title/company
+                                company = 'Unknown Company';
                             }
                         }
                     }
@@ -241,10 +234,8 @@ export default function ImportPage() {
                     if (!title) title = 'Unknown Title';
                     if (!company) company = 'Unknown Company';
 
-                    // Determine End of Description (Start of Next Header)
                     let descEndIdx = nextDateLineIdx;
                     if (i < dateIndices.length - 1) {
-                        // Go backward from nextDate to find its header
                         const nextPrev1 = nextDateLineIdx > 0 ? expLines[nextDateLineIdx - 1] : null;
                         const nextPrev2 = nextDateLineIdx > 1 ? expLines[nextDateLineIdx - 2] : null;
                         if (nextPrev1 && isHeaderLine(nextPrev1)) {
@@ -265,7 +256,6 @@ export default function ImportPage() {
                         }
                     }
 
-                    // Logic to split Company/Location
                     if (company && (company.includes(' - ') || company.includes(' – '))) {
                         const parts = company.split(/[–-]/);
                         company = parts[0].trim();
@@ -283,7 +273,6 @@ export default function ImportPage() {
                     });
                 }
             } else {
-                // Fallback: Block splitting (same as before but simplifed)
                 const blocks = expText.split(/\n\s*\n+/).filter(b => b.trim().length > 10);
                 for (const block of blocks) {
                     const lines = block.split('\n').filter(l => l.trim());
@@ -299,47 +288,66 @@ export default function ImportPage() {
                 }
             }
 
-            // Parse education - Date-Anchored Approach
+            // Parse Education (Enhanced with Date-Anchor)
             const education: any[] = [];
             if (eduText) {
                 const eduLines = eduText.split('\n').map(l => l.trim()).filter(Boolean);
-                const eduIndices = eduLines.map((line, idx) => line.match(/\b(?:19|20)\d{2}\b/) ? idx : -1).filter(idx => idx !== -1);
+                // Use parseDateRange for full dates, or fallback to Year regex
+                const parseEduDate = (l: string) => {
+                    const dr = parseDateRange(l);
+                    if (dr && dr.end) return { date: dr.end, raw: dr.raw }; // Usually just graduation date
+                    if (dr && dr.start) return { date: dr.start, raw: dr.raw };
+                    const yearMatch = l.match(/\b(?:19|20)\d{2}\b/);
+                    if (yearMatch) return { date: yearMatch[0], raw: yearMatch[0] };
+                    return null;
+                };
+
+                const eduIndices = eduLines.map((line, idx) => parseEduDate(line) ? idx : -1).filter(idx => idx !== -1);
 
                 if (eduIndices.length > 0) {
                     for (let i = 0; i < eduIndices.length; i++) {
                         const idx = eduIndices[i];
-                        const yearMatches = eduLines[idx].match(/\b(?:19|20)\d{2}\b/g);
-                        const graduationDate = yearMatches ? yearMatches[yearMatches.length - 1] : '';
+                        const dateInfo = parseEduDate(eduLines[idx]);
+                        const graduationDate = normalizeDate(dateInfo?.date || '');
 
-                        // Look around date line
-                        const contextLines = [
-                            eduLines[idx - 1] || '',
-                            eduLines[idx] || '',
-                        ].filter(Boolean);
+                        // Context: Look at current line (minus date) and previous line
+                        const currentLineClean = eduLines[idx].replace(dateInfo?.raw || '', '').replace(/[–-]/g, '').trim();
+                        const prevLine = idx > 0 ? eduLines[idx - 1] : '';
 
                         let institution = '';
                         let degree = '';
 
-                        for (const line of contextLines) {
-                            if (!institution && line.match(/(?:University|College|Institute|School|Academy)/i)) {
-                                institution = line;
-                            } else if (!degree && line.match(/(?:Bachelor|Master|PhD|B\.S|M\.S|MBA|Associate|Diploma)/i)) {
-                                degree = line;
-                            }
+                        // Check strictly
+                        const isDegree = (s: string) => s.match(/(?:Bachelor|Master|PhD|B\.S|M\.S|MBA|Associate|Diploma|Certificate)/i);
+                        const isInst = (s: string) => s.match(/(?:University|College|Institute|School|Academy)/i);
+
+                        if (isDegree(currentLineClean)) degree = currentLineClean;
+                        else if (isInst(currentLineClean)) institution = currentLineClean;
+
+                        if (!degree && isDegree(prevLine)) degree = prevLine;
+                        if (!institution && isInst(prevLine)) institution = prevLine;
+
+                        // Fallbacks
+                        if (!institution && !degree) {
+                            if (currentLineClean.length > 5) institution = currentLineClean;
+                            if (prevLine.length > 5 && institution !== prevLine) degree = prevLine;
                         }
 
-                        if (!institution) institution = contextLines.find(l => l !== degree && !l.match(/\d{4}/)) || 'Unknown Institution';
-                        if (!degree) degree = contextLines.find(l => l !== institution && !l.match(/\d{4}/)) || 'Unknown Degree';
+                        // Final swap if Degree looks like Institution
+                        if (degree && isInst(degree) && !institution) {
+                            const temp = degree;
+                            degree = institution || 'Unknown Degree';
+                            institution = temp;
+                        }
 
                         education.push({
-                            institution,
-                            degree,
+                            institution: institution || 'Unknown Institution',
+                            degree: degree || 'Unknown Degree',
                             field: '',
                             graduationDate
                         });
                     }
                 } else {
-                    // Fallback check for single line parsing
                     const blocks = eduText.split(/\n\s*\n+/);
                     for (const block of blocks) {
                         if (block.length > 10) education.push({ institution: block.split('\n')[0], degree: 'Unknown Degree', graduationDate: '' });
@@ -472,7 +480,6 @@ export default function ImportPage() {
         reader.onload = (event) => {
             const content = event.target?.result as string;
             setJsonInput(content);
-            // The handleJsonChange will now detect the format and parse accordingly
             handleJsonChange(content);
         };
         reader.readAsText(file);
@@ -510,7 +517,7 @@ export default function ImportPage() {
         }
     };
 
-    // Sample JSON Resume for users to reference
+    // Sample JSON Resume
     const sampleJson = `{
   "basics": {
     "name": "John Doe",
@@ -587,7 +594,6 @@ export default function ImportPage() {
                 <div className="grid lg:grid-cols-2 gap-8">
                     {/* Input Section */}
                     <div className="space-y-6">
-                        {/* Resume Name */}
                         <div className="glass rounded-2xl p-6 border border-white/50">
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
                                 Resume Name (Optional)
@@ -601,7 +607,6 @@ export default function ImportPage() {
                             />
                         </div>
 
-                        {/* Input - Now accepts any format */}
                         <div className="glass rounded-2xl p-6 border border-white/50">
                             <div className="flex justify-between items-center mb-4">
                                 <div className="flex items-center gap-3">
@@ -610,8 +615,8 @@ export default function ImportPage() {
                                     </label>
                                     {detectedFormat && (
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${detectedFormat === 'json'
-                                            ? 'bg-blue-100 text-blue-700'
-                                            : 'bg-green-100 text-green-700'
+                                                ? 'bg-blue-100 text-blue-700'
+                                                : 'bg-green-100 text-green-700'
                                             }`}>
                                             {detectedFormat === 'json' ? '📦 JSON' : '📝 Text'}
                                         </span>
@@ -630,18 +635,7 @@ export default function ImportPage() {
                             <textarea
                                 value={jsonInput}
                                 onChange={(e) => handleJsonChange(e.target.value)}
-                                placeholder={`Paste your resume here (JSON or Plain Text)...
-
-Examples:
-• JSON: { "basics": { "name": "John Doe" }, ... }
-• Plain Text:
-  Name: John Doe
-  Summary: Experienced engineer...
-  Experience:
-  Senior Engineer at Google | Jan 2020 - Present
-  - Led team of 5 engineers
-  Skills:
-  Cloud: AWS, Azure, GCP`}
+                                placeholder={`Paste your resume here (JSON or Plain Text)...`}
                                 className="w-full h-80 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono text-sm resize-none transition-all"
                             />
                             {parseError && (
@@ -651,7 +645,6 @@ Examples:
                             )}
                         </div>
 
-                        {/* Sample JSON Reference */}
                         <details className="glass rounded-2xl p-6 border border-white/50">
                             <summary className="cursor-pointer text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors">
                                 📋 View Sample JSON Format
@@ -677,7 +670,6 @@ Examples:
 
                             {previewData ? (
                                 <div className="space-y-4 text-sm">
-                                    {/* Personal Info */}
                                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4">
                                         <h4 className="font-bold text-slate-900 text-lg">
                                             {previewData.personalInfo.fullName || 'No name provided'}
@@ -686,26 +678,9 @@ Examples:
                                             {previewData.personalInfo.email && (
                                                 <p>📧 {previewData.personalInfo.email}</p>
                                             )}
-                                            {previewData.personalInfo.phone && (
-                                                <p>📱 {previewData.personalInfo.phone}</p>
-                                            )}
-                                            {previewData.personalInfo.location && (
-                                                <p>📍 {previewData.personalInfo.location}</p>
-                                            )}
                                         </div>
                                     </div>
 
-                                    {/* Summary */}
-                                    {previewData.professionalSummary && (
-                                        <div>
-                                            <h5 className="font-semibold text-slate-800 mb-1">Summary</h5>
-                                            <p className="text-slate-600 line-clamp-3">
-                                                {previewData.professionalSummary}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* Experience */}
                                     {previewData.experience?.length > 0 && (
                                         <div>
                                             <h5 className="font-semibold text-slate-800 mb-2">
@@ -727,7 +702,6 @@ Examples:
                                         </div>
                                     )}
 
-                                    {/* Education */}
                                     {previewData.education?.length > 0 && (
                                         <div>
                                             <h5 className="font-semibold text-slate-800 mb-2">
@@ -738,13 +712,12 @@ Examples:
                                                     <p className="font-medium text-slate-800">
                                                         {edu.degree} in {edu.field}
                                                     </p>
-                                                    <p className="text-slate-500 text-xs">{edu.institution}</p>
+                                                    <p className="text-slate-500 text-xs">{edu.institution} • {edu.graduationDate}</p>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
 
-                                    {/* Skills */}
                                     {Object.keys(previewData.technicalSkills || {}).length > 0 && (
                                         <div>
                                             <h5 className="font-semibold text-slate-800 mb-2">Skills</h5>
@@ -776,7 +749,6 @@ Examples:
                             )}
                         </div>
 
-                        {/* Action Button */}
                         <button
                             onClick={handleFormatResume}
                             disabled={!previewData || isLoading}
