@@ -87,41 +87,85 @@ export default function ImportPage() {
             const summary = summaryMatch ? summaryMatch[1]?.trim() : '';
 
             // Extract experience section
-            const expMatch = text.match(/(?:Experience|Work History|Employment)[:\s]*\n?([\s\S]+?)(?=\n(?:Education|Skills|Technical|Certifications|$))/i);
+            const expMatch = text.match(/(?:Professional\s+)?(?:Experience|Work History|Employment)[:\s]*\n?([\s\S]+?)(?=\n(?:Education|Skills|Technical|Certifications|Core Skills|$))/i);
             const expText = expMatch ? expMatch[1] : '';
 
-            // Parse experience entries (Company, Title, Bullets)
+            // Parse experience entries - improved detection
             const experience: any[] = [];
-            const expBlocks = expText.split(/\n(?=[A-Z][\w\s]+(?:,|\||\n|$))/);
+
+            // Split by blank lines or job title patterns (line starting with capital letters followed by company info)
+            const expBlocks = expText.split(/\n\s*\n+/).filter(block => block.trim().length > 20);
+
             for (const block of expBlocks) {
                 if (!block.trim()) continue;
-                const lines = block.trim().split('\n');
-                const firstLine = lines[0] || '';
+                const lines = block.trim().split('\n').map(l => l.trim()).filter(Boolean);
+                if (lines.length < 2) continue;
 
-                // Try to extract company and title
-                const companyTitleMatch = firstLine.match(/^(.+?)(?:\s*[-|,]\s*|\s+at\s+)(.+?)(?:\s*[-|,]\s*|$)/i);
-                let company = '', title = '';
-                if (companyTitleMatch) {
-                    title = companyTitleMatch[1]?.trim() || '';
-                    company = companyTitleMatch[2]?.trim() || '';
-                } else {
-                    company = firstLine.trim();
+                let title = '';
+                let company = '';
+                let location = '';
+                let startDate = '';
+                let endDate = 'Present';
+                const bullets: string[] = [];
+
+                // Pattern 1: "Job Title" on line 1, "Company – Location" on line 2, "Date" on line 3
+                // Pattern 2: "Company – Location" on line 1, "Date" on line 2
+                // Pattern 3: "Job Title at Company | Date" inline
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+
+                    // Check for date pattern (Jan 2020 – Present, July 2019 - Dec 2021, etc.)
+                    const dateMatch = line.match(/(\w+\s+\d{4}|\d{4})\s*[-–—to]+\s*(\w+\s+\d{4}|\d{4}|Present|Current)/i);
+                    if (dateMatch) {
+                        startDate = dateMatch[1];
+                        endDate = dateMatch[2];
+                        continue;
+                    }
+
+                    // Check for company-location pattern (Company – Location or Company - Location)
+                    const companyLocMatch = line.match(/^([A-Z][\w\s&.,]+?)\s*[–—-]\s*([A-Z][\w\s,]+)$/);
+                    if (companyLocMatch && !company) {
+                        company = companyLocMatch[1]?.trim() || '';
+                        location = companyLocMatch[2]?.trim() || '';
+                        continue;
+                    }
+
+                    // Check for bullet points
+                    if (line.match(/^[•\-*]\s+/) || (i > 1 && line.length > 30 && !line.match(/^[A-Z][a-z]+\s+[A-Z]/))) {
+                        const cleanBullet = line.replace(/^[•\-*\s]+/, '').trim();
+                        if (cleanBullet.length > 15) {
+                            bullets.push(cleanBullet);
+                        }
+                        continue;
+                    }
+
+                    // First non-matched line is likely the job title
+                    if (!title && i === 0) {
+                        title = line.replace(/[|–—-]\s*$/, '').trim();
+
+                        // Check for inline format: "Senior Engineer at Google"
+                        const inlineMatch = title.match(/^(.+?)\s+(?:at|@)\s+(.+?)(?:\s*[|–—-]|$)/i);
+                        if (inlineMatch) {
+                            title = inlineMatch[1]?.trim() || '';
+                            company = inlineMatch[2]?.trim() || '';
+                        }
+                        continue;
+                    }
+
+                    // If we have title but no company, this line might be company
+                    if (title && !company && i === 1) {
+                        company = line.replace(/\s*[|–—-]\s*[\w\s,]+$/, '').trim();
+                        continue;
+                    }
                 }
 
-                // Extract dates
-                const dateMatch = block.match(/(\w+\s+\d{4}|\d{4})\s*[-–to]+\s*(\w+\s+\d{4}|\d{4}|Present|Current)/i);
-                const startDate = dateMatch ? dateMatch[1] : '';
-                const endDate = dateMatch ? dateMatch[2] : 'Present';
-
-                // Extract bullet points
-                const bullets = lines.slice(1)
-                    .map(l => l.replace(/^[\s•\-*]+/, '').trim())
-                    .filter(l => l.length > 10);
-
-                if (company || title) {
+                // Only add if we have meaningful data
+                if ((title || company) && (bullets.length > 0 || title)) {
                     experience.push({
-                        company,
-                        title,
+                        company: company || 'Unknown Company',
+                        title: title || 'Unknown Title',
+                        location,
                         startDate,
                         endDate,
                         description: '',
