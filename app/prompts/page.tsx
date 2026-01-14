@@ -270,7 +270,7 @@ export default function PromptSettingsPage() {
     const [atsOptimized, setAtsOptimized] = useState(true);
 
     // Advanced Rules State
-    const [activeTab, setActiveTab] = useState<'persona' | 'rules' | 'master'>('persona');
+    const [activeTab, setActiveTab] = useState<'persona' | 'rules' | 'master'>('master');
     const [summaryRules, setSummaryRules] = useState(DEFAULT_SUMMARY_RULES);
     const [experienceRules, setExperienceRules] = useState(DEFAULT_EXPERIENCE_RULES);
     const [skillsRules, setSkillsRules] = useState(DEFAULT_SKILLS_RULES);
@@ -542,28 +542,49 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                 </div>
                             </div>
 
-                            {/* Tabs */}
-                            <div className="flex bg-black/20 rounded-lg p-1">
+                            {/* Tabs - Master Prompt First! */}
+                            <div className="flex bg-black/20 rounded-lg p-1 gap-1">
+                                {/* Master Prompt - PRIMARY CHOICE */}
+                                <button
+                                    onClick={() => setActiveTab('master')}
+                                    className={`relative px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${activeTab === 'master'
+                                        ? 'bg-gradient-to-r from-amber-400 to-yellow-300 text-amber-900 shadow-lg shadow-amber-500/30'
+                                        : 'text-white hover:bg-white/20'
+                                        }`}
+                                >
+                                    <span className="text-base">✨</span>
+                                    Master Prompt
+                                    {activeTab !== 'master' && (
+                                        <span className="px-1.5 py-0.5 bg-white/20 text-[10px] font-bold rounded text-white/90">
+                                            BEST
+                                        </span>
+                                    )}
+                                    {isMasterMode && activeTab === 'master' && (
+                                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                                    )}
+                                </button>
+
+                                {/* Divider */}
+                                <div className="w-px bg-white/20 my-1"></div>
+
+                                {/* Persona - Quick Setup */}
                                 <button
                                     onClick={() => setActiveTab('persona')}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'persona' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'} ${isMasterMode && activeTab !== 'persona' ? 'opacity-50' : ''}`}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === 'persona'
+                                        ? 'bg-white text-purple-700 shadow'
+                                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                                        } ${isMasterMode ? 'opacity-40' : ''}`}
                                 >
-                                    <span className={isMasterMode ? 'line-through' : ''}>Persona</span>
-                                    {isMasterMode && <span className="ml-1 text-xs">⚡</span>}
+                                    <span className={isMasterMode ? 'line-through' : ''}>Quick Setup</span>
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('rules')}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'rules' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'} ${isMasterMode && activeTab !== 'rules' ? 'opacity-50' : ''}`}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === 'rules'
+                                        ? 'bg-white text-purple-700 shadow'
+                                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                                        } ${isMasterMode ? 'opacity-40' : ''}`}
                                 >
-                                    <span className={isMasterMode ? 'line-through' : ''}>Granular Rules</span>
-                                    {isMasterMode && <span className="ml-1 text-xs">⚡</span>}
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('master')}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'master' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-                                >
-                                    Master Prompt
-                                    {isMasterMode && <span className="ml-1.5 w-2 h-2 bg-emerald-400 rounded-full inline-block animate-pulse"></span>}
+                                    <span className={isMasterMode ? 'line-through' : ''}>Fine-Tune</span>
                                 </button>
                             </div>
                         </div>
@@ -742,16 +763,33 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                 </div>
                             </div>
                         ) : activeTab === 'master' ? (
-                            // MASTER PROMPT TAB
+                            // MASTER PROMPT TAB - Premium Experience
                             <div className="space-y-4 animate-fadeIn">
-                                <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-100 rounded-xl p-4">
-                                    <div className="flex items-start gap-3">
-                                        <span className="text-2xl">✨</span>
-                                        <div>
-                                            <h3 className="font-medium text-gray-900">Your Master AI Instructions</h3>
-                                            <p className="text-sm text-gray-600 mt-1">
-                                                Write detailed instructions (JSON, Markdown, or plain text) that will be applied to <strong>every resume</strong> you generate.
-                                            </p>
+                                {/* Premium Header */}
+                                <div className="bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 border border-amber-200 rounded-xl p-5 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-200/30 to-yellow-200/30 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+                                    <div className="relative">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-200">
+                                                <span className="text-2xl">✨</span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h3 className="font-bold text-gray-900 text-lg">Master Prompt</h3>
+                                                    <span className="px-2 py-0.5 bg-amber-400 text-amber-900 text-[10px] font-bold rounded-full">RECOMMENDED</span>
+                                                </div>
+                                                <p className="text-sm text-gray-600">
+                                                    One powerful prompt that defines <strong>exactly</strong> how your resume should look.
+                                                    Full control, no surprises.
+                                                </p>
+                                                <div className="flex items-center gap-3 mt-3 text-xs text-gray-500">
+                                                    <span className="flex items-center gap-1">
+                                                        <span className="text-amber-500">★★★★★</span> Power users
+                                                    </span>
+                                                    <span>•</span>
+                                                    <span>Overrides Quick Setup & Fine-Tune</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
