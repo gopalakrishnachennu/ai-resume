@@ -145,15 +145,20 @@ export default function ImportPage() {
             // Normalization helper (MM/YYYY -> YYYY-MM)
             const normalizeDate = (dateStr: string) => {
                 if (!dateStr || dateStr.toLowerCase().includes('present')) return 'Present';
-                const date = new Date(dateStr);
+
+                // FORCE NOON to avoid Timezone Rollback (e.g., "2025" -> "2024-12-31")
+                // If strictly "YYYY", map to "YYYY-01" to avoid confusion
+                if (dateStr.match(/^\d{4}$/)) return `${dateStr}-01`;
+
+                const date = new Date(dateStr + (dateStr.includes(':') ? '' : ' 12:00:00'));
                 if (!isNaN(date.getTime())) {
                     const year = date.getFullYear();
                     const month = (date.getMonth() + 1).toString().padStart(2, '0');
                     return `${year}-${month}`;
                 }
-                // Fallback for year only
+                // Fallback for year only regex
                 const yearMatch = dateStr.match(/\d{4}/);
-                if (yearMatch) return `${yearMatch[0]}`;
+                if (yearMatch) return `${yearMatch[0]}-01`;
                 return dateStr;
             };
 
@@ -292,13 +297,22 @@ export default function ImportPage() {
             const education: any[] = [];
             if (eduText) {
                 const eduLines = eduText.split('\n').map(l => l.trim()).filter(Boolean);
-                // Use parseDateRange for full dates, or fallback to Year regex
+
+                // Helper to find SINGLE date strings (not just ranges)
                 const parseEduDate = (l: string) => {
+                    // Try range first
                     const dr = parseDateRange(l);
-                    if (dr && dr.end) return { date: dr.end, raw: dr.raw }; // Usually just graduation date
+                    if (dr && dr.end) return { date: dr.end, raw: dr.raw };
                     if (dr && dr.start) return { date: dr.start, raw: dr.raw };
+
+                    // Try single Month Year (e.g. "May 2025")
+                    const singleDateMatch = l.match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(?:19|20)\d{2}/i);
+                    if (singleDateMatch) return { date: singleDateMatch[0], raw: singleDateMatch[0] };
+
+                    // Fallback to just Year
                     const yearMatch = l.match(/\b(?:19|20)\d{2}\b/);
                     if (yearMatch) return { date: yearMatch[0], raw: yearMatch[0] };
+
                     return null;
                 };
 
@@ -318,7 +332,7 @@ export default function ImportPage() {
                         let degree = '';
 
                         // Check strictly
-                        const isDegree = (s: string) => s.match(/(?:Bachelor|Master|PhD|B\.S|M\.S|MBA|Associate|Diploma|Certificate)/i);
+                        const isDegree = (s: string) => s.match(/(?:Bachelor|Master|PhD|B\.S|M\.S|MBA|Associate|Diploma|Certificate|Science in)/i);
                         const isInst = (s: string) => s.match(/(?:University|College|Institute|School|Academy)/i);
 
                         if (isDegree(currentLineClean)) degree = currentLineClean;
