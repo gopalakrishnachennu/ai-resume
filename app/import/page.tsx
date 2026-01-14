@@ -69,26 +69,61 @@ export default function ImportPage() {
         try {
             setParseError('');
 
+            // Normalize line endings and clean up text
+            const cleanText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
             // Extract email
-            const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+            const emailMatch = cleanText.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
             const email = emailMatch ? emailMatch[0] : '';
 
             // Extract phone
-            const phoneMatch = text.match(/(?:\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+            const phoneMatch = cleanText.match(/(?:\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
             const phone = phoneMatch ? phoneMatch[0] : '';
 
-            // Extract name (first line or "Name:" pattern)
-            const nameMatch = text.match(/^(?:Name|Full Name):\s*(.+)$/mi) ||
-                text.match(/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/m);
-            const name = nameMatch ? nameMatch[1]?.trim() : '';
+            // Extract name (first non-empty line that looks like a name)
+            const lines = cleanText.split('\n').map(l => l.trim()).filter(Boolean);
+            let name = '';
+            for (const line of lines.slice(0, 5)) {
+                if (line.match(/^[A-Z][a-z]+(\s+[A-Z][a-z]+)+$/) && !line.match(/Summary|Experience|Skills|Education/i)) {
+                    name = line;
+                    break;
+                }
+            }
 
-            // Extract summary
-            const summaryMatch = text.match(/(?:Summary|Profile|About|Objective)[:\s]*\n?([\s\S]+?)(?=\n(?:Experience|Work|Employment|Education|Skills|Technical|$))/i);
-            const summary = summaryMatch ? summaryMatch[1]?.trim() : '';
+            // Define section patterns (case-insensitive)
+            const sectionPatterns = {
+                summary: /\n(?:Professional\s+)?Summary\s*\n/i,
+                skills: /\n(?:Core\s+|Technical\s+)?Skills\s*\n/i,
+                experience: /\n(?:Professional\s+)?Experience\s*\n/i,
+                education: /\nEducation\s*\n/i,
+            };
 
-            // Extract experience section
-            const expMatch = text.match(/(?:Professional\s+)?(?:Experience|Work History|Employment)[:\s]*\n?([\s\S]+?)(?=\n(?:Education|Skills|Technical|Certifications|Core Skills|$))/i);
-            const expText = expMatch ? expMatch[1] : '';
+            // Find section positions
+            const findSection = (pattern: RegExp) => {
+                const match = cleanText.match(pattern);
+                return match ? cleanText.indexOf(match[0]) : -1;
+            };
+
+            const summaryStart = findSection(sectionPatterns.summary);
+            const skillsStart = findSection(sectionPatterns.skills);
+            const expStart = findSection(sectionPatterns.experience);
+            const eduStart = findSection(sectionPatterns.education);
+
+            // Extract sections by position
+            const extractSection = (start: number, ...nextStarts: number[]) => {
+                if (start === -1) return '';
+                const validNexts = nextStarts.filter(n => n > start);
+                const end = validNexts.length > 0 ? Math.min(...validNexts) : cleanText.length;
+                return cleanText.substring(start, end);
+            };
+
+            // Get summary text
+            const summarySection = extractSection(summaryStart, skillsStart, expStart, eduStart);
+            const summary = summarySection.replace(/^.*Summary\s*\n/i, '').trim();
+
+            // Get experience text
+            const expSection = extractSection(expStart, eduStart, skillsStart > expStart ? skillsStart : cleanText.length);
+            const expText = expSection.replace(/^.*Experience\s*\n/i, '').trim();
 
             // Parse experience entries - improved detection
             const experience: any[] = [];
@@ -174,28 +209,42 @@ export default function ImportPage() {
                 }
             }
 
-            // Extract education
-            const eduMatch = text.match(/(?:Education)[:\s]*\n?([\s\S]+?)(?=\n(?:Skills|Technical|Certifications|$))/i);
-            const eduText = eduMatch ? eduMatch[1] : '';
+            // Get education text
+            const eduSection = extractSection(eduStart, expStart, skillsStart, summaryStart); // Helper handles order
+            // Actually, we need to extract based on specific start indices
+            // Let's use the robust extraction logic again
+            const getSectionText = (start: number, pattern: RegExp) => {
+                const text = extractSection(start, summaryStart, skillsStart, expStart, eduStart);
+                return text.replace(pattern, '').trim();
+            };
+
+            const eduText = getSectionText(eduStart, sectionPatterns.education);
+
+            // Parse education
             const education: any[] = [];
-            const eduLines = eduText.split('\n').filter(l => l.trim());
-            for (let i = 0; i < eduLines.length; i++) {
-                const line = eduLines[i].trim();
-                const degreeMatch = line.match(/(Bachelor|Master|PhD|B\.S\.|M\.S\.|MBA|Associate|Diploma)[^\n]*/i);
-                const institutionMatch = line.match(/(?:University|College|Institute|School)[^\n]*/i);
-                if (degreeMatch || institutionMatch) {
-                    education.push({
-                        institution: institutionMatch ? institutionMatch[0] : line,
-                        degree: degreeMatch ? degreeMatch[0] : '',
-                        field: '',
-                        graduationDate: '',
-                    });
+            if (eduText) {
+                const eduLines = eduText.split('\n').filter(l => l.trim());
+                for (let i = 0; i < eduLines.length; i++) {
+                    const line = eduLines[i].trim();
+                    const degreeMatch = line.match(/(Bachelor|Master|PhD|B\.S\.|M\.S\.|MBA|Associate|Diploma)[^\n]*/i);
+                    const institutionMatch = line.match(/(?:University|College|Institute|School)[^\n]*/i);
+                    const yearMatch = line.match(/\b(19|20)\d{2}\b/);
+
+                    if (degreeMatch || institutionMatch) {
+                        education.push({
+                            institution: institutionMatch ? institutionMatch[0] : (degreeMatch ? 'Unknown Institution' : line),
+                            degree: degreeMatch ? degreeMatch[0] : '',
+                            field: '',
+                            graduationDate: yearMatch ? yearMatch[0] : '',
+                        });
+                    }
                 }
             }
 
-            // Extract skills (Key: Value format)
-            const skillsMatch = text.match(/(?:Skills|Technical Skills)[:\s]*\n?([\s\S]+)$/i);
-            const skillsText = skillsMatch ? skillsMatch[1] : '';
+            const skillsText = getSectionText(skillsStart, sectionPatterns.skills);
+
+            // Parse experience entries - improved detection
+            // (Experience parsing logic continues below...)
             const technicalSkills: Record<string, string[]> = {};
 
             // Parse "Category: skill1, skill2" or "**Category**: skill1, skill2"
