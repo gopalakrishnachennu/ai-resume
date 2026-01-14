@@ -286,6 +286,22 @@ export default function PromptSettingsPage() {
     });
     const [masterPromptWordCount, setMasterPromptWordCount] = useState(0);
 
+    // Helper: Analyze Prompt Quality
+    const analyzePromptQuality = (text: string) => {
+        const checks = [
+            { label: 'Sufficient length (>50 chars)', passed: text.trim().length > 50 },
+            { label: 'Specific bullet count (e.g. "5-7 bullets")', passed: /\b\d+[-]\d+\s+bullets\b|\b\d+\s+bullets\b/i.test(text) },
+            { label: 'Clear skill focus', passed: /\bskills?\b|\btechnologies\b|\btools\b/i.test(text) },
+            { label: 'Tone instruction', passed: /\btone\b|\bvoice\b|\bprofessional\b|\bformal\b/i.test(text) },
+            { label: 'Metrics/Achievements guidance', passed: /\bmetrics\b|\bquantify\b|\bachievements\b|\bnumbers\b|\b%\b/i.test(text) },
+        ];
+        const passedCount = checks.filter(c => c.passed).length;
+        const score = Math.round((passedCount / checks.length) * 100);
+        return { score, checks };
+    };
+
+    const { score: qualityScore, checks: qualityChecks } = analyzePromptQuality(masterPrompt.content || '');
+
     // Computed: Is Master Prompt mode active (overrides Persona/Granular)?
     const isMasterMode = masterPrompt.enabled && masterPrompt.content.trim().length > 50;
 
@@ -818,7 +834,7 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                 {masterPrompt.enabled && (
                                     <div className={`rounded-xl border transition-all ${masterPrompt.priorityMode
                                         ? 'bg-amber-50 border-amber-200'
-                                        : 'bg-gray-50 border-gray-100'}`}>
+                                        : 'bg-gray-50 border-gray-100'} ${masterPrompt.content.trim().length < 50 ? 'opacity-70' : ''}`}>
                                         <div className="flex items-center justify-between py-3 px-4">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-lg">⚡</span>
@@ -829,12 +845,28 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                             </div>
                                             <button
                                                 onClick={() => setMasterPrompt({ ...masterPrompt, priorityMode: !masterPrompt.priorityMode })}
-                                                className={`relative w-12 h-6 rounded-full transition-colors ${masterPrompt.priorityMode ? 'bg-amber-500' : 'bg-gray-300'}`}
+                                                disabled={masterPrompt.content.trim().length < 50}
+                                                className={`relative w-12 h-6 rounded-full transition-colors ${masterPrompt.priorityMode
+                                                    ? 'bg-amber-500'
+                                                    : masterPrompt.content.trim().length < 50
+                                                        ? 'bg-gray-200 cursor-not-allowed'
+                                                        : 'bg-gray-300'
+                                                    }`}
                                             >
                                                 <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${masterPrompt.priorityMode ? 'translate-x-6' : ''}`} />
                                             </button>
                                         </div>
-                                        {masterPrompt.priorityMode && (
+
+                                        {/* Validation Warning for Empty Content */}
+                                        {masterPrompt.content.trim().length < 50 && (
+                                            <div className="px-4 pb-3">
+                                                <p className="text-xs text-red-500 flex items-center gap-1">
+                                                    <span>🚫</span> Write at least 50 characters to enable Priority Mode
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {masterPrompt.priorityMode && masterPrompt.content.trim().length >= 50 && (
                                             <div className="px-4 pb-3">
                                                 <div className="flex items-start gap-2 p-2 bg-amber-100 rounded-lg">
                                                     <span className="text-amber-600 mt-0.5">⚠️</span>
@@ -866,7 +898,15 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                         onChange={(e) => {
                                             const newContent = e.target.value;
                                             const wordCount = newContent.split(/\s+/).filter(Boolean).length;
-                                            setMasterPrompt({ ...masterPrompt, content: newContent });
+
+                                            // Auto-disable Priority Mode if content is too short
+                                            const isTooShort = newContent.trim().length < 50;
+
+                                            setMasterPrompt({
+                                                ...masterPrompt,
+                                                content: newContent,
+                                                priorityMode: isTooShort ? false : masterPrompt.priorityMode
+                                            });
                                             setMasterPromptWordCount(wordCount);
                                         }}
                                         placeholder={`Write your resume instructions here. Examples:
@@ -899,6 +939,42 @@ Or use plain text:
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                             </svg>
                                             <span className="text-sm">Prompt exceeds {MAX_MASTER_PROMPT_WORDS.toLocaleString()} words. Consider reducing for optimal LLM performance.</span>
+                                        </div>
+                                    )}
+
+                                    {/* Quality Indicator */}
+                                    {masterPrompt.content.length > 0 && (
+                                        <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm animate-fadeIn">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-sm font-medium text-gray-900">Prompt Quality</h4>
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${qualityScore >= 80 ? 'bg-green-100 text-green-700' :
+                                                        qualityScore >= 50 ? 'bg-amber-100 text-amber-700' :
+                                                            'bg-red-100 text-red-700'
+                                                    }`}>
+                                                    {qualityScore}% Quality
+                                                </span>
+                                            </div>
+                                            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+                                                <div
+                                                    className={`h-full transition-all duration-500 ${qualityScore >= 80 ? 'bg-green-500' :
+                                                            qualityScore >= 50 ? 'bg-amber-500' :
+                                                                'bg-red-500'
+                                                        }`}
+                                                    style={{ width: `${qualityScore}%` }}
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-4">
+                                                {qualityChecks.map((check, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2 text-xs">
+                                                        <span className={check.passed ? 'text-green-500' : 'text-gray-300'}>
+                                                            {check.passed ? '✅' : '⚪'}
+                                                        </span>
+                                                        <span className={check.passed ? 'text-gray-700 font-medium' : 'text-gray-400'}>
+                                                            {check.label}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>

@@ -30,7 +30,7 @@ export default function GeneratePage() {
     const [manualCompany, setManualCompany] = useState('');
 
     // Master Prompt from profile
-    const [masterPrompt, setMasterPrompt] = useState<{ name: string; content: string; enabled: boolean } | null>(null);
+    const [masterPrompt, setMasterPrompt] = useState<{ name: string; content: string; enabled: boolean; priorityMode?: boolean } | null>(null);
     const [useMasterPrompt, setUseMasterPrompt] = useState(true);  // Toggle for this session
 
     // API Key state
@@ -311,6 +311,24 @@ Remember: User's instructions above are THE PRIORITY. Apply them strictly.`;
         if (!user) {
             toast.error('Please sign in to continue');
             return;
+        }
+
+        // Pre-generation checks for Master Prompt
+        if (useMasterPrompt && masterPrompt?.enabled && masterPrompt.content.length > 50) {
+            const content = masterPrompt.content.toLowerCase();
+
+            // Check 1: Low bullet count (ATS Warning)
+            const lowBullets = content.match(/(\b[1-3]\b|\bone\b|\btwo\b|\bthree\b)\s+bullets?/i);
+            if (lowBullets) {
+                const proceed = window.confirm('⚠️ ATS Warning: You requested a very low bullet count (1-3). \n\nMost ATS systems favour 5-8 bullets per role to adequately score skills. \n\nDo you want to proceed anyway?');
+                if (!proceed) return;
+            }
+
+            // Check 2: Vague instructions in Priority Mode
+            if (masterPrompt.priorityMode && content.length < 150) {
+                const proceed = window.confirm('⚠️ Priority Mode Warning: Your instructions are brief (<150 chars).\n\nSince "Priority Mode" overrides system defaults, minimal guidance might lead to poor results. \n\nAre you sure you want to proceed?');
+                if (!proceed) return;
+            }
         }
 
         // Check profile completion - either has experience data or display name
