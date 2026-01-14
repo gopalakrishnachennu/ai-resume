@@ -47,6 +47,7 @@ export interface PersonaConfig {
         name: string;
         content: string;
         enabled: boolean;
+        priorityMode?: boolean;  // When true, user's rules override system defaults
     };
 }
 

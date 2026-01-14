@@ -282,6 +282,7 @@ export default function PromptSettingsPage() {
         name: 'My Resume Style',
         content: '',
         enabled: true,
+        priorityMode: false,  // When true, user's rules override system defaults
     });
     const [masterPromptWordCount, setMasterPromptWordCount] = useState(0);
 
@@ -321,7 +322,10 @@ export default function PromptSettingsPage() {
                     setSkillsCategorized(personaConfig.skillsCategorized ?? true);
                     // Load Master Prompt
                     if (personaConfig.masterPrompt) {
-                        setMasterPrompt(personaConfig.masterPrompt);
+                        setMasterPrompt({
+                            ...personaConfig.masterPrompt,
+                            priorityMode: personaConfig.masterPrompt.priorityMode ?? false,
+                        });
                         setMasterPromptWordCount((personaConfig.masterPrompt.content || '').split(/\s+/).filter(Boolean).length);
                     }
                 }
@@ -809,6 +813,40 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                         <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${masterPrompt.enabled ? 'translate-x-6' : ''}`} />
                                     </button>
                                 </div>
+
+                                {/* Priority Mode Toggle - Only show when enabled */}
+                                {masterPrompt.enabled && (
+                                    <div className={`rounded-xl border transition-all ${masterPrompt.priorityMode
+                                        ? 'bg-amber-50 border-amber-200'
+                                        : 'bg-gray-50 border-gray-100'}`}>
+                                        <div className="flex items-center justify-between py-3 px-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg">⚡</span>
+                                                <div>
+                                                    <span className="text-sm font-medium text-gray-700">Priority Mode</span>
+                                                    <p className="text-xs text-gray-500">Override system defaults</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => setMasterPrompt({ ...masterPrompt, priorityMode: !masterPrompt.priorityMode })}
+                                                className={`relative w-12 h-6 rounded-full transition-colors ${masterPrompt.priorityMode ? 'bg-amber-500' : 'bg-gray-300'}`}
+                                            >
+                                                <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${masterPrompt.priorityMode ? 'translate-x-6' : ''}`} />
+                                            </button>
+                                        </div>
+                                        {masterPrompt.priorityMode && (
+                                            <div className="px-4 pb-3">
+                                                <div className="flex items-start gap-2 p-2 bg-amber-100 rounded-lg">
+                                                    <span className="text-amber-600 mt-0.5">⚠️</span>
+                                                    <p className="text-xs text-amber-800">
+                                                        <strong>Your rules take priority.</strong> System defaults will be overridden.
+                                                        A poorly written prompt may affect resume quality.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Text Area */}
                                 <div>

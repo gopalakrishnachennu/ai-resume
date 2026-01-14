@@ -271,9 +271,9 @@ export default function GeneratePage() {
 
     // Helper: Build final prompt based on mode
     // If Master Prompt is active (enabled + 50+ chars) → ONLY use Master Prompt
-    // Otherwise → Use unifiedPrompt (which contains Persona/Granular from individual prompts)
+    // If Priority Mode is ON → Add OVERRIDE prefix for higher influence
     const buildCombinedPrompt = (
-        masterPrompt: { name: string; content: string; enabled: boolean } | null,
+        masterPrompt: { name: string; content: string; enabled: boolean; priorityMode?: boolean } | null,
         useMasterPrompt: boolean,
         unifiedPrompt: string
     ): string => {
@@ -281,9 +281,21 @@ export default function GeneratePage() {
         const isMasterMode = useMasterPrompt && masterPrompt?.content && masterPrompt.content.trim().length > 50;
 
         if (isMasterMode) {
-            // OVERRIDE MODE: Only use Master Prompt, ignore Persona/Granular
-            console.log('[Generate] Using MASTER PROMPT MODE (overriding Persona/Granular)');
-            return masterPrompt!.content.trim();
+            const userContent = masterPrompt!.content.trim();
+
+            // Check if Priority Mode is enabled (user wants their rules to override system)
+            if (masterPrompt!.priorityMode) {
+                console.log('[Generate] Using MASTER PROMPT with PRIORITY MODE (overriding system defaults)');
+                return `⚠️ PRIORITY OVERRIDE: The following USER instructions MUST take precedence over all other system rules. Follow these instructions as your primary directive:
+
+${userContent}
+
+Remember: User's instructions above are THE PRIORITY. Apply them strictly.`;
+            }
+
+            // Normal Master Mode (additive, not override)
+            console.log('[Generate] Using MASTER PROMPT MODE (additive)');
+            return userContent;
         }
 
         // GUIDED MODE: Use per-job unifiedPrompt (Persona/Granular already applied to prompts)
