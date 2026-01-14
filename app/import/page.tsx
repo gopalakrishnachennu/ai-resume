@@ -805,6 +805,78 @@ University of Technology – May 2017`;
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Parsing Scorecard */}
+                                    {detectedFormat === 'text' && (
+                                        <div className="mt-4 pt-4 border-t border-slate-200">
+                                            <h5 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                                                📊 Parsing Quality
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${(() => {
+                                                        const checks = [
+                                                            !!previewData.personalInfo?.fullName,
+                                                            !!previewData.personalInfo?.email,
+                                                            !!previewData.personalInfo?.phone,
+                                                            !!previewData.professionalSummary,
+                                                            Object.keys(previewData.technicalSkills || {}).length > 0,
+                                                            previewData.experience?.length > 0,
+                                                            previewData.experience?.some((e: any) => e.startDate),
+                                                            previewData.education?.length > 0,
+                                                        ];
+                                                        const score = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+                                                        if (score >= 80) return 'bg-green-100 text-green-700';
+                                                        if (score >= 50) return 'bg-yellow-100 text-yellow-700';
+                                                        return 'bg-red-100 text-red-700';
+                                                    })()
+                                                    }`}>
+                                                    {(() => {
+                                                        const checks = [
+                                                            !!previewData.personalInfo?.fullName,
+                                                            !!previewData.personalInfo?.email,
+                                                            !!previewData.personalInfo?.phone,
+                                                            !!previewData.professionalSummary,
+                                                            Object.keys(previewData.technicalSkills || {}).length > 0,
+                                                            previewData.experience?.length > 0,
+                                                            previewData.experience?.some((e: any) => e.startDate),
+                                                            previewData.education?.length > 0,
+                                                        ];
+                                                        return Math.round((checks.filter(Boolean).length / checks.length) * 100) + '%';
+                                                    })()}
+                                                </span>
+                                            </h5>
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div className={`flex items-center gap-1 ${previewData.personalInfo?.fullName ? 'text-green-600' : 'text-amber-500'}`}>
+                                                    {previewData.personalInfo?.fullName ? '✅' : '⚠️'} Name
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${previewData.personalInfo?.email ? 'text-green-600' : 'text-amber-500'}`}>
+                                                    {previewData.personalInfo?.email ? '✅' : '⚠️'} Email
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${previewData.personalInfo?.phone ? 'text-green-600' : 'text-slate-400'}`}>
+                                                    {previewData.personalInfo?.phone ? '✅' : '○'} Phone
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${previewData.personalInfo?.linkedin ? 'text-green-600' : 'text-slate-400'}`}>
+                                                    {previewData.personalInfo?.linkedin ? '✅' : '○'} LinkedIn
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${previewData.professionalSummary ? 'text-green-600' : 'text-amber-500'}`}>
+                                                    {previewData.professionalSummary ? '✅' : '⚠️'} Summary
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${Object.keys(previewData.technicalSkills || {}).length > 0 ? 'text-green-600' : 'text-amber-500'}`}>
+                                                    {Object.keys(previewData.technicalSkills || {}).length > 0 ? '✅' : '⚠️'} Skills
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${previewData.experience?.length > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                                    {previewData.experience?.length > 0 ? '✅' : '❌'} Experience ({previewData.experience?.length || 0})
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${previewData.experience?.some((e: any) => e.startDate) ? 'text-green-600' : 'text-amber-500'}`}>
+                                                    {previewData.experience?.some((e: any) => e.startDate) ? '✅' : '⚠️'} Dates Found
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${previewData.education?.length > 0 ? 'text-green-600' : 'text-amber-500'}`}>
+                                                    {previewData.education?.length > 0 ? '✅' : '⚠️'} Education ({previewData.education?.length || 0})
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${previewData.education?.some((e: any) => e.graduationDate) ? 'text-green-600' : 'text-slate-400'}`}>
+                                                    {previewData.education?.some((e: any) => e.graduationDate) ? '✅' : '○'} Grad Date
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-80 text-slate-400">
