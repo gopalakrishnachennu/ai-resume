@@ -244,7 +244,7 @@ export default function ProfilePage() {
     const [showApiKey, setShowApiKey] = useState(false);
 
     // Master Prompt for Resume Style
-    const MAX_MASTER_PROMPT_LENGTH = 5000;
+    const MAX_MASTER_PROMPT_LENGTH = 7000;
     const [masterPrompt, setMasterPrompt] = useState({
         name: 'My Resume Style',
         content: '',
