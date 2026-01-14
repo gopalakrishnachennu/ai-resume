@@ -270,11 +270,20 @@ export default function PromptSettingsPage() {
     const [atsOptimized, setAtsOptimized] = useState(true);
 
     // Advanced Rules State
-    const [activeTab, setActiveTab] = useState<'persona' | 'rules'>('persona');
+    const [activeTab, setActiveTab] = useState<'persona' | 'rules' | 'master'>('persona');
     const [summaryRules, setSummaryRules] = useState(DEFAULT_SUMMARY_RULES);
     const [experienceRules, setExperienceRules] = useState(DEFAULT_EXPERIENCE_RULES);
     const [skillsRules, setSkillsRules] = useState(DEFAULT_SKILLS_RULES);
     const [skillsCategorized, setSkillsCategorized] = useState(true); // Default to corporate standard
+
+    // Master Prompt State
+    const MAX_MASTER_PROMPT_WORDS = 8000;
+    const [masterPrompt, setMasterPrompt] = useState({
+        name: 'My Resume Style',
+        content: '',
+        enabled: true,
+    });
+    const [masterPromptWordCount, setMasterPromptWordCount] = useState(0);
 
     useEffect(() => {
         useAuthStore.getState().initialize();
@@ -307,6 +316,11 @@ export default function PromptSettingsPage() {
                     setExperienceRules(personaConfig.experienceRules ?? DEFAULT_EXPERIENCE_RULES);
                     setSkillsRules(personaConfig.skillsRules ?? DEFAULT_SKILLS_RULES);
                     setSkillsCategorized(personaConfig.skillsCategorized ?? true);
+                    // Load Master Prompt
+                    if (personaConfig.masterPrompt) {
+                        setMasterPrompt(personaConfig.masterPrompt);
+                        setMasterPromptWordCount((personaConfig.masterPrompt.content || '').split(/\s+/).filter(Boolean).length);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load settings:', error);
@@ -348,7 +362,8 @@ export default function PromptSettingsPage() {
                 summaryRules,
                 experienceRules,
                 skillsRules,
-                skillsCategorized
+                skillsCategorized,
+                masterPrompt,  // Save master prompt with persona
             });
 
             toast.success('Prompts & Persona settings saved successfully');
@@ -530,13 +545,20 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                     onClick={() => setActiveTab('persona')}
                                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'persona' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
                                 >
-                                    Persona Profile
+                                    Persona
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('rules')}
                                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'rules' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
                                 >
                                     Granular Rules
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('master')}
+                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'master' ? 'bg-white text-purple-700 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+                                >
+                                    Master Prompt
+                                    {masterPrompt.content && <span className="ml-1.5 w-2 h-2 bg-emerald-400 rounded-full inline-block"></span>}
                                 </button>
                             </div>
                         </div>
@@ -610,7 +632,7 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                     </div>
                                 </div>
                             </div>
-                        ) : (
+                        ) : activeTab === 'rules' ? (
                             // RULES TAB
                             <div className="grid gap-6 md:grid-cols-2 animate-fadeIn">
                                 <div className="space-y-2">
@@ -697,7 +719,101 @@ ${atsOptimized ? '- CRITICAL: Optimize for ATS parsing (use standard keywords, a
                                     />
                                 </div>
                             </div>
-                        )}
+                        ) : activeTab === 'master' ? (
+                            // MASTER PROMPT TAB
+                            <div className="space-y-4 animate-fadeIn">
+                                <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-100 rounded-xl p-4">
+                                    <div className="flex items-start gap-3">
+                                        <span className="text-2xl">✨</span>
+                                        <div>
+                                            <h3 className="font-medium text-gray-900">Your Master AI Instructions</h3>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                Write detailed instructions (JSON, Markdown, or plain text) that will be applied to <strong>every resume</strong> you generate.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Enable Toggle */}
+                                <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm font-medium text-gray-700">Apply master prompt to all resumes</span>
+                                        {masterPrompt.enabled && masterPrompt.content && (
+                                            <span className="text-xs text-emerald-600 font-medium">Active ✓</span>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => setMasterPrompt({ ...masterPrompt, enabled: !masterPrompt.enabled })}
+                                        className={`relative w-12 h-6 rounded-full transition-colors ${masterPrompt.enabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
+                                    >
+                                        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${masterPrompt.enabled ? 'translate-x-6' : ''}`} />
+                                    </button>
+                                </div>
+
+                                {/* Text Area */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-sm font-medium text-gray-700">Master Prompt</label>
+                                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${masterPromptWordCount >= MAX_MASTER_PROMPT_WORDS
+                                            ? 'bg-red-100 text-red-700'
+                                            : masterPromptWordCount > MAX_MASTER_PROMPT_WORDS * 0.8
+                                                ? 'bg-amber-100 text-amber-700'
+                                                : 'bg-gray-100 text-gray-600'
+                                            }`}>
+                                            {masterPromptWordCount.toLocaleString()} / {MAX_MASTER_PROMPT_WORDS.toLocaleString()} words
+                                        </span>
+                                    </div>
+                                    <textarea
+                                        value={masterPrompt.content}
+                                        onChange={(e) => {
+                                            const newContent = e.target.value;
+                                            const wordCount = newContent.split(/\s+/).filter(Boolean).length;
+                                            setMasterPrompt({ ...masterPrompt, content: newContent });
+                                            setMasterPromptWordCount(wordCount);
+                                        }}
+                                        placeholder={`Write your resume instructions here. Examples:
+
+{
+  "goal": "99-100% ATS match + recruiter-friendly",
+  "professionalSummary": {
+    "length": "5 lines, ~70-80 words",
+    "startWith": "Exact JD role title"
+  },
+  "experience": {
+    "bullets": "5-6 per role",
+    "focus": ["cloud", "automation", "cost savings"]
+  }
+}
+
+Or use plain text:
+- Focus on AWS and Kubernetes experience
+- Highlight leadership and cost-savings
+- Keep tone professional but not stuffy`}
+                                        className={`w-full h-80 p-4 rounded-xl border-2 transition-all bg-gray-50/50 focus:bg-white focus:outline-none text-gray-900 placeholder-gray-400 text-sm font-mono ${masterPromptWordCount >= MAX_MASTER_PROMPT_WORDS
+                                            ? 'border-red-300 focus:border-red-500'
+                                            : 'border-gray-200 focus:border-purple-500'
+                                            }`}
+                                    />
+
+                                    {masterPromptWordCount >= MAX_MASTER_PROMPT_WORDS && (
+                                        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+                                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                            </svg>
+                                            <span className="text-sm">Prompt exceeds {MAX_MASTER_PROMPT_WORDS.toLocaleString()} words. Consider reducing for optimal LLM performance.</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Disclaimer */}
+                                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
+                                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>AI follows instructions approximately. Word counts, formatting, and specific rules may vary slightly.</span>
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
 
 

@@ -316,10 +316,11 @@ export default function GeneratePage() {
             return;
         }
 
-        // Load master prompt from profile if available
-        const userMasterPrompt = userData?.masterPrompt;
-        if (userMasterPrompt?.content && userMasterPrompt?.enabled !== false) {
-            setMasterPrompt(userMasterPrompt);
+        // Load master prompt from PersonaConfig (stored in prompts page)
+        const { getPersonaConfig } = await import('@/lib/services/promptService');
+        const personaConfig = await getPersonaConfig(user.uid);
+        if (personaConfig?.masterPrompt?.content && personaConfig.masterPrompt.enabled !== false) {
+            setMasterPrompt(personaConfig.masterPrompt);
         }
 
         const canGenerate = await checkLimit('resumeGenerations');

@@ -243,15 +243,6 @@ export default function ProfilePage() {
     });
     const [showApiKey, setShowApiKey] = useState(false);
 
-    // Master Prompt for Resume Style
-    const MAX_MASTER_PROMPT_LENGTH = 7000;
-    const [masterPrompt, setMasterPrompt] = useState({
-        name: 'My Resume Style',
-        content: '',
-        enabled: true,
-    });
-    const [masterPromptTruncated, setMasterPromptTruncated] = useState(false);
-
     useEffect(() => {
         useAuthStore.getState().initialize();
     }, []);
@@ -297,13 +288,6 @@ export default function ProfilePage() {
                 }
                 if (data.baseSkills) setSkills(data.baseSkills);
                 if (data.llmConfig) setLlmConfig(data.llmConfig);
-                if (data.masterPrompt) {
-                    setMasterPrompt({
-                        name: data.masterPrompt.name || 'My Resume Style',
-                        content: data.masterPrompt.content || '',
-                        enabled: data.masterPrompt.enabled !== false,
-                    });
-                }
             }
         } catch (error) {
             console.error('Error loading profile:', error);
@@ -327,12 +311,6 @@ export default function ProfilePage() {
                 baseEducation: education,
                 baseSkills: skills,
                 llmConfig,
-                masterPrompt: {
-                    name: masterPrompt.name,
-                    content: masterPrompt.content.slice(0, MAX_MASTER_PROMPT_LENGTH),
-                    enabled: masterPrompt.enabled,
-                    updatedAt: new Date().toISOString(),
-                },
             });
 
             setSaveSuccess(true);
@@ -1115,139 +1093,6 @@ export default function ProfilePage() {
                                     ))}
                                 </div>
                             )}
-                        </div>
-                    </div>
-                </Section>
-
-                {/* My Resume Style - Master Prompt */}
-                <Section
-                    title="My Resume Style"
-                    icon={
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                    }
-                    accentColor="pink"
-                    defaultOpen={false}
-                    badge={
-                        masterPrompt.content ? (
-                            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
-                                ✓ Configured
-                            </span>
-                        ) : (
-                            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                                Optional
-                            </span>
-                        )
-                    }
-                >
-                    <div className="space-y-4">
-                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-xl p-4">
-                            <div className="flex items-start gap-3">
-                                <span className="text-2xl">✨</span>
-                                <div>
-                                    <h3 className="font-medium text-gray-900">Your AI Instructions</h3>
-                                    <p className="text-sm text-gray-600 mt-1">
-                                        Write detailed instructions for how the AI should generate your resume.
-                                        This will be applied to <strong>every resume</strong> you generate.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Enable Toggle */}
-                        <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-xl">
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium text-gray-700">Apply my saved style</span>
-                                {masterPrompt.enabled && masterPrompt.content && (
-                                    <span className="text-xs text-emerald-600 font-medium">Active ✓</span>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => setMasterPrompt({ ...masterPrompt, enabled: !masterPrompt.enabled })}
-                                className={`
-                                    relative w-12 h-6 rounded-full transition-colors duration-200
-                                    ${masterPrompt.enabled ? 'bg-emerald-500' : 'bg-gray-300'}
-                                `}
-                            >
-                                <span className={`
-                                    absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200
-                                    ${masterPrompt.enabled ? 'left-7' : 'left-1'}
-                                `} />
-                            </button>
-                        </div>
-
-                        {/* Prompt Text Area */}
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Master Prompt
-                                </label>
-                                <span className={`
-                                    text-xs font-medium px-2 py-1 rounded-full
-                                    ${masterPrompt.content.length >= MAX_MASTER_PROMPT_LENGTH
-                                        ? 'bg-red-100 text-red-700'
-                                        : masterPrompt.content.length > MAX_MASTER_PROMPT_LENGTH * 0.8
-                                            ? 'bg-amber-100 text-amber-700'
-                                            : 'bg-gray-100 text-gray-600'
-                                    }
-                                `}>
-                                    {masterPrompt.content.length.toLocaleString()} / {MAX_MASTER_PROMPT_LENGTH.toLocaleString()}
-                                </span>
-                            </div>
-                            <textarea
-                                value={masterPrompt.content}
-                                onChange={(e) => {
-                                    const newContent = e.target.value;
-                                    setMasterPrompt({ ...masterPrompt, content: newContent });
-                                    setMasterPromptTruncated(newContent.length > MAX_MASTER_PROMPT_LENGTH);
-                                }}
-                                placeholder={`Write your resume instructions here. Examples:
-
-{
-  "goal": "99-100% ATS match + recruiter-friendly",
-  "professionalSummary": {
-    "length": "5 lines, ~70-80 words",
-    "startWith": "Exact JD role title"
-  },
-  "experience": {
-    "bullets": "5-6 per role",
-    "focus": ["cloud", "automation", "cost savings"]
-  }
-}
-
-Or use plain text:
-- Focus on AWS and Kubernetes experience
-- Highlight leadership and cost-savings achievements
-- Keep tone professional but not stuffy`}
-                                className={`
-                                    w-full h-64 p-4 rounded-xl border-2 transition-all duration-200
-                                    bg-gray-50/50 focus:bg-white focus:outline-none
-                                    text-gray-900 placeholder-gray-400 text-sm font-mono
-                                    ${masterPrompt.content.length >= MAX_MASTER_PROMPT_LENGTH
-                                        ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
-                                        : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
-                                    }
-                                `}
-                            />
-
-                            {/* Truncation Warning */}
-                            {masterPromptTruncated && (
-                                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-                                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                    </svg>
-                                    <span className="text-sm">Prompt exceeds {MAX_MASTER_PROMPT_LENGTH.toLocaleString()} characters and will be truncated on save.</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Disclaimer */}
-                        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg p-3">
-                            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>AI follows instructions approximately. Word counts, formatting, and specific rules may vary slightly.</span>
                         </div>
                     </div>
                 </Section>

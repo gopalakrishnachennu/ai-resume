@@ -43,6 +43,11 @@ export interface PersonaConfig {
     experienceRules: string;
     skillsRules: string;
     skillsCategorized: boolean;
+    masterPrompt?: {
+        name: string;
+        content: string;
+        enabled: boolean;
+    };
 }
 
 // Define mandatory prompts that cannot be empty
