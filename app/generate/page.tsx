@@ -21,6 +21,7 @@ export default function GeneratePage() {
     const { usageLimits, incrementUsage: incrementGuestUsage, checkLimit, loading: guestAuthLoading } = useGuestAuth();
     const router = useRouter();
     const [jobDescription, setJobDescription] = useState('');
+    const [unifiedPrompt, setUnifiedPrompt] = useState('');  // NEW: User's resume vision
     const [analyzing, setAnalyzing] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [analysis, setAnalysis] = useState<any>(null);
@@ -338,23 +339,75 @@ export default function GeneratePage() {
         try {
             const resumeId = `resume_${Date.now()}_${user.uid.slice(0, 8)}`;
 
-            // Import and use resume generation service
+            // Import resume generation service
             const { ResumeGenerationService } = await import('@/lib/llm-black-box/services/resumeGeneration');
 
-            const result = await ResumeGenerationService.generateResume(
-                resumeId,
-                user.uid,
-                userData as any,
-                analysis,
-                { provider: providerToUse, apiKey: apiKeyToUse }
-            );
+            let result;
+            let jobTitle = '';
+            let jobCompany = '';
+
+            // NEW: Use direct flow if no analysis (skips JD analysis step)
+            if (!analysis && jobDescription.length >= 100) {
+                // Direct JD → Resume flow (NEW)
+                console.log('[Generate] Using DIRECT flow (no analysis)');
+
+                // Try to extract title from first line of JD
+                const firstLine = jobDescription.split('\n')[0];
+                jobTitle = manualTitle || firstLine.slice(0, 80) || 'Target Role';
+                jobCompany = manualCompany || '';
+
+                result = await ResumeGenerationService.generateResumeDirectFromJD(
+                    resumeId,
+                    user.uid,
+                    userData as any,
+                    {
+                        rawJobDescription: jobDescription,
+                        jobTitle: jobTitle,
+                        company: jobCompany,
+                    },
+                    unifiedPrompt,  // User's vision/instructions
+                    { provider: providerToUse, apiKey: apiKeyToUse }
+                );
+            } else if (analysis) {
+                // Legacy flow with pre-analyzed JD
+                console.log('[Generate] Using ANALYZED flow');
+                jobTitle = analysis.title;
+                jobCompany = analysis.company;
+
+                result = await ResumeGenerationService.generateResume(
+                    resumeId,
+                    user.uid,
+                    userData as any,
+                    analysis,
+                    { provider: providerToUse, apiKey: apiKeyToUse }
+                );
+            } else {
+                // Manual entry or short JD
+                console.log('[Generate] Using MANUAL entry flow');
+                jobTitle = manualTitle || 'Target Role';
+                jobCompany = manualCompany || '';
+
+                result = await ResumeGenerationService.generateResumeDirectFromJD(
+                    resumeId,
+                    user.uid,
+                    userData as any,
+                    {
+                        rawJobDescription: jobDescription || `Job Title: ${jobTitle}`,
+                        jobTitle: jobTitle,
+                        company: jobCompany,
+                    },
+                    unifiedPrompt,
+                    { provider: providerToUse, apiKey: apiKeyToUse }
+                );
+            }
 
             // Save resume to Firestore
             const resumeData = {
                 userId: user.uid,
-                jobTitle: analysis.title,
-                jobCompany: analysis.company,
+                jobTitle: jobTitle,
+                jobCompany: jobCompany,
                 jobDescription: jobDescription,
+                unifiedPrompt: unifiedPrompt || null,  // Save user's vision for regeneration
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
                 // Build personalInfo from available data
@@ -376,6 +429,7 @@ export default function GeneratePage() {
                 cached: result.cached,
                 tokensUsed: result.tokensUsed,
                 processingTime: result.processingTime,
+                generationFlow: analysis ? 'analyzed' : 'direct',  // Track which flow was used
             };
 
             await setDoc(doc(db, 'resumes', resumeId), resumeData);
@@ -384,6 +438,7 @@ export default function GeneratePage() {
             // Clear localStorage
             localStorage.removeItem('draft_jobDescription');
             localStorage.removeItem('draft_analysis');
+            localStorage.removeItem('draft_unifiedPrompt');
 
             toast.success('Resume generated successfully!', { id: 'generate' });
             await incrementGuestUsage('resumeGenerations');
@@ -624,24 +679,50 @@ The more details you include, the better your resume will be tailored. Include:
                                         </div>
                                     </div>
 
+                                    {/* NEW: Unified Prompt Section */}
+                                    <div className="mt-6 pt-6 border-t border-slate-100">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <label className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                                                <span className="text-lg">✨</span>
+                                                Tell the AI about your resume goals
+                                                <span className="text-xs font-normal text-slate-500">(optional but powerful)</span>
+                                            </label>
+                                        </div>
+                                        <textarea
+                                            value={unifiedPrompt}
+                                            onChange={(e) => setUnifiedPrompt(e.target.value)}
+                                            placeholder="Give any instructions for your resume. Examples:
+
+• Focus on my AWS and Kubernetes experience
+• I'm transitioning from Software Engineer to DevOps
+• Highlight my leadership roles and cost-savings achievements
+• Keep the tone professional but not stuffy
+• Emphasize my 8 years of cloud infrastructure experience
+
+Write as much or as little as you want - the AI will use this for EVERY section of your resume."
+                                            className="w-full h-36 p-4 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white resize-none text-slate-900 placeholder-slate-400 text-sm transition-all"
+                                        />
+                                    </div>
+
                                     {/* Action Buttons */}
                                     <div className="mt-6 space-y-3">
+                                        {/* PRIMARY: Direct Generate Button */}
                                         <button
-                                            onClick={handleAnalyze}
-                                            disabled={analyzing || jobDescription.length < 100}
-                                            className="w-full flex items-center justify-center gap-3 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold text-lg shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none transition-all"
+                                            onClick={handleGenerateResume}
+                                            disabled={generating || jobDescription.length < 100}
+                                            className="w-full flex items-center justify-center gap-3 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none transition-all"
                                         >
-                                            {analyzing ? (
+                                            {generating ? (
                                                 <>
                                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                    Analyzing with AI...
+                                                    Generating Resume...
                                                 </>
                                             ) : (
                                                 <>
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                                     </svg>
-                                                    Analyze Job Description
+                                                    Generate Resume
                                                 </>
                                             )}
                                         </button>
@@ -655,6 +736,27 @@ The more details you include, the better your resume will be tailored. Include:
                                             </div>
                                         </div>
 
+                                        {/* SECONDARY: Analyze First (Optional) */}
+                                        <button
+                                            onClick={handleAnalyze}
+                                            disabled={analyzing || jobDescription.length < 100}
+                                            className="w-full flex items-center justify-center gap-2 py-3.5 border-2 border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                        >
+                                            {analyzing ? (
+                                                <>
+                                                    <div className="w-4 h-4 border-2 border-slate-400 border-t-slate-700 rounded-full animate-spin"></div>
+                                                    Analyzing...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                                    </svg>
+                                                    Analyze First (See Keywords)
+                                                </>
+                                            )}
+                                        </button>
+
                                         <button
                                             onClick={() => setShowManualEntry(true)}
                                             className="w-full flex items-center justify-center gap-2 py-3.5 border-2 border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
@@ -662,7 +764,7 @@ The more details you include, the better your resume will be tailored. Include:
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                             </svg>
-                                            Enter Details Manually
+                                            Enter Job Title Manually
                                         </button>
                                     </div>
                                 </div>
