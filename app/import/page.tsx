@@ -94,7 +94,7 @@ export default function ImportPage() {
             const sectionPatterns = {
                 summary: /\n(?:Professional\s+)?Summary\s*\n/i,
                 skills: /\n(?:Core\s+|Technical\s+)?Skills\s*\n/i,
-                experience: /\n(?:Professional\s+)?Experience\s*\n/i,
+                experience: /\n(?:Professional\s+)?(?:Experience|Work History|Employment)\s*\n/i,
                 education: /\nEducation\s*\n/i,
             };
 
@@ -117,24 +117,58 @@ export default function ImportPage() {
                 return cleanText.substring(start, end);
             };
 
-            // Get summary text
-            const summarySection = extractSection(summaryStart, skillsStart, expStart, eduStart);
-            const summary = summarySection.replace(/^.*Summary\s*\n/i, '').trim();
+            // Helper to clean section headers - more robust
+            const removeHeader = (text: string, headerPattern: RegExp) => {
+                // Try exact regex match first (safest)
+                const match = text.match(headerPattern);
+                if (match) {
+                    // Check if match is at the very beginning
+                    if (text.indexOf(match[0]) === 0) {
+                        return text.substring(match[0].length).trim();
+                    }
+                }
+                // Fallback: Remove first line if it looks like a header
+                const textLines = text.trim().split('\n');
+                const firstLine = textLines[0];
+                if (firstLine && firstLine.length < 50 && (firstLine.match(/Summary|Experience|Work|Employment|Skills|Education/i))) {
+                    return textLines.slice(1).join('\n').trim();
+                }
+                return text;
+            };
 
-            // Get experience text
-            const expSection = extractSection(expStart, eduStart, skillsStart > expStart ? skillsStart : cleanText.length);
-            const expText = expSection.replace(/^.*Experience\s*\n/i, '').trim();
+            // Get section text with clean headers
+            const summaryRaw = extractSection(summaryStart, skillsStart, expStart, eduStart);
+            const summary = removeHeader(summaryRaw, sectionPatterns.summary);
+
+            const expRaw = extractSection(expStart, eduStart, skillsStart, summaryStart);
+            const expText = removeHeader(expRaw, sectionPatterns.experience);
+
+            const eduRaw = extractSection(eduStart, expStart, skillsStart, summaryStart);
+            const eduText = removeHeader(eduRaw, sectionPatterns.education);
+
+            const skillsRaw = extractSection(skillsStart, summaryStart, expStart, eduStart);
+            const skillsText = removeHeader(skillsRaw, sectionPatterns.skills);
 
             // Parse experience entries - improved detection
             const experience: any[] = [];
 
-            // Split by blank lines or job title patterns (line starting with capital letters followed by company info)
-            const expBlocks = expText.split(/\n\s*\n+/).filter(block => block.trim().length > 20);
+            // Split by blank lines (double newline)
+            let expBlocks = expText.split(/\n\s*\n+/).filter(block => block.trim().length > 10);
+
+            // Fallback: If no blocks or one huge block, try splitting by date patterns
+            if (expBlocks.length <= 1 && expText.length > 200) {
+                const dateSplit = expText.replace(/(\n[A-Z].*?\d{4}.*?(?:Present|Current|\d{4}))/g, '\n###SPLIT###$1');
+                if (dateSplit.includes('###SPLIT###')) {
+                    expBlocks = dateSplit.split('###SPLIT###').filter(b => b.trim().length > 10);
+                }
+            }
 
             for (const block of expBlocks) {
                 if (!block.trim()) continue;
                 const lines = block.trim().split('\n').map(l => l.trim()).filter(Boolean);
-                if (lines.length < 2) continue;
+
+                // Skip if block is just a header artifact
+                if (lines[0].match(/^(Professional Experience|Work History|Employment)$/i)) continue;
 
                 let title = '';
                 let company = '';
@@ -143,64 +177,48 @@ export default function ImportPage() {
                 let endDate = 'Present';
                 const bullets: string[] = [];
 
-                // Pattern 1: "Job Title" on line 1, "Company – Location" on line 2, "Date" on line 3
-                // Pattern 2: "Company – Location" on line 1, "Date" on line 2
-                // Pattern 3: "Job Title at Company | Date" inline
-
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
 
-                    // Check for date pattern (Jan 2020 – Present, July 2019 - Dec 2021, etc.)
-                    const dateMatch = line.match(/(\w+\s+\d{4}|\d{4})\s*[-–—to]+\s*(\w+\s+\d{4}|\d{4}|Present|Current)/i);
+                    if (line.length < 3) continue;
+
+                    // Check for date pattern
+                    const dateMatch = line.match(/((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(?:19|20)\d{2}|(?:19|20)\d{2})\s*[-–—to]+\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(?:19|20)\d{2}|(?:19|20)\d{2}|Present|Current)/i);
                     if (dateMatch) {
                         startDate = dateMatch[1];
                         endDate = dateMatch[2];
-                        continue;
-                    }
-
-                    // Check for company-location pattern (Company – Location or Company - Location)
-                    const companyLocMatch = line.match(/^([A-Z][\w\s&.,]+?)\s*[–—-]\s*([A-Z][\w\s,]+)$/);
-                    if (companyLocMatch && !company) {
-                        company = companyLocMatch[1]?.trim() || '';
-                        location = companyLocMatch[2]?.trim() || '';
-                        continue;
+                        if (line.length < dateMatch[0].length + 10) continue;
                     }
 
                     // Check for bullet points
-                    if (line.match(/^[•\-*]\s+/) || (i > 1 && line.length > 30 && !line.match(/^[A-Z][a-z]+\s+[A-Z]/))) {
-                        const cleanBullet = line.replace(/^[•\-*\s]+/, '').trim();
-                        if (cleanBullet.length > 15) {
-                            bullets.push(cleanBullet);
-                        }
+                    if (line.match(/^[\s•\-*]+/) || (i > 1 && !line.match(/^[A-Z][a-z]+/))) {
+                        const cleanBullet = line.replace(/^[\s•\-*]+/, '').trim();
+                        if (cleanBullet.length > 10) bullets.push(cleanBullet);
                         continue;
                     }
 
-                    // First non-matched line is likely the job title
-                    if (!title && i === 0) {
-                        title = line.replace(/[|–—-]\s*$/, '').trim();
-
-                        // Check for inline format: "Senior Engineer at Google"
-                        const inlineMatch = title.match(/^(.+?)\s+(?:at|@)\s+(.+?)(?:\s*[|–—-]|$)/i);
-                        if (inlineMatch) {
-                            title = inlineMatch[1]?.trim() || '';
-                            company = inlineMatch[2]?.trim() || '';
+                    // Header detection (Line 0 or 1)
+                    if (!title && (i === 0 || i === 1)) {
+                        if (line.length < 60 && !line.match(/\d/)) {
+                            title = line;
+                            continue;
                         }
-                        continue;
                     }
 
-                    // If we have title but no company, this line might be company
-                    if (title && !company && i === 1) {
-                        company = line.replace(/\s*[|–—-]\s*[\w\s,]+$/, '').trim();
-                        continue;
+                    if (!company && (i === 0 || i === 1) && line !== title) {
+                        if (line.match(/[–—-].+/) || line.match(/Inc|Ltd|LLC|Corp/i) || line.length < 50) {
+                            company = line.split(/[–—-]/)[0].trim();
+                            location = line.includes('–') || line.includes('-') ? line.split(/[–—-]/)[1].trim() : '';
+                            continue;
+                        }
                     }
                 }
 
-                // Only add if we have meaningful data
-                if ((title || company) && (bullets.length > 0 || title)) {
+                if (title || company) {
                     experience.push({
                         company: company || 'Unknown Company',
                         title: title || 'Unknown Title',
-                        location,
+                        location: location || '',
                         startDate,
                         endDate,
                         description: '',
@@ -209,45 +227,45 @@ export default function ImportPage() {
                 }
             }
 
-            // Get education text
-            const eduSection = extractSection(eduStart, expStart, skillsStart, summaryStart); // Helper handles order
-            // Actually, we need to extract based on specific start indices
-            // Let's use the robust extraction logic again
-            const getSectionText = (start: number, pattern: RegExp) => {
-                const text = extractSection(start, summaryStart, skillsStart, expStart, eduStart);
-                return text.replace(pattern, '').trim();
-            };
-
-            const eduText = getSectionText(eduStart, sectionPatterns.education);
-
-            // Parse education
+            // Parse education - Robust Multi-line Grouping
             const education: any[] = [];
             if (eduText) {
-                const eduLines = eduText.split('\n').filter(l => l.trim());
-                for (let i = 0; i < eduLines.length; i++) {
-                    const line = eduLines[i].trim();
-                    const degreeMatch = line.match(/(Bachelor|Master|PhD|B\.S\.|M\.S\.|MBA|Associate|Diploma)[^\n]*/i);
-                    const institutionMatch = line.match(/(?:University|College|Institute|School)[^\n]*/i);
-                    const yearMatch = line.match(/\b(19|20)\d{2}\b/);
+                const eduBlocks = eduText.split(/\n\s*\n+/);
 
-                    if (degreeMatch || institutionMatch) {
+                for (const block of eduBlocks) {
+                    const lines = block.split('\n').filter(l => l.trim());
+                    if (lines.length === 0) continue;
+
+                    let institution = '';
+                    let degree = '';
+                    let graduationDate = '';
+
+                    for (const line of lines) {
+                        const degreeMatch = line.match(/(Bachelor|Master|PhD|B\.S\.|M\.S\.|MBA|Associate|Diploma|Certificate|BTech|MTech|B\.E\.|M\.E\.)[^\n]*/i);
+                        const institutionMatch = line.match(/(?:University|College|Institute|School|Academy)[^\n]*/i);
+                        const yearMatch = line.match(/\b(?:19|20)\d{2}\b/);
+
+                        if (degreeMatch && !degree) degree = degreeMatch[0];
+                        if (institutionMatch && !institution) institution = institutionMatch[0];
+                        if (yearMatch && !graduationDate) graduationDate = yearMatch[0];
+
+                        // Fallback logic
+                        if (!institution && degree && !line.includes(degree)) institution = line;
+                        if (!degree && institution && !line.includes(institution)) degree = line;
+                    }
+
+                    if (institution || degree) {
                         education.push({
-                            institution: institutionMatch ? institutionMatch[0] : (degreeMatch ? 'Unknown Institution' : line),
-                            degree: degreeMatch ? degreeMatch[0] : '',
+                            institution: institution || 'Unknown Institution',
+                            degree: degree || 'Unknown Degree',
                             field: '',
-                            graduationDate: yearMatch ? yearMatch[0] : '',
+                            graduationDate,
                         });
                     }
                 }
             }
 
-            const skillsText = getSectionText(skillsStart, sectionPatterns.skills);
-
-            // Parse experience entries - improved detection
-            // (Experience parsing logic continues below...)
             const technicalSkills: Record<string, string[]> = {};
-
-            // Parse "Category: skill1, skill2" or "**Category**: skill1, skill2"
             const skillLines = skillsText.split('\n').filter(l => l.trim());
             for (const line of skillLines) {
                 const kvMatch = line.match(/^\*{0,2}([^:*]+)\*{0,2}:\s*(.+)$/);
@@ -256,7 +274,6 @@ export default function ImportPage() {
                     const skills = kvMatch[2].split(/[,;]/).map(s => s.trim()).filter(Boolean);
                     technicalSkills[category] = skills;
                 } else {
-                    // Fallback: treat as comma-separated list
                     const skills = line.split(/[,;]/).map(s => s.replace(/^[\s•\-*]+/, '').trim()).filter(s => s.length > 1);
                     if (skills.length > 0) {
                         const existingKey = Object.keys(technicalSkills).find(k => k === 'Other Skills');
@@ -373,7 +390,8 @@ export default function ImportPage() {
         reader.onload = (event) => {
             const content = event.target?.result as string;
             setJsonInput(content);
-            parseJSONResume(content);
+            // The handleJsonChange will now detect the format and parse accordingly
+            handleJsonChange(content);
         };
         reader.readAsText(file);
     };
