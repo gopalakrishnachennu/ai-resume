@@ -567,6 +567,46 @@ export default function ImportPage() {
   ]
 }`;
 
+    // Sample Plain Text Resume
+    const sampleText = `John Doe
+
+San Francisco, CA
+📧 john.doe@example.com | 📞 (555) 123-4567
+
+Professional Summary
+
+Experienced software engineer with 5+ years building scalable web applications. Expertise in React, Node.js, and cloud infrastructure. Passionate about clean code and agile delivery.
+
+Core Skills
+
+Programming: JavaScript, TypeScript, Python, Go
+Frameworks: React, Node.js, Django, Express
+Cloud: AWS, Azure, Docker, Kubernetes
+Tools: Git, CI/CD, Terraform
+
+Professional Experience
+
+Senior Developer
+Tech Corp – San Francisco, CA
+Jan 2020 – Present
+
+Led development of microservices architecture serving 1M+ users.
+Reduced API response time by 40% through optimization.
+Mentored junior developers and conducted code reviews.
+
+Software Engineer
+StartupXYZ – Remote
+June 2017 – Dec 2019
+
+Built React-based dashboard for real-time analytics.
+Implemented CI/CD pipelines using GitHub Actions.
+Collaborated with design team to improve UX.
+
+Education
+
+Bachelor of Science in Computer Science
+University of Technology – May 2017`;
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
             {/* Header */}
@@ -629,8 +669,8 @@ export default function ImportPage() {
                                     </label>
                                     {detectedFormat && (
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${detectedFormat === 'json'
-                                                ? 'bg-blue-100 text-blue-700'
-                                                : 'bg-green-100 text-green-700'
+                                            ? 'bg-blue-100 text-blue-700'
+                                            : 'bg-green-100 text-green-700'
                                             }`}>
                                             {detectedFormat === 'json' ? '📦 JSON' : '📝 Text'}
                                         </span>
@@ -669,6 +709,21 @@ export default function ImportPage() {
                             <button
                                 onClick={() => handleJsonChange(sampleJson)}
                                 className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                                Use this sample →
+                            </button>
+                        </details>
+
+                        <details className="glass rounded-2xl p-6 border border-white/50">
+                            <summary className="cursor-pointer text-sm font-semibold text-slate-700 hover:text-green-600 transition-colors">
+                                📝 View Sample Text Format
+                            </summary>
+                            <pre className="mt-4 p-4 bg-slate-800 text-green-100 rounded-xl text-xs overflow-auto max-h-60 whitespace-pre-wrap">
+                                {sampleText}
+                            </pre>
+                            <button
+                                onClick={() => handleJsonChange(sampleText)}
+                                className="mt-3 text-sm text-green-600 hover:text-green-700 font-medium"
                             >
                                 Use this sample →
                             </button>
