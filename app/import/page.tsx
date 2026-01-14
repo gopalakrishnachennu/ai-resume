@@ -149,118 +149,200 @@ export default function ImportPage() {
             const skillsRaw = extractSection(skillsStart, summaryStart, expStart, eduStart);
             const skillsText = removeHeader(skillsRaw, sectionPatterns.skills);
 
-            // Parse experience entries - improved detection
+            // Parse experience entries - Date-Anchored Approach (Robust to spacing)
             const experience: any[] = [];
 
-            // Split by blank lines (double newline)
-            let expBlocks = expText.split(/\n\s*\n+/).filter(block => block.trim().length > 10);
+            // Helper to parse a single line for date range
+            const parseDateRange = (line: string) => {
+                const match = line.match(/((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(?:19|20)\d{2}|(?:19|20)\d{2})\s*[-–—to]+\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(?:19|20)\d{2}|(?:19|20)\d{2}|Present|Current)/i);
+                return match ? { start: match[1], end: match[2], raw: match[0] } : null;
+            };
 
-            // Fallback: If no blocks or one huge block, try splitting by date patterns
-            if (expBlocks.length <= 1 && expText.length > 200) {
-                const dateSplit = expText.replace(/(\n[A-Z].*?\d{4}.*?(?:Present|Current|\d{4}))/g, '\n###SPLIT###$1');
-                if (dateSplit.includes('###SPLIT###')) {
-                    expBlocks = dateSplit.split('###SPLIT###').filter(b => b.trim().length > 10);
-                }
-            }
+            const expLines = expText.split('\n').map(l => l.trim()).filter(Boolean);
 
-            for (const block of expBlocks) {
-                if (!block.trim()) continue;
-                const lines = block.trim().split('\n').map(l => l.trim()).filter(Boolean);
+            // Find all lines that contain a date range - these are our "Anchors"
+            const dateIndices = expLines.map((line, idx) => parseDateRange(line) ? idx : -1).filter(idx => idx !== -1);
 
-                // Skip if block is just a header artifact
-                if (lines[0].match(/^(Professional Experience|Work History|Employment)$/i)) continue;
+            if (dateIndices.length > 0) {
+                // Sort indices just in case
+                dateIndices.sort((a, b) => a - b);
 
-                let title = '';
-                let company = '';
-                let location = '';
-                let startDate = '';
-                let endDate = 'Present';
-                const bullets: string[] = [];
+                for (let i = 0; i < dateIndices.length; i++) {
+                    const dateLineIdx = dateIndices[i];
+                    const nextDateLineIdx = i < dateIndices.length - 1 ? dateIndices[i + 1] : expLines.length;
 
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
+                    // Metadata for this entry
+                    const dateRange = parseDateRange(expLines[dateLineIdx]);
+                    let startDate = dateRange?.start || '';
+                    let endDate = dateRange?.end || 'Present';
 
-                    if (line.length < 3) continue;
+                    let title = '';
+                    let company = '';
+                    let location = '';
 
-                    // Check for date pattern
-                    const dateMatch = line.match(/((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(?:19|20)\d{2}|(?:19|20)\d{2})\s*[-–—to]+\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(?:19|20)\d{2}|(?:19|20)\d{2}|Present|Current)/i);
-                    if (dateMatch) {
-                        startDate = dateMatch[1];
-                        endDate = dateMatch[2];
-                        if (line.length < dateMatch[0].length + 10) continue;
-                    }
+                    // Look back 1-2 lines for Title and Company
+                    let headerStartIdx = dateLineIdx;
 
-                    // Check for bullet points
-                    if (line.match(/^[\s•\-*]+/) || (i > 1 && !line.match(/^[A-Z][a-z]+/))) {
-                        const cleanBullet = line.replace(/^[\s•\-*]+/, '').trim();
-                        if (cleanBullet.length > 10) bullets.push(cleanBullet);
-                        continue;
-                    }
+                    // Helper to identify header candidate (short, non-bullet)
+                    const isHeaderLine = (l: string) => l.length < 80 && !l.match(/^[\s•\-*]+/);
 
-                    // Header detection (Line 0 or 1)
-                    if (!title && (i === 0 || i === 1)) {
-                        if (line.length < 60 && !line.match(/\d/)) {
-                            title = line;
-                            continue;
+                    const prevLine1 = dateLineIdx > 0 ? expLines[dateLineIdx - 1] : null;
+                    const prevLine2 = dateLineIdx > 1 ? expLines[dateLineIdx - 2] : null;
+
+                    if (prevLine1 && isHeaderLine(prevLine1)) {
+                        headerStartIdx = dateLineIdx - 1;
+                        if (prevLine2 && isHeaderLine(prevLine2)) {
+                            headerStartIdx = dateLineIdx - 2;
                         }
                     }
 
-                    if (!company && (i === 0 || i === 1) && line !== title) {
-                        if (line.match(/[–—-].+/) || line.match(/Inc|Ltd|LLC|Corp/i) || line.length < 50) {
-                            company = line.split(/[–—-]/)[0].trim();
-                            location = line.includes('–') || line.includes('-') ? line.split(/[–—-]/)[1].trim() : '';
-                            continue;
+                    // Assign Title/Company based on Position of Date
+                    if (headerStartIdx === dateLineIdx - 2) {
+                        // Case: Title \n Company \n Date
+                        title = expLines[dateLineIdx - 2];
+                        company = expLines[dateLineIdx - 1];
+                    } else if (headerStartIdx === dateLineIdx - 1) {
+                        // Case: Title \n Date (or Company \n Date)
+                        const line1 = expLines[dateLineIdx - 1];
+                        // Heuristic: If line matches known Big Companies or has Inc/LLC, it is company. Else Title.
+                        if (line1.match(/Inc|Ltd|LLC|Corp/i)) {
+                            company = line1;
+                            title = 'Unknown Title';
+                        } else {
+                            title = line1;
+                            // Check if Date line has Company?
+                            const inlineParts = expLines[dateLineIdx].replace(parseDateRange(expLines[dateLineIdx])?.raw || '', '').trim();
+                            if (inlineParts.length > 3) company = inlineParts;
+                            else company = 'Unknown Company';
+                        }
+                    } else {
+                        // Case: Inline (Title | Date or Date - Company)
+                        const textLine = expLines[dateLineIdx];
+                        const textBefore = textLine.substring(0, textLine.indexOf(startDate)).trim();
+                        if (textBefore.length > 2) {
+                            if (textBefore.includes('|') || textBefore.includes(' - ') || textBefore.includes(' – ')) {
+                                const parts = textBefore.split(/[|\-–—]/);
+                                title = parts[0].trim();
+                                company = parts[1]?.trim() || '';
+                            } else {
+                                title = textBefore;
+                                company = 'Unknown Company';
+                            }
+                        } else {
+                            // Maybe Date came first?
+                            const textAfter = textLine.substring(textLine.indexOf(endDate) + endDate.length).trim();
+                            if (textAfter.length > 2) {
+                                title = textAfter;
+                                company = 'Unknown Company'; // Or split title/company
+                            }
                         }
                     }
-                }
 
-                if (title || company) {
+                    if (!title) title = 'Unknown Title';
+                    if (!company) company = 'Unknown Company';
+
+                    // Determine End of Description (Start of Next Header)
+                    let descEndIdx = nextDateLineIdx;
+                    if (i < dateIndices.length - 1) {
+                        // Go backward from nextDate to find its header
+                        const nextPrev1 = nextDateLineIdx > 0 ? expLines[nextDateLineIdx - 1] : null;
+                        const nextPrev2 = nextDateLineIdx > 1 ? expLines[nextDateLineIdx - 2] : null;
+                        if (nextPrev1 && isHeaderLine(nextPrev1)) {
+                            descEndIdx = nextDateLineIdx - 1;
+                            if (nextPrev2 && isHeaderLine(nextPrev2)) {
+                                descEndIdx = nextDateLineIdx - 2;
+                            }
+                        }
+                    }
+
+                    const bullets = [];
+                    for (let k = dateLineIdx + 1; k < descEndIdx; k++) {
+                        const line = expLines[k];
+                        if (line.match(/^[\s•\-*]+/)) {
+                            bullets.push(line.replace(/^[\s•\-*]+/, '').trim());
+                        } else if (line.length > 3) {
+                            bullets.push(line);
+                        }
+                    }
+
+                    // Logic to split Company/Location
+                    if (company && (company.includes(' - ') || company.includes(' – '))) {
+                        const parts = company.split(/[–-]/);
+                        company = parts[0].trim();
+                        location = parts[1].trim();
+                    }
+
                     experience.push({
-                        company: company || 'Unknown Company',
-                        title: title || 'Unknown Title',
-                        location: location || '',
+                        company,
+                        title,
+                        location,
                         startDate,
                         endDate,
                         description: '',
-                        highlights: bullets,
+                        highlights: bullets
                     });
+                }
+            } else {
+                // Fallback: Block splitting (same as before but simplifed)
+                const blocks = expText.split(/\n\s*\n+/).filter(b => b.trim().length > 10);
+                for (const block of blocks) {
+                    const lines = block.split('\n').filter(l => l.trim());
+                    if (lines.length > 0) {
+                        experience.push({
+                            company: 'Unknown Company',
+                            title: lines[0],
+                            startDate: '',
+                            endDate: '',
+                            highlights: lines.slice(1)
+                        });
+                    }
                 }
             }
 
-            // Parse education - Robust Multi-line Grouping
+            // Parse education - Date-Anchored Approach
             const education: any[] = [];
             if (eduText) {
-                const eduBlocks = eduText.split(/\n\s*\n+/);
+                const eduLines = eduText.split('\n').map(l => l.trim()).filter(Boolean);
+                const eduIndices = eduLines.map((line, idx) => line.match(/\b(?:19|20)\d{2}\b/) ? idx : -1).filter(idx => idx !== -1);
 
-                for (const block of eduBlocks) {
-                    const lines = block.split('\n').filter(l => l.trim());
-                    if (lines.length === 0) continue;
+                if (eduIndices.length > 0) {
+                    for (let i = 0; i < eduIndices.length; i++) {
+                        const idx = eduIndices[i];
+                        const yearMatches = eduLines[idx].match(/\b(?:19|20)\d{2}\b/g);
+                        const graduationDate = yearMatches ? yearMatches[yearMatches.length - 1] : '';
 
-                    let institution = '';
-                    let degree = '';
-                    let graduationDate = '';
+                        // Look around date line
+                        const contextLines = [
+                            eduLines[idx - 1] || '',
+                            eduLines[idx] || '',
+                        ].filter(Boolean);
 
-                    for (const line of lines) {
-                        const degreeMatch = line.match(/(Bachelor|Master|PhD|B\.S\.|M\.S\.|MBA|Associate|Diploma|Certificate|BTech|MTech|B\.E\.|M\.E\.)[^\n]*/i);
-                        const institutionMatch = line.match(/(?:University|College|Institute|School|Academy)[^\n]*/i);
-                        const yearMatch = line.match(/\b(?:19|20)\d{2}\b/);
+                        let institution = '';
+                        let degree = '';
 
-                        if (degreeMatch && !degree) degree = degreeMatch[0];
-                        if (institutionMatch && !institution) institution = institutionMatch[0];
-                        if (yearMatch && !graduationDate) graduationDate = yearMatch[0];
+                        for (const line of contextLines) {
+                            if (!institution && line.match(/(?:University|College|Institute|School|Academy)/i)) {
+                                institution = line;
+                            } else if (!degree && line.match(/(?:Bachelor|Master|PhD|B\.S|M\.S|MBA|Associate|Diploma)/i)) {
+                                degree = line;
+                            }
+                        }
 
-                        // Fallback logic
-                        if (!institution && degree && !line.includes(degree)) institution = line;
-                        if (!degree && institution && !line.includes(institution)) degree = line;
-                    }
+                        if (!institution) institution = contextLines.find(l => l !== degree && !l.match(/\d{4}/)) || 'Unknown Institution';
+                        if (!degree) degree = contextLines.find(l => l !== institution && !l.match(/\d{4}/)) || 'Unknown Degree';
 
-                    if (institution || degree) {
                         education.push({
-                            institution: institution || 'Unknown Institution',
-                            degree: degree || 'Unknown Degree',
+                            institution,
+                            degree,
                             field: '',
-                            graduationDate,
+                            graduationDate
                         });
+                    }
+                } else {
+                    // Fallback check for single line parsing
+                    const blocks = eduText.split(/\n\s*\n+/);
+                    for (const block of blocks) {
+                        if (block.length > 10) education.push({ institution: block.split('\n')[0], degree: 'Unknown Degree', graduationDate: '' });
                     }
                 }
             }
