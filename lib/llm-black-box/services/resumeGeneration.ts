@@ -31,6 +31,10 @@ export interface DirectJDContext {
     rawJobDescription: string;       // Full JD text
     jobTitle?: string;               // User-provided or extracted title
     company?: string;                // Company name if known
+    keywords?: {                     // Extracted keywords (New for Hardcore Skills alignment)
+        mustHave: string[];
+        niceToHave: string[];
+    };
 }
 
 /**
@@ -254,8 +258,8 @@ export class ResumeGenerationService {
         const context: GenerationContext = {
             title: directJD.jobTitle || 'Target Role',
             company: directJD.company || '',
-            requiredSkills: [],  // Will be extracted by LLM
-            preferredSkills: [], // Will be extracted by LLM
+            requiredSkills: directJD.keywords?.mustHave || [],  // Pass extracted keywords
+            preferredSkills: directJD.keywords?.niceToHave || [], // Pass extracted keywords
             experienceLevel: 'Mid',
             rawJD: directJD.rawJobDescription,
             unifiedPrompt: unifiedPrompt || undefined,
@@ -651,6 +655,7 @@ Preferred Skills: ${jobAnalysis.preferredSkills.join(', ')}
             job_description: jobDescription,
             responsibilities_text: responsibilitiesText || 'No responsibilities provided',
             user_skills: userSkills || 'No skills provided',
+            must_have_keywords: jobAnalysis.requiredSkills.join(', ') || 'No specific keywords found',
         };
 
         const result = await LLMBlackBox.execute(

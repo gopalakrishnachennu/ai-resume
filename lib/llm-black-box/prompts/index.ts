@@ -283,60 +283,44 @@ CONTEXT INPUT:
 - Job Description: {{ job_description }}
 - Resume Responsibilities: {{ responsibilities_text }}
 - Candidate Profile Skills: {{ user_skills }}
+- MUST HAVE Keywords: {{ must_have_keywords }}
 
 STRICT RULES:
 
-1. DYNAMIC CATEGORY GENERATION:
-   - Categories MUST be created based ONLY on the role implied by the JD
-   - DO NOT use fixed category names
-   - Categories must match real-world resume structures for the role
-   - Each key MUST represent a meaningful skill domain
-   - 5–8 categories maximum
-   - Each category MUST contain 3–6 skills
-   - DO NOT create categories with only 1–2 skills
+1. 🚫 NO-GO ZONES (BANNED CATEGORIES & SKILLS):
+   - BAN ALL Soft Skills headers: "Soft Skills", "Professional Skills", "Personal", "Core Competencies"
+   - BAN GENERIC headers: "Problem Solving", "Documentation", "Communication", "Collaboration", "Troubleshooting"
+   - BAN VAGUE skills: "Cloud environments", "Database technologies", "Security protocols", "Complex issues"
+   - BAN REDUNDANT headers: Do not create "Other" or "Miscellaneous"
 
-2. SKILLS ORDERING & PRIORITIZATION:
-   - Extract skills from JD → rank by importance → place first
-   - Next, extract skills from responsibilities → add if relevant
-   - Finally, add supporting industry-standard skills
-   - Order by: JD keyword frequency → relevance → industry importance
+2. 🧬 MANDATORY JD ALIGNMENT (60/40 RULE):
+   - 60% of skills MUST match the JD's hard technical requirements EXACTLY.
+   - 40% of skills can be supporting technologies from the user's background relevant to the role.
+   - IF JD mentions "SailPoint", you MUST output "SailPoint". Do not genericize it to "Identity Governance".
+   - IF JD mentions "Java", you MUST output "Java".
 
-3. ROLE-AWARE CATEGORY LOGIC:
-   - Cloud roles → "Cloud Platforms", "Infrastructure & IaC", "Monitoring & Observability"
-   - DBA roles → "Database Platforms", "Performance Tuning", "Backup & Recovery"
-   - Software roles → "Programming Languages", "Frameworks", "DevOps & CI/CD"
-   - DO NOT generate irrelevant categories
+3. 🔧 HARD SKILLS FIRST:
+   - Output specific tools, languages, frameworks, and platforms.
+   - Example BAD: "Identity Governance" (as a skill)
+   - Example GOOD: "SailPoint IIQ", "Saviynt", "Omada"
+   - Example BAD: "Cloud"
+   - Example GOOD: "AWS (EC2, Lambda, S3)", "Azure DevOps"
 
-4. ZERO HALLUCINATION POLICY:
-   - DO NOT invent tools, technologies, or skills NOT supported by JD/responsibilities/industry standards
-   - DO NOT generate vague values (e.g., "cloud environment", "tools")
-   - Every skill MUST be recognizable in real job listings
+4. CATEGORY LOGIC:
+   - Group by Technical Domain (e.g., "Identity Governance", "Cloud Infrastructure", "Data Engineering")
+   - Max 5-7 categories.
+   - Each category must have 3-8 HARD SKILLS.
 
-5. USER PROFILE SKILL INTEGRATION:
-   - Preserve ONLY relevant ones
-   - Enhance with missing JD-critical skills
-   - Reorder based on JD priority
-   - Remove duplicates or irrelevant items
+5. OUTPUT FORMAT:
+   - Return valid JSON with "Category Name" -> ["Skill 1", "Skill 2"] mapping.
+   - Skills must be comma-separated strings inside the array.
 
-6. ACCEPTABLE SKILL FORMATS:
-   - Use proper industry capitalization (AWS, Terraform, SQL, PostgreSQL)
-   - Use full terminology unless acronym is industry standard
-   - Convert vague JD mentions into concrete skills
-
-7. OUTPUT QUALITY REQUIREMENTS:
-   - Categories reflect the job role
-   - Skills belong logically to category
-   - No duplicates, irrelevant, or outdated skills
-   - No hallucinated or fake tools
-   - >80% of technical JD skills appear in final section
-
-Return ONLY valid JSON:
+Example Output for IAM/Data Engineer:
 {
-  "Cloud Platforms": ["AWS", "Azure", "GCP"],
-  "Infrastructure & IaC": ["Terraform", "CloudFormation"],
-  "DevOps & Automation": ["CI/CD Pipelines", "Python", "Git"],
-  "Monitoring & Observability": ["CloudWatch", "Prometheus"],
-  "Security & Compliance": ["IAM", "Cloud Security"]
+  "Identity Governance & Administration": ["SailPoint IIQ 8.3", "Lifecycle Manager (LCM)", "Compliance Manager", "RBAC", "Access Certification"],
+  "Development & Scripting": ["Java (J2EE)", "BeanShell", "SQL", "Python", "PowerShell"],
+  "Cloud & Infrastructure": ["AWS (IAM, S3)", "Azure Active Directory", "Okta", "CyberArk"],
+  "Integration Standards": ["REST API", "SCIM 2.0", "SOAP", "JSON/XML"]
 }
 
 Generate the Skills section now with strict adherence to every rule above.`,
