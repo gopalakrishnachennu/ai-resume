@@ -53,6 +53,153 @@ export default function ImportPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [previewData, setPreviewData] = useState<any>(null);
     const [parseError, setParseError] = useState('');
+    const [detectedFormat, setDetectedFormat] = useState<'json' | 'text' | null>(null);
+
+    // Detect input format
+    const detectFormat = (input: string): 'json' | 'text' => {
+        const trimmed = input.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            return 'json';
+        }
+        return 'text';
+    };
+
+    // Parse plain text resume using regex
+    const parseTextResume = (text: string) => {
+        try {
+            setParseError('');
+
+            // Extract email
+            const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+            const email = emailMatch ? emailMatch[0] : '';
+
+            // Extract phone
+            const phoneMatch = text.match(/(?:\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+            const phone = phoneMatch ? phoneMatch[0] : '';
+
+            // Extract name (first line or "Name:" pattern)
+            const nameMatch = text.match(/^(?:Name|Full Name):\s*(.+)$/mi) ||
+                text.match(/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/m);
+            const name = nameMatch ? nameMatch[1]?.trim() : '';
+
+            // Extract summary
+            const summaryMatch = text.match(/(?:Summary|Profile|About|Objective)[:\s]*\n?([\s\S]+?)(?=\n(?:Experience|Work|Employment|Education|Skills|Technical|$))/i);
+            const summary = summaryMatch ? summaryMatch[1]?.trim() : '';
+
+            // Extract experience section
+            const expMatch = text.match(/(?:Experience|Work History|Employment)[:\s]*\n?([\s\S]+?)(?=\n(?:Education|Skills|Technical|Certifications|$))/i);
+            const expText = expMatch ? expMatch[1] : '';
+
+            // Parse experience entries (Company, Title, Bullets)
+            const experience: any[] = [];
+            const expBlocks = expText.split(/\n(?=[A-Z][\w\s]+(?:,|\||\n|$))/);
+            for (const block of expBlocks) {
+                if (!block.trim()) continue;
+                const lines = block.trim().split('\n');
+                const firstLine = lines[0] || '';
+
+                // Try to extract company and title
+                const companyTitleMatch = firstLine.match(/^(.+?)(?:\s*[-|,]\s*|\s+at\s+)(.+?)(?:\s*[-|,]\s*|$)/i);
+                let company = '', title = '';
+                if (companyTitleMatch) {
+                    title = companyTitleMatch[1]?.trim() || '';
+                    company = companyTitleMatch[2]?.trim() || '';
+                } else {
+                    company = firstLine.trim();
+                }
+
+                // Extract dates
+                const dateMatch = block.match(/(\w+\s+\d{4}|\d{4})\s*[-–to]+\s*(\w+\s+\d{4}|\d{4}|Present|Current)/i);
+                const startDate = dateMatch ? dateMatch[1] : '';
+                const endDate = dateMatch ? dateMatch[2] : 'Present';
+
+                // Extract bullet points
+                const bullets = lines.slice(1)
+                    .map(l => l.replace(/^[\s•\-*]+/, '').trim())
+                    .filter(l => l.length > 10);
+
+                if (company || title) {
+                    experience.push({
+                        company,
+                        title,
+                        startDate,
+                        endDate,
+                        description: '',
+                        highlights: bullets,
+                    });
+                }
+            }
+
+            // Extract education
+            const eduMatch = text.match(/(?:Education)[:\s]*\n?([\s\S]+?)(?=\n(?:Skills|Technical|Certifications|$))/i);
+            const eduText = eduMatch ? eduMatch[1] : '';
+            const education: any[] = [];
+            const eduLines = eduText.split('\n').filter(l => l.trim());
+            for (let i = 0; i < eduLines.length; i++) {
+                const line = eduLines[i].trim();
+                const degreeMatch = line.match(/(Bachelor|Master|PhD|B\.S\.|M\.S\.|MBA|Associate|Diploma)[^\n]*/i);
+                const institutionMatch = line.match(/(?:University|College|Institute|School)[^\n]*/i);
+                if (degreeMatch || institutionMatch) {
+                    education.push({
+                        institution: institutionMatch ? institutionMatch[0] : line,
+                        degree: degreeMatch ? degreeMatch[0] : '',
+                        field: '',
+                        graduationDate: '',
+                    });
+                }
+            }
+
+            // Extract skills (Key: Value format)
+            const skillsMatch = text.match(/(?:Skills|Technical Skills)[:\s]*\n?([\s\S]+)$/i);
+            const skillsText = skillsMatch ? skillsMatch[1] : '';
+            const technicalSkills: Record<string, string[]> = {};
+
+            // Parse "Category: skill1, skill2" or "**Category**: skill1, skill2"
+            const skillLines = skillsText.split('\n').filter(l => l.trim());
+            for (const line of skillLines) {
+                const kvMatch = line.match(/^\*{0,2}([^:*]+)\*{0,2}:\s*(.+)$/);
+                if (kvMatch) {
+                    const category = kvMatch[1].trim();
+                    const skills = kvMatch[2].split(/[,;]/).map(s => s.trim()).filter(Boolean);
+                    technicalSkills[category] = skills;
+                } else {
+                    // Fallback: treat as comma-separated list
+                    const skills = line.split(/[,;]/).map(s => s.replace(/^[\s•\-*]+/, '').trim()).filter(s => s.length > 1);
+                    if (skills.length > 0) {
+                        const existingKey = Object.keys(technicalSkills).find(k => k === 'Other Skills');
+                        if (existingKey) {
+                            technicalSkills[existingKey].push(...skills);
+                        } else {
+                            technicalSkills['Other Skills'] = skills;
+                        }
+                    }
+                }
+            }
+
+            const resumeData = {
+                personalInfo: {
+                    fullName: name,
+                    email,
+                    phone,
+                    location: '',
+                    linkedin: '',
+                    portfolio: '',
+                },
+                professionalSummary: summary,
+                technicalSkills,
+                experience,
+                education,
+            };
+
+            setPreviewData(resumeData);
+            return resumeData;
+        } catch (e) {
+            console.error('Text parse error:', e);
+            setParseError('Could not parse text. Try using the JSON format for best results.');
+            setPreviewData(null);
+            return null;
+        }
+    };
 
     // Parse JSON and convert to app format
     const parseJSONResume = (jsonStr: string) => {
@@ -104,14 +251,23 @@ export default function ImportPage() {
         }
     };
 
-    // Handle JSON input change with debounced parsing
+    // Handle input change with smart format detection
     const handleJsonChange = (value: string) => {
         setJsonInput(value);
-        if (value.trim()) {
-            parseJSONResume(value);
-        } else {
+        if (!value.trim()) {
             setPreviewData(null);
             setParseError('');
+            setDetectedFormat(null);
+            return;
+        }
+
+        const format = detectFormat(value);
+        setDetectedFormat(format);
+
+        if (format === 'json') {
+            parseJSONResume(value);
+        } else {
+            parseTextResume(value);
         }
     };
 
@@ -231,7 +387,7 @@ export default function ImportPage() {
                         Quick Format Resume
                     </h1>
                     <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-                        Import your resume in JSON Resume format, format it beautifully, and download as PDF or DOCX.
+                        Paste your resume in <strong>any format</strong> (JSON or plain text), preview it, and open in the editor.
                     </p>
                 </div>
 
@@ -252,26 +408,47 @@ export default function ImportPage() {
                             />
                         </div>
 
-                        {/* JSON Input */}
+                        {/* Input - Now accepts any format */}
                         <div className="glass rounded-2xl p-6 border border-white/50">
                             <div className="flex justify-between items-center mb-4">
-                                <label className="text-sm font-semibold text-slate-700">
-                                    JSON Resume Data
-                                </label>
+                                <div className="flex items-center gap-3">
+                                    <label className="text-sm font-semibold text-slate-700">
+                                        Paste Your Resume
+                                    </label>
+                                    {detectedFormat && (
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${detectedFormat === 'json'
+                                            ? 'bg-blue-100 text-blue-700'
+                                            : 'bg-green-100 text-green-700'
+                                            }`}>
+                                            {detectedFormat === 'json' ? '📦 JSON' : '📝 Text'}
+                                        </span>
+                                    )}
+                                </div>
                                 <label className="cursor-pointer px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-600 transition-colors">
                                     <input
                                         type="file"
-                                        accept=".json"
+                                        accept=".json,.txt,.md"
                                         onChange={handleFileUpload}
                                         className="hidden"
                                     />
-                                    📁 Upload JSON
+                                    📁 Upload File
                                 </label>
                             </div>
                             <textarea
                                 value={jsonInput}
                                 onChange={(e) => handleJsonChange(e.target.value)}
-                                placeholder="Paste your JSON Resume here..."
+                                placeholder={`Paste your resume here (JSON or Plain Text)...
+
+Examples:
+• JSON: { "basics": { "name": "John Doe" }, ... }
+• Plain Text:
+  Name: John Doe
+  Summary: Experienced engineer...
+  Experience:
+  Senior Engineer at Google | Jan 2020 - Present
+  - Led team of 5 engineers
+  Skills:
+  Cloud: AWS, Azure, GCP`}
                                 className="w-full h-80 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono text-sm resize-none transition-all"
                             />
                             {parseError && (
